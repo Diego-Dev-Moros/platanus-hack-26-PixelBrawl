@@ -82,6 +82,23 @@ function addLabel(scene, x, y, text, size, color, align) {
   });
 }
 
+function anyOf(scene, codes) { return codes.some(c => scene.ctrl.pressed[c]); }
+
+function drawBg(scene, title) {
+  scene.add.rectangle(W / 2, H / 2, W, H, C.bg);
+  const g = scene.add.graphics().lineStyle(1, C.grid, 0.42);
+  for (let x = 0; x <= W; x += 40) g.lineBetween(x, 0, x, H);
+  for (let y = 0; y <= H; y += 40) g.lineBetween(0, y, W, y);
+  g.lineStyle(2, C.frame, 0.8).strokeRect(28, 28, W - 56, H - 56);
+  if (title) addLabel(scene, W / 2, 52, title, 30, C.text, 'center').setOrigin(0.5);
+}
+
+function drawFighter(scene, x, y, ch, s) {
+  scene.add.rectangle(x, y + 12 * s, 44 * s, 72 * s, ch.color);
+  if (ch.head) scene.add.rectangle(x, y - 42 * s, 28 * s, 24 * s, ch.accent);
+  else scene.add.circle(x, y - 42 * s, 14 * s, ch.accent);
+}
+
 function hitRect(a, b) {
   return Math.abs(a.x - b.x) * 2 < a.w + b.w && Math.abs(a.y - b.y) * 2 < a.h + b.h;
 }
@@ -104,66 +121,162 @@ class BootScene extends Phaser.Scene {
   create() { this.scene.start('Menu'); }
 }
 
+// ── Main Menu ──────────────────────────────────────────────────────────────
+
 class MenuScene extends Phaser.Scene {
   constructor() { super('Menu'); }
-
   create() {
     bindKeys(this);
-    this.step = 0;
+    this.sel = 0;
+    this.OPTS = ['PLAY', 'CONTROLS', 'CREDITS', 'EXIT'];
+    drawBg(this, 'PIXEL BRAWL');
+    addLabel(this, W / 2, 92, 'LOCAL ARCADE PLATFORM FIGHTER', 13, C.dim, 'center').setOrigin(0.5);
+    drawFighter(this, W / 2 - 82, 202, CHARS[0], 1);
+    drawFighter(this, W / 2,      194, CHARS[1], 1.1);
+    drawFighter(this, W / 2 + 82, 202, CHARS[2], 1);
+    this.items = this.OPTS.map((t, i) =>
+      addLabel(this, W / 2, 312 + i * 48, t, 26, C.dim, 'center').setOrigin(0.5)
+    );
+    this.note = addLabel(this, W / 2, H - 50, '', 12, '#ff7a7a', 'center').setOrigin(0.5);
+    addLabel(this, W / 2, H - 28, 'W/S  ·  ARROWS = NAVIGATE     ENTER = SELECT', 12, C.dim, 'center').setOrigin(0.5);
+    this.refresh();
+  }
+  update() {
+    if (anyOf(this, ['P1_U', 'P2_U'])) this.sel = (this.sel + this.OPTS.length - 1) % this.OPTS.length;
+    if (anyOf(this, ['P1_D', 'P2_D'])) this.sel = (this.sel + 1) % this.OPTS.length;
+    if (anyOf(this, ['START1', 'START2', 'P2_4', 'P1_5'])) this.confirm();
+    this.refresh();
+    flush(this);
+  }
+  confirm() {
+    tone(this, 420, 'square', 0.05, 0.07);
+    const opt = this.OPTS[this.sel];
+    if (opt === 'PLAY') this.scene.start('Select');
+    else if (opt === 'CONTROLS') this.scene.start('Controls');
+    else if (opt === 'CREDITS') this.scene.start('Credits');
+    else { this.note.setText('EXIT NOT AVAILABLE IN BROWSER'); try { window.close(); } catch (_) {} }
+  }
+  refresh() {
+    for (let i = 0; i < this.items.length; i++) {
+      const on = i === this.sel;
+      this.items[i].setText((on ? '▶  ' : '   ') + this.OPTS[i])
+        .setColor(on ? C.text : C.dim).setFontSize(on ? '28px' : '24px');
+    }
+  }
+}
+
+// ── Character Select ───────────────────────────────────────────────────────
+
+class CharacterSelectScene extends Phaser.Scene {
+  constructor() { super('Select'); }
+  create() {
+    bindKeys(this);
     this.sel = [0, 1];
     this.lock = [0, 0];
     this.cards = [];
-    this.add.rectangle(W / 2, H / 2, W, H, C.bg);
-    const g = this.add.graphics().lineStyle(1, C.grid, 0.45);
-    for (let x = 0; x <= W; x += 40) g.lineBetween(x, 0, x, H);
-    for (let y = 0; y <= H; y += 40) g.lineBetween(0, y, W, y);
-    g.lineStyle(2, C.frame, 0.8).strokeRect(26, 26, W - 52, H - 52);
-    addLabel(this, W / 2, 54, 'SELECT YOUR BRAWLER', 28, C.text, 'center').setOrigin(0.5);
-    this.sub = addLabel(this, W / 2, 92, '', 13, C.dim, 'center').setOrigin(0.5);
-    this.tip = addLabel(this, W / 2, 548, 'MATCH: ATTACK 1 / DASH 2 / SPECIAL 3', 12, C.dim, 'center').setOrigin(0.5);
+    drawBg(this, 'SELECT YOUR BRAWLER');
     for (let i = 0; i < 3; i++) {
-      const ch = CHARS[i], x = 160 + i * 240, y = 300;
-      const box = this.add.rectangle(x, y, 180, 250, 0x0d1d31).setStrokeStyle(2, 0x2c4f6d);
-      const body = this.add.rectangle(x, y + 12, 44, 72, ch.color);
-      const head = ch.head ? this.add.rectangle(x, y - 42, 28, 24, ch.accent) : this.add.circle(x, y - 42, 14, ch.accent);
-      const name = addLabel(this, x, y - 110, ch.name, 18, '#ffffff', 'center').setOrigin(0.5);
-      const line = addLabel(this, x, y + 90, ch.line, 12, C.dim, 'center').setOrigin(0.5);
-      const mark = addLabel(this, x, y + 116, '', 12, '#ffffff', 'center').setOrigin(0.5);
-      this.cards.push({ box, body, head, name, line, mark });
+      const ch = CHARS[i], x = 160 + i * 240, y = 290;
+      const box = this.add.rectangle(x, y, 186, 256, 0x0c1b2e).setStrokeStyle(2, 0x1e3a58);
+      drawFighter(this, x, y, ch, 1);
+      addLabel(this, x, y - 112, ch.name, 18, '#ffffff', 'center').setOrigin(0.5);
+      addLabel(this, x, y + 90,  ch.line, 11, C.dim,     'center').setOrigin(0.5);
+      const mark = addLabel(this, x, y + 114, '', 12, '#ffffff', 'center').setOrigin(0.5);
+      this.cards.push({ box, mark });
     }
+    this.status = addLabel(this, W / 2, H - 68, '', 16, C.text, 'center').setOrigin(0.5);
+    addLabel(this, W / 2, H - 42, 'P1: A/D + F TO LOCK   ·   P2: ARROWS + K TO LOCK   ·   ENTER = START', 11, C.dim, 'center').setOrigin(0.5);
     this.refresh();
   }
-
   update() {
-    if (this.step === 0) {
+    // P1 navigation: A/D — lock: F (= P2_4 in cabinet wiring)
+    if (!this.lock[0]) {
       if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
       if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
-      if (this.ctrl.pressed.P1_1 || this.ctrl.pressed.P1_4) { this.lock[0] = 1; this.step = 1; tone(this, 480, 'square', 0.06, 0.08); }
-    } else {
+      if (this.ctrl.pressed.P2_4) { this.lock[0] = 1; tone(this, 480, 'square', 0.06, 0.08); }
+    }
+    // P2 navigation: Arrows — lock: K (= P1_5 in cabinet wiring)
+    if (!this.lock[1]) {
       if (this.ctrl.pressed.P2_L) this.sel[1] = (this.sel[1] + 2) % 3;
       if (this.ctrl.pressed.P2_R) this.sel[1] = (this.sel[1] + 1) % 3;
-      if (this.ctrl.pressed.P2_1 || this.ctrl.pressed.P2_4) {
-        this.lock[1] = 1; tone(this, 620, 'square', 0.06, 0.08);
-        this.scene.start('Game', { picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
-        return;
-      }
+      if (this.ctrl.pressed.P1_5) { this.lock[1] = 1; tone(this, 620, 'square', 0.06, 0.08); }
+    }
+    if (this.lock[0] && this.lock[1] && anyOf(this, ['START1', 'START2'])) {
+      tone(this, 700, 'square', 0.06, 0.1);
+      this.scene.start('Game', { picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
+      return;
     }
     this.refresh();
     flush(this);
   }
-
   refresh() {
-    this.sub.setText(this.step ? 'P2: LEFT/RIGHT + R or F' : 'P1: A/D + U or J');
     for (let i = 0; i < this.cards.length; i++) {
-      const c = this.cards[i];
-      let stroke = 0x2c4f6d, fill = 0x0d1d31, mark = '';
-      if (!this.lock[0] && this.sel[0] === i) { stroke = 0x8affd2; fill = 0x133126; mark = 'P1'; }
-      if (!this.lock[1] && this.sel[1] === i) { stroke = 0xff93ba; fill = 0x311322; mark = mark ? mark + ' / P2' : 'P2'; }
-      if (this.lock[0] && this.sel[0] === i) mark = 'P1 LOCKED';
-      if (this.lock[1] && this.sel[1] === i) mark = this.lock[0] && this.sel[0] === i ? 'P1 LOCKED / P2 LOCKED' : 'P2 LOCKED';
-      c.box.setFillStyle(fill).setStrokeStyle(2, stroke);
-      c.mark.setText(mark);
+      let stroke = 0x1e3a58, fill = 0x0c1b2e, mark = '';
+      const p1 = this.sel[0] === i, p2 = this.sel[1] === i;
+      if (p1 && !this.lock[0]) { stroke = 0x00d4aa; fill = 0x0e2820; mark = 'P1'; }
+      if (p2 && !this.lock[1]) { stroke = 0xff4488; fill = 0x2a0e1c; mark = mark ? mark + ' / P2' : 'P2'; }
+      if (p1 && this.lock[0]) { stroke = 0x00ffcc; fill = 0x0f2e1e; mark = 'P1 LOCKED'; }
+      if (p2 && this.lock[1]) {
+        stroke = 0xff88bb; fill = 0x2a1020;
+        mark = (p1 && this.lock[0]) ? 'P1 LOCKED / P2 LOCKED' : 'P2 LOCKED';
+      }
+      this.cards[i].box.setFillStyle(fill).setStrokeStyle(2, stroke);
+      this.cards[i].mark.setText(mark);
     }
+    const both = this.lock[0] && this.lock[1];
+    const p1s = this.lock[0] ? 'P1 LOCKED' : 'WAITING FOR P1';
+    const p2s = this.lock[1] ? 'P2 LOCKED' : 'WAITING FOR P2';
+    this.status.setText(both ? 'PRESS ENTER TO START' : p1s + '   ·   ' + p2s).setColor(both ? C.text : C.dim);
+  }
+}
+
+// ── Controls Screen ────────────────────────────────────────────────────────
+
+class ControlsScene extends Phaser.Scene {
+  constructor() { super('Controls'); }
+  create() {
+    bindKeys(this);
+    drawBg(this, 'CONTROLS');
+    const cx = W / 2;
+    addLabel(this, cx - 200, 148, 'PLAYER 1', 20, C.p1, 'center').setOrigin(0.5);
+    [['A / D', 'MOVE'], ['W', 'JUMP  (double jump)'], ['F', 'ATTACK'], ['G', 'DASH + SPECIAL']].forEach(([k, v], i) => {
+      addLabel(this, cx - 296, 194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
+      addLabel(this, cx - 196, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
+    });
+    this.add.graphics().lineStyle(1, C.grid, 0.5).lineBetween(cx, 138, cx, 360);
+    addLabel(this, cx + 200, 148, 'PLAYER 2', 20, C.p2, 'center').setOrigin(0.5);
+    [['← / →', 'MOVE'], ['↑', 'JUMP  (double jump)'], ['K', 'ATTACK'], ['L', 'DASH + SPECIAL']].forEach(([k, v], i) => {
+      addLabel(this, cx + 40,  194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
+      addLabel(this, cx + 140, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
+    });
+    addLabel(this, cx, 400, 'WIN BY KNOCKING YOUR RIVAL OUT OF BOUNDS.', 13, C.dim, 'center').setOrigin(0.5);
+    addLabel(this, cx, H - 30, 'PRESS ENTER TO RETURN', 13, '#fff0aa', 'center').setOrigin(0.5);
+  }
+  update() {
+    if (anyOf(this, ['START1', 'START2', 'P1_1', 'P2_1'])) this.scene.start('Menu');
+    flush(this);
+  }
+}
+
+// ── Credits Screen ─────────────────────────────────────────────────────────
+
+class CreditsScene extends Phaser.Scene {
+  constructor() { super('Credits'); }
+  create() {
+    bindKeys(this);
+    drawBg(this, 'CREDITS');
+    const cx = W / 2, cy = H / 2;
+    addLabel(this, cx, cy - 108, 'PLATANUS HACK 26', 22, C.text,   'center').setOrigin(0.5);
+    addLabel(this, cx, cy -  72, 'BUENOS AIRES',     18, C.dim,    'center').setOrigin(0.5);
+    addLabel(this, cx, cy -  42, 'ARCADE CHALLENGE', 18, C.dim,    'center').setOrigin(0.5);
+    addLabel(this, cx, cy +  10, 'DEVELOPED BY',     12, C.dim,    'center').setOrigin(0.5);
+    addLabel(this, cx, cy +  50, 'ALEJANDRO BIARRIETA', 22, '#fff0aa', 'center').setOrigin(0.5);
+    addLabel(this, cx, cy +  84, 'DIEGO MOROS',         22, '#fff0aa', 'center').setOrigin(0.5);
+    addLabel(this, cx, H - 30,   'PRESS ENTER TO RETURN', 13, C.dim, 'center').setOrigin(0.5);
+  }
+  update() {
+    if (anyOf(this, ['START1', 'START2', 'P1_1', 'P2_1'])) this.scene.start('Menu');
+    flush(this);
   }
 }
 
@@ -292,13 +405,19 @@ class GameScene extends Phaser.Scene {
   }
 
   handleActions(p) {
-    const A = p.idx ? 'P2_1' : 'P1_1';
-    const D = p.idx ? 'P2_2' : 'P1_2';
-    const S = p.idx ? 'P2_3' : 'P1_3';
+    // P1: F (P2_4) = attack, G (P2_5) = dash+special
+    // P2: K (P1_5) = attack, L (P1_6) = dash+special
+    const atkCode = p.idx ? 'P1_5' : 'P2_4';
+    const altCode = p.idx ? 'P1_6' : 'P2_5';
+    const L = p.idx ? 'P2_L' : 'P1_L', R = p.idx ? 'P2_R' : 'P1_R';
+    const moving = this.ctrl.held[L] || this.ctrl.held[R];
     if (p.stun > 0) return;
-    if (this.ctrl.pressed[A] && p.atkCd <= 0) this.basicAttack(p);
-    if (this.ctrl.pressed[D] && p.dashCd <= 0 && p.fatigue <= 0) this.doDash(p);
-    if (this.ctrl.pressed[S] && p.spCd <= 0 && p.fatigue <= 0) this.doSpecial(p);
+    if (this.ctrl.pressed[atkCode] && p.atkCd <= 0) this.basicAttack(p);
+    if (this.ctrl.pressed[altCode] && p.fatigue <= 0) {
+      if (moving && p.dashCd <= 0) this.doDash(p);
+      else if (p.spCd <= 0) this.doSpecial(p);
+      else if (p.dashCd <= 0) this.doDash(p);
+    }
   }
 
   basicAttack(p) {
@@ -489,7 +608,7 @@ const config = {
   backgroundColor: '#08111f',
   physics: { default: 'arcade', arcade: { gravity: { y: GRAVITY }, debug: false } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, MenuScene, GameScene, EndScene],
+  scene: [BootScene, MenuScene, CharacterSelectScene, ControlsScene, CreditsScene, GameScene, EndScene],
 };
 
 new Phaser.Game(config);
