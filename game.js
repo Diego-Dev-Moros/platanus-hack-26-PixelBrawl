@@ -112,43 +112,51 @@ function drawBg(scene, title) {
 
 function buildFighter(scene, x, y, ch, s) {
   const c = scene.add.container(x, y).setScale(s);
-  const r = (cx, cy, w, h, col) => c.add(scene.add.rectangle(cx, cy, w, h, col));
-  if (ch.id === 'pulse') {
-    r( 0,  -16, 12, 10, 0x00e5ff);  // head
-    r( 0,  -15,  8,  2, 0xffffff);  // visor
-    r( 0,  -10,  6,  4, 0x007799);  // neck
-    r( 0,    1, 16, 22, 0x007799);  // torso
-    r( 0,   -1,  5,  5, 0x00e5ff);  // core gem
-    r(-12,  -2,  8,  4, 0x00e5ff);  // L arm
-    r( 12,  -2,  8,  4, 0x00e5ff);  // R arm
-    r(-5,   16,  6, 12, 0x005566);  // L leg
-    r( 5,   16,  6, 12, 0x005566);  // R leg
-    r(-5,   23,  8,  4, 0x00e5ff);  // L boot
-    r( 5,   23,  8,  4, 0x00e5ff);  // R boot
-  } else if (ch.id === 'volt') {
-    r( 0,  -17, 14, 10, 0xffdd00);  // head
-    r( 0,  -17, 10,  2, 0xff7a00);  // visor
-    r(-12,  -8, 10,  5, 0xff7a00);  // L shoulder
-    r( 12,  -8, 10,  5, 0xff7a00);  // R shoulder
-    r( 0,    1, 18, 20, 0xddaa00);  // torso
-    r( 0,   11, 18,  3, 0xff7a00);  // belt stripe
-    r(-5,   18,  8, 10, 0x886600);  // L leg
-    r( 5,   18,  8, 10, 0x886600);  // R leg
-    r(-5,   25, 10,  4, 0xffdd00);  // L boot
-    r( 5,   25, 10,  4, 0xffdd00);  // R boot
-  } else {
-    r( 0,  -15, 18, 12, 0xff3cac);  // head
-    r( 0,  -15, 12,  3, 0xff5a36);  // visor
-    r( 0,   -8, 12,  5, 0xcc1a7a);  // neck guard
-    r( 0,    3, 24, 22, 0xcc1a7a);  // torso
-    r( 0,    0, 16,  8, 0xff3cac);  // chest plate
-    r(-15,   2, 10,  6, 0xff5a36);  // L arm
-    r( 15,   2, 10,  6, 0xff5a36);  // R arm
-    r(-6,   18, 10,  8, 0xff3cac);  // L knee
-    r( 6,   18, 10,  8, 0xff3cac);  // R knee
-    r(-6,   25, 12,  5, 0xff5a36);  // L boot
-    r( 6,   25, 12,  5, 0xff5a36);  // R boot
-  }
+  // Each entry: [x, y, w, h, color] — drawn back-to-front (shadow first, details last)
+  const P = {
+    pulse: [
+      // shadows (+2 right/down peek)
+      [ 2,-15,10, 9,0x002233],[ 2,  2,12,17,0x002233],
+      // head + visor
+      [ 0,-17,10, 9,0x0088aa],[ 0,-18,10, 2,0xffffff],[ 4,-18, 3, 2,0x00e5ff],
+      // torso: dark base + lit front strip + layered energy core
+      [ 0,  0,12,17,0x006688],[-1, -1, 5,15,0x00aacc],[ 0,  1, 5, 5,0x00ccee],[ 0,  1, 3, 3,0xffffff],
+      // shoulder pads + slim dark arms + energy cuffs
+      [-9, -8, 8, 4,0x00e5ff],[ 9, -8, 8, 4,0x00e5ff],
+      [-12,  0, 5,10,0x004455],[ 12,  0, 5,10,0x004455],[-12,  7, 6, 4,0x00e5ff],[ 12,  7, 6, 4,0x00e5ff],
+      // legs + boots
+      [-4, 13, 6,12,0x002233],[ 4, 13, 6,12,0x002233],[-4, 22, 8, 4,0x0088aa],[ 4, 22, 8, 4,0x0088aa],
+    ],
+    volt: [
+      // shadows
+      [ 2,-15,14,10,0x331100],[ 2,  2,18,16,0x331100],
+      // torso (behind arms) + lightning mark + belt
+      [ 0, -1,18,16,0xddaa00],[ 0, -4, 4,10,0xffee44],[ 0, 12,18, 3,0x332200],
+      // arms: wide upper + heavy forearms (drawn in front of torso)
+      [-13, -2, 8, 6,0xcc9900],[ 13, -2, 8, 6,0xcc9900],[-13,  5, 9, 8,0x886600],[ 13,  5, 9, 8,0x886600],
+      // shoulder plates (drawn last = in front of arms)
+      [-12, -8,12, 6,0xff7a00],[ 12, -8,12, 6,0xff7a00],
+      // head + brow crest + visor slit
+      [ 0,-18,14,10,0xcc9900],[ 0,-22,10, 5,0xff7a00],[ 0,-18, 9, 2,0x221100],
+      // legs + boots
+      [-5, 16, 8, 9,0x553300],[ 5, 16, 8, 9,0x553300],[-5, 26,10, 5,0xffdd00],[ 5, 26,10, 5,0xffdd00],
+    ],
+    crush: [
+      // shadows
+      [ 2,-13,18,12,0x220010],[ 2,  2,24,20,0x220010],
+      // head + visor stripe
+      [ 0,-15,18,12,0xcc1a7a],[ 0,-15,12, 3,0xff5a36],
+      // wide torso + raised chest plate
+      [ 0,  0,24,20,0x880a40],[ 0, -2,16,10,0xff3cac],
+      // heavy arms: upper + thick forearms + bracer studs
+      [-13, -1,12, 8,0xaa1855],[ 13, -1,12, 8,0xaa1855],[-14,  8,13, 8,0x440020],[ 14,  8,13, 8,0x440020],
+      [-14, 14, 4, 3,0xff5a36],[ 14, 14, 4, 3,0xff5a36],
+      // waist + wide thighs + boots
+      [ 0, 16,24, 4,0x220010],[-6, 18,10,12,0x550030],[ 6, 18,10,12,0x550030],[-6, 28,12, 5,0xff5a36],[ 6, 28,12, 5,0xff5a36],
+    ],
+  };
+  for (const [px,py,pw,ph,pc] of (P[ch.id]||P.pulse))
+    c.add(scene.add.rectangle(px,py,pw,ph,pc));
   return c;
 }
 
