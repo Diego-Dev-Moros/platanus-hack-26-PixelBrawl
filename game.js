@@ -152,6 +152,123 @@ function burst(scene, x, y, color, n) {
   }
 }
 
+// ── Desert background ─────────────────────────────────────────────────────
+
+function createDesertBackground(scene) {
+  // Sky (static) ────────────────────────────────────────────────────────────
+  const sk = scene.add.graphics();
+  sk.fillStyle(0x1a0a04, 1); sk.fillRect(0, 0, W, H);
+  sk.fillStyle(0x250e06, 0.55); sk.fillRect(0, 160, W, H - 160);
+  sk.fillStyle(0x300e04, 0.32); sk.fillRect(0, 340, W, H - 340);
+  // Sun glow layers
+  sk.fillStyle(0xc85000, 0.10); sk.fillCircle(138, 106, 98);
+  sk.fillStyle(0xdc6a10, 0.22); sk.fillCircle(138, 106, 66);
+  sk.fillStyle(0xee8820, 0.50); sk.fillCircle(138, 106, 44);
+  sk.fillStyle(0xffa040, 0.80); sk.fillCircle(138, 106, 26);
+  sk.fillStyle(0xffc870, 1.00); sk.fillCircle(138, 106, 14);
+  // Subtle noise dots
+  sk.fillStyle(0xc08040, 0.18);
+  [[300,40],[440,68],[560,30],[690,55],[740,22],[780,48],
+   [200,88],[360,94],[520,75],[660,90]].forEach(([x, y]) => sk.fillRect(x, y, 2, 2));
+
+  // Far layer — slow-scrolling building silhouettes ──────────────────────────
+  scene.bgFar = scene.add.container(0, 0);
+  const fg = scene.add.graphics();
+  scene.bgFar.add(fg);
+  const FAR = [
+    [40,42,165],[108,28,128],[178,50,195],[262,34,112],
+    [360,46,175],[460,26,108],[544,52,185],[640,36,138],
+    [718,44,162],[790,28,118],
+  ];
+  FAR.forEach(([bx, bw, bh]) => {
+    [0, W].forEach(ox => {
+      fg.fillStyle(0x0e0706, 1);
+      fg.fillRect(ox + bx - bw / 2, H - bh, bw, bh);
+      fg.fillStyle(0x1a0a04, 1);
+      fg.fillRect(ox + bx - bw / 2 + 3, H - bh, 6, ~~(bh * 0.10));
+      fg.fillRect(ox + bx + bw / 2 - 11, H - bh, 7, ~~(bh * 0.07));
+    });
+  });
+
+  // Mid layer — dunes + ruins, scrolls faster ────────────────────────────────
+  scene.bgMid = scene.add.container(0, 0);
+  const mg = scene.add.graphics();
+  scene.bgMid.add(mg);
+
+  // Sine-wave dunes — frequencies chosen so W is an integer number of periods
+  // (n * 2π / W) ensures seamless wrap when container resets by W
+  const dune = (baseY, amp, freq, col) => {
+    mg.fillStyle(col, 1);
+    [0, W].forEach(ox => {
+      mg.beginPath();
+      mg.moveTo(ox - 20, baseY + amp * Math.sin((ox - 20) * freq));
+      for (let x = ox - 14; x <= ox + W + 20; x += 6)
+        mg.lineTo(x, baseY + amp * Math.sin(x * freq));
+      mg.lineTo(ox + W + 20, H);
+      mg.lineTo(ox - 20, H);
+      mg.closePath();
+      mg.fillPath();
+    });
+  };
+  dune(442, 20, 8 * Math.PI / W,  0x1e0f06);  // 4 periods
+  dune(460, 14, 10 * Math.PI / W, 0x180c04);  // 5 periods
+  dune(474, 10, 12 * Math.PI / W, 0x120902);  // 6 periods
+
+  // Half-buried ruins above dunes
+  [[80,16,52],[212,20,66],[388,14,48],[552,18,58],[726,16,54]].forEach(([rx, rw, rh]) => {
+    [0, W].forEach(ox => {
+      mg.fillStyle(0x0e0a04, 1);
+      mg.fillRect(ox + rx - rw / 2, 438 - rh, rw, rh);
+      mg.fillRect(ox + rx - rw / 2 + 2, 438 - rh - 10, 5, 10);
+    });
+  });
+
+  // Particles layer — dust and wind streaks ─────────────────────────────────
+  scene.bgParticles = scene.add.container(0, 0);
+  scene.dustParticles = [];
+  scene.windStreaks = [];
+
+  for (let i = 0; i < 22; i++) {
+    const r = scene.add.rectangle(
+      Phaser.Math.Between(0, W), Phaser.Math.Between(200, H - 60),
+      Phaser.Math.Between(2, 5), 1, 0xc89a50,
+      Phaser.Math.FloatBetween(0.12, 0.40)
+    );
+    scene.bgParticles.add(r);
+    scene.dustParticles.push({ r, spd: Phaser.Math.FloatBetween(18, 55) });
+  }
+  for (let i = 0; i < 10; i++) {
+    const len = Phaser.Math.Between(28, 72);
+    const r = scene.add.rectangle(
+      Phaser.Math.Between(-W, W), Phaser.Math.Between(100, H - 80),
+      len, 1, 0xd0a060,
+      Phaser.Math.FloatBetween(0.06, 0.22)
+    );
+    scene.bgParticles.add(r);
+    scene.windStreaks.push({ r, spd: Phaser.Math.FloatBetween(70, 160) });
+  }
+}
+
+function updateBackground(scene, delta) {
+  if (!scene.bgFar) return;
+  const s = delta / 1000;
+  // Parallax scroll — far moves slower than mid
+  scene.bgFar.x -= 18 * s;
+  if (scene.bgFar.x <= -W) scene.bgFar.x += W;
+  scene.bgMid.x -= 42 * s;
+  if (scene.bgMid.x <= -W) scene.bgMid.x += W;
+  // Dust drifts right
+  for (const d of scene.dustParticles) {
+    d.r.x += d.spd * s;
+    if (d.r.x > W + 5) d.r.x = -5;
+  }
+  // Wind streaks move right, faster
+  for (const w of scene.windStreaks) {
+    w.r.x += w.spd * s;
+    if (w.r.x > W + w.r.width / 2) w.r.x = -w.r.width / 2;
+  }
+}
+
 class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
   create() { this.scene.start('Menu'); }
@@ -331,94 +448,14 @@ class GameScene extends Phaser.Scene {
   }
 
   drawStage() {
-    // ── Sky ──────────────────────────────────────────────────────────────
-    this.add.rectangle(W / 2, H / 2, W, H, 0x06101c);
+    createDesertBackground(this);
+    // Arena overlay — sits above desert, below platforms and players
     const g = this.add.graphics();
-
-    // Horizon fire glow
-    g.fillStyle(0x1c0808, 0.48); g.fillRect(0, 370, W, H - 370);
-    g.fillStyle(0x280d06, 0.30); g.fillRect(0, 455, W, H - 455);
-
-    // Moon + aura rings
-    g.fillStyle(0xc6a448, 0.62); g.fillCircle(652, 72, 34);
-    g.fillStyle(0xaa8832, 0.08); g.fillCircle(652, 72, 58);
-    g.fillStyle(0x906820, 0.04); g.fillCircle(652, 72, 82);
-
-    // Fixed star field
-    g.fillStyle(0xffffff, 0.65);
-    [[26,22],[74,48],[108,14],[162,38],[218,20],[266,54],[338,12],[376,44],
-     [448,28],[512,18],[552,44],[610,22],[692,56],[728,18],[762,38],[794,26],
-     [44,82],[152,76],[296,90],[468,66],[642,84],[736,72]
-    ].forEach(([sx, sy]) => g.fillRect(sx, sy, 2, 2));
-
-    // ── Far buildings (darkest silhouettes) ──────────────────────────────
-    const FAR = [
-      [50, 44, 220],[118, 30, 172],[186, 56, 258],[308, 38, 146],
-      [492, 34, 164],[576, 62, 238],[658, 44, 194],[726, 50, 206],
-    ];
-    FAR.forEach(([bx, bw, bh]) => {
-      g.fillStyle(0x070b12, 1);
-      g.fillRect(bx - bw/2, H - bh, bw, bh);
-      // Broken parapet notches (sky-colored cutouts)
-      g.fillStyle(0x06101c, 1);
-      g.fillRect(bx - bw/2 + 4,   H - bh,              8, ~~(bh * 0.07));
-      g.fillRect(bx + bw/2 - 13,  H - bh,              9, ~~(bh * 0.05));
-    });
-
-    // ── Near buildings (mid-dark + windows) ──────────────────────────────
-    const NEAR = [
-      [86, 28, 154],[174, 38, 196],[262, 24, 128],
-      [590, 32, 174],[684, 42, 150],[756, 28, 136],
-    ];
-    NEAR.forEach(([bx, bw, bh]) => {
-      g.fillStyle(0x0c1824, 1);
-      g.fillRect(bx - bw/2, H - bh, bw, bh);
-      // Broken top
-      g.fillStyle(0x06101c, 1);
-      g.fillRect(bx - 2,          H - bh, 7, ~~(bh * 0.08));
-      g.fillRect(bx + bw/2 - 11,  H - bh, 9, ~~(bh * 0.06));
-      // Dim windows
-      g.fillStyle(0x3a5a70, 0.28);
-      for (let wy = H - bh + 24; wy < H - 55; wy += 30) {
-        g.fillRect(bx - bw/2 + 6, wy, 5, 3);
-        if (bw > 30) g.fillRect(bx + 4, wy + 12, 5, 3);
-      }
-    });
-
-    // Tilted ruin accents (leaning towers)
-    this.add.rectangle(200, H - 128, 16, 228, 0x07101a).setAngle(4);
-    this.add.rectangle(614, H - 104, 13, 192, 0x0a1620).setAngle(-3);
-
-    // ── Ground atmosphere ─────────────────────────────────────────────────
-    g.fillStyle(0x0a1828, 0.42); g.fillRect(0, 510, W, H - 510);
-    g.fillStyle(0x0c1e2e, 0.22); g.fillRect(0, 475, W, 50);
-    g.fillStyle(0x152030, 0.16); g.fillCircle(148, 530, 64);
-    g.fillStyle(0x152030, 0.12); g.fillCircle(462, 520, 86);
-    g.fillStyle(0x152030, 0.10); g.fillCircle(704, 538, 52);
-
-    // Animated ash/ember particles
-    for (let i = 0; i < 12; i++) {
-      const sx = Phaser.Math.Between(40, W - 40);
-      const sy = Phaser.Math.Between(420, H - 20);
-      const pt = this.add.rectangle(sx, sy, Phaser.Math.Between(1, 3), Phaser.Math.Between(1, 3), 0x886040, 0.45);
-      this.tweens.add({
-        targets: pt,
-        y: sy - Phaser.Math.Between(120, 220),
-        x: sx + Phaser.Math.Between(-25, 25),
-        alpha: 0,
-        duration: Phaser.Math.Between(2800, 5500),
-        delay: i * 280,
-        repeat: -1,
-        onRepeat: () => { pt.setPosition(sx, sy); pt.setAlpha(0.45); },
-      });
-    }
-
-    // ── Arena grid (faint retro overlay) ─────────────────────────────────
-    const grid = this.add.graphics().lineStyle(1, C.grid, 0.10);
-    for (let x = 0; x <= W; x += 40) grid.lineBetween(x, 0, x, H);
-    for (let y = 0; y <= H; y += 40) grid.lineBetween(0, y, W, y);
-    grid.lineStyle(2, C.frame, 0.55).strokeRect(28, 28, W - 56, H - 56);
-    grid.lineStyle(1, 0x6e1e2a, 0.40).lineBetween(0, 540, W, 540);
+    g.lineStyle(1, 0x4a2000, 0.07);
+    for (let x = 0; x <= W; x += 40) g.lineBetween(x, 0, x, H);
+    for (let y = 0; y <= H; y += 40) g.lineBetween(0, y, W, y);
+    g.lineStyle(2, 0x6a2a00, 0.42).strokeRect(28, 28, W - 56, H - 56);
+    g.lineStyle(1, 0x8a2200, 0.32).lineBetween(0, 540, W, 540);
   }
 
   makeStage() {
@@ -460,6 +497,7 @@ class GameScene extends Phaser.Scene {
   }
 
   update(_, dt) {
+    updateBackground(this, dt);
     if (this.over) {
       if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
       flush(this); return;
