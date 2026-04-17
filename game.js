@@ -269,6 +269,79 @@ function updateBackground(scene, delta) {
   }
 }
 
+// ── Platform ships ────────────────────────────────────────────────────────
+
+function buildPlatShip(scene, w, h, type) {
+  const c = scene.add.container(0, 0);
+  const hw = w / 2, hh = h / 2;
+  // R / Circ helpers — positions are local to container
+  const R = (x, y, pw, ph, col, a) => { const r = scene.add.rectangle(x, y, pw, ph, col, a ?? 1); c.add(r); return r; };
+  const G = (x, y, r, col, a)      => { const o = scene.add.circle(x, y, r, col, a); c.add(o); return o; };
+
+  // Hull body
+  R(0, 0, w, h, 0x2a1c0e);
+  // Glowing top landing strip
+  R(0, -hh + 1, w, 4, 0xff6600);
+  // Dark belly
+  R(0, hh - 2, w, 5, 0x180e04);
+
+  if (type === 'main') {
+    // Reinforced end caps + centre engine block
+    R(-hw + 8, 0, 16, h + 6, 0x3a2010);
+    R( hw - 8, 0, 16, h + 6, 0x3a2010);
+    R(0, 0, 80, h + 4, 0x241404);
+    // 4 thruster pods + fire glows
+    const glows = [-hw * 0.55, -hw * 0.2, hw * 0.2, hw * 0.55].map(tx => {
+      R(tx, hh + 4, 20, 7, 0x1e1008);
+      return G(tx, hh + 11, 6, 0xff8c00, 0.35);
+    });
+    // Running lights on top edge
+    const lights = [-hw * 0.45, 0, hw * 0.45].map(lx => G(lx, -hh - 3, 2, 0xffb030, 0.7));
+    scene.tweens.add({ targets: glows,  alpha: { from: 0.22, to: 0.75 }, duration: 380, yoyo: true, repeat: -1 });
+    scene.tweens.add({ targets: lights, alpha: { from: 0.3,  to: 1.0  }, duration: 660, yoyo: true, repeat: -1 });
+
+  } else if (type === 'side') {
+    // Side fins
+    R(-hw - 5, 1, 10, h - 2, 0x2e1608);
+    R( hw + 5, 1, 10, h - 2, 0x2e1608);
+    // Cockpit bump + glass
+    R(0, -hh - 5, 24, 9, 0x2e1a08);
+    R(0, -hh - 5, 14, 6, 0xff6600, 0.35);
+    // 2 thruster pods
+    const glows = [-w * 0.22, w * 0.22].map(tx => {
+      R(tx, hh + 4, 12, 5, 0x1e1008);
+      return G(tx, hh + 9, 4, 0xff8c00, 0.35);
+    });
+    const lights = [G(-hw + 4, -hh - 3, 2, 0xffb030, 0.7), G(hw - 4, -hh - 3, 2, 0xffb030, 0.7)];
+    scene.tweens.add({ targets: glows,  alpha: { from: 0.2, to: 0.7 }, duration: 320, yoyo: true, repeat: -1 });
+    scene.tweens.add({ targets: lights, alpha: { from: 0.25, to: 0.9 }, duration: 540, yoyo: true, repeat: -1 });
+
+  } else { // top — scout vessel
+    R(-hw - 4, 0, 8, h - 2, 0x2e1608);
+    R( hw + 4, 0, 8, h - 2, 0x2e1608);
+    R(0, hh + 3, 12, 5, 0x1e1008);
+    const g = G(0, hh + 8, 4, 0xff8c00, 0.35);
+    const l = G(0, -hh - 3, 2, 0xffb030, 0.7);
+    scene.tweens.add({ targets: [g], alpha: { from: 0.2,  to: 0.65 }, duration: 290, yoyo: true, repeat: -1 });
+    scene.tweens.add({ targets: [l], alpha: { from: 0.3,  to: 0.9  }, duration: 700, yoyo: true, repeat: -1 });
+  }
+  return c;
+}
+
+function updatePlatforms(scene) {
+  if (!scene.platData) return;
+  const t = scene.time.now * 0.001;
+  let moved = false;
+  for (const p of scene.platData) {
+    if (!p.speed) continue;
+    const nx = p.baseX + Math.sin(t * p.speed + p.phase) * p.range;
+    p.hitbox.x = nx;
+    p.visual.x  = nx;
+    moved = true;
+  }
+  if (moved) scene.plats.refresh();
+}
+
 class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
   create() { this.scene.start('Menu'); }
@@ -460,9 +533,23 @@ class GameScene extends Phaser.Scene {
 
   makeStage() {
     this.plats = this.physics.add.staticGroup();
-    for (const p of STAGE) {
-      const r = this.add.rectangle(p.x, p.y, p.w, p.h, C.plat).setStrokeStyle(2, C.edge);
-      this.plats.add(r);
+    this.platData = [];
+    // [x, y, w, h, type, speed(0=static), range, phase]
+    // Same hitbox positions/sizes as original STAGE for gameplay parity
+    const PDEFS = [
+      { x: 400, y: 470, w: 420, h: 28, type: 'main', speed: 0,   range: 0,  phase: 0 },
+      { x: 240, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: 0 },
+      { x: 560, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: Math.PI },
+      { x: 400, y: 270, w: 100, h: 18, type: 'top',  speed: 0.6, range: 28, phase: 0 },
+    ];
+    for (const d of PDEFS) {
+      // Transparent hitbox — physics only
+      const hitbox = this.add.rectangle(d.x, d.y, d.w, d.h, 0x000000, 0);
+      this.plats.add(hitbox);
+      // Visual ship container — purely decorative
+      const visual = buildPlatShip(this, d.w, d.h, d.type);
+      visual.setPosition(d.x, d.y);
+      this.platData.push({ hitbox, visual, baseX: d.x, baseY: d.y, speed: d.speed, range: d.range, phase: d.phase });
     }
     this.plats.refresh();
   }
@@ -498,6 +585,7 @@ class GameScene extends Phaser.Scene {
 
   update(_, dt) {
     updateBackground(this, dt);
+    updatePlatforms(this);
     if (this.over) {
       if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
       flush(this); return;
