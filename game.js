@@ -93,10 +93,46 @@ function drawBg(scene, title) {
   if (title) addLabel(scene, W / 2, 52, title, 30, C.text, 'center').setOrigin(0.5);
 }
 
-function drawFighter(scene, x, y, ch, s) {
-  scene.add.rectangle(x, y + 12 * s, 44 * s, 72 * s, ch.color);
-  if (ch.head) scene.add.rectangle(x, y - 42 * s, 28 * s, 24 * s, ch.accent);
-  else scene.add.circle(x, y - 42 * s, 14 * s, ch.accent);
+function buildFighter(scene, x, y, ch, s) {
+  const c = scene.add.container(x, y).setScale(s);
+  const r = (cx, cy, w, h, col) => c.add(scene.add.rectangle(cx, cy, w, h, col));
+  if (ch.id === 'pulse') {
+    r( 0,  -16, 12, 10, 0x00e5ff);  // head
+    r( 0,  -15,  8,  2, 0xffffff);  // visor
+    r( 0,  -10,  6,  4, 0x007799);  // neck
+    r( 0,    1, 16, 22, 0x007799);  // torso
+    r( 0,   -1,  5,  5, 0x00e5ff);  // core gem
+    r(-12,  -2,  8,  4, 0x00e5ff);  // L arm
+    r( 12,  -2,  8,  4, 0x00e5ff);  // R arm
+    r(-5,   16,  6, 12, 0x005566);  // L leg
+    r( 5,   16,  6, 12, 0x005566);  // R leg
+    r(-5,   23,  8,  4, 0x00e5ff);  // L boot
+    r( 5,   23,  8,  4, 0x00e5ff);  // R boot
+  } else if (ch.id === 'volt') {
+    r( 0,  -17, 14, 10, 0xffdd00);  // head
+    r( 0,  -17, 10,  2, 0xff7a00);  // visor
+    r(-12,  -8, 10,  5, 0xff7a00);  // L shoulder
+    r( 12,  -8, 10,  5, 0xff7a00);  // R shoulder
+    r( 0,    1, 18, 20, 0xddaa00);  // torso
+    r( 0,   11, 18,  3, 0xff7a00);  // belt stripe
+    r(-5,   18,  8, 10, 0x886600);  // L leg
+    r( 5,   18,  8, 10, 0x886600);  // R leg
+    r(-5,   25, 10,  4, 0xffdd00);  // L boot
+    r( 5,   25, 10,  4, 0xffdd00);  // R boot
+  } else {
+    r( 0,  -15, 18, 12, 0xff3cac);  // head
+    r( 0,  -15, 12,  3, 0xff5a36);  // visor
+    r( 0,   -8, 12,  5, 0xcc1a7a);  // neck guard
+    r( 0,    3, 24, 22, 0xcc1a7a);  // torso
+    r( 0,    0, 16,  8, 0xff3cac);  // chest plate
+    r(-15,   2, 10,  6, 0xff5a36);  // L arm
+    r( 15,   2, 10,  6, 0xff5a36);  // R arm
+    r(-6,   18, 10,  8, 0xff3cac);  // L knee
+    r( 6,   18, 10,  8, 0xff3cac);  // R knee
+    r(-6,   25, 12,  5, 0xff5a36);  // L boot
+    r( 6,   25, 12,  5, 0xff5a36);  // R boot
+  }
+  return c;
 }
 
 function hitRect(a, b) {
@@ -131,9 +167,9 @@ class MenuScene extends Phaser.Scene {
     this.OPTS = ['PLAY', 'CONTROLS', 'CREDITS', 'EXIT'];
     drawBg(this, 'PIXEL BRAWL');
     addLabel(this, W / 2, 92, 'LOCAL ARCADE PLATFORM FIGHTER', 13, C.dim, 'center').setOrigin(0.5);
-    drawFighter(this, W / 2 - 82, 202, CHARS[0], 1);
-    drawFighter(this, W / 2,      194, CHARS[1], 1.1);
-    drawFighter(this, W / 2 + 82, 202, CHARS[2], 1);
+    buildFighter(this, W / 2 - 82, 202, CHARS[0], 1);
+    buildFighter(this, W / 2,      194, CHARS[1], 1.1);
+    buildFighter(this, W / 2 + 82, 202, CHARS[2], 1);
     this.items = this.OPTS.map((t, i) =>
       addLabel(this, W / 2, 312 + i * 48, t, 26, C.dim, 'center').setOrigin(0.5)
     );
@@ -178,7 +214,7 @@ class CharacterSelectScene extends Phaser.Scene {
     for (let i = 0; i < 3; i++) {
       const ch = CHARS[i], x = 160 + i * 240, y = 290;
       const box = this.add.rectangle(x, y, 186, 256, 0x0c1b2e).setStrokeStyle(2, 0x1e3a58);
-      drawFighter(this, x, y, ch, 1);
+      buildFighter(this, x, y, ch, 1);
       addLabel(this, x, y - 112, ch.name, 18, '#ffffff', 'center').setOrigin(0.5);
       addLabel(this, x, y + 90,  ch.line, 11, C.dim,     'center').setOrigin(0.5);
       const mark = addLabel(this, x, y + 114, '', 12, '#ffffff', 'center').setOrigin(0.5);
@@ -322,16 +358,22 @@ class GameScene extends Phaser.Scene {
 
   makePlayer(idx, id) {
     const ch = CHARS.find(c => c.id === id) || CHARS[0], s = SPAWNS[idx];
-    const body = this.add.rectangle(s.x, s.y, 26, 40, ch.color);
+    // Physics hitbox — transparent, drives all gameplay logic
+    const body = this.add.rectangle(s.x, s.y, 26, 40, 0x000000, 0);
     this.physics.add.existing(body);
     body.body.setCollideWorldBounds(false).setMaxVelocity(700, 1000);
-    const head = ch.head ? this.add.rectangle(s.x, s.y - 30, 18, 16, ch.accent) : this.add.circle(s.x, s.y - 30, 9, ch.accent);
     this.physics.add.collider(body, this.plats);
-    const shield = this.add.circle(s.x, s.y - 10, 26, ch.accent, 0).setStrokeStyle(2, ch.accent, 0).setVisible(false);
+    // Visual container — follows hitbox, flips with facing direction
+    const visual = buildFighter(this, s.x, s.y, ch, 1);
+    // Fatigue overlay — semi-transparent tint tracked separately
+    const overlay = this.add.rectangle(s.x, s.y, 24, 44, 0xff4400, 0);
+    const face = idx ? -1 : 1;
+    visual.setScale(face, 1);
     return {
-      idx, char: ch, body, head, lives: LIVES, alive: 1, face: idx ? -1 : 1, jumps: 2,
+      idx, char: ch, body, visual, overlay,
+      lives: LIVES, alive: 1, face, jumps: 2,
       stamina: 100, staminaMax: 100, invuln: 0, fatigue: 0, stun: 0,
-      atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0, shield,
+      atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
     };
   }
 
@@ -356,19 +398,8 @@ class GameScene extends Phaser.Scene {
     this.updateAttack(p, foe);
     this.checkSlam(p, foe);
     this.syncHead(p);
-    if (p.invuln > 0) {
-      const a = (Math.floor(p.invuln / 80) % 2) ? 0.35 : 1;
-      p.body.alpha = a; p.head.alpha = a;
-      p.shield.setVisible(true).setAlpha(0.2 + a * 0.35);
-    } else {
-      p.body.alpha = 1; p.head.alpha = 1;
-      p.shield.setVisible(false);
-    }
-    if (p.fatigue > 0) {
-      p.body.setFillStyle(Math.floor(p.fatigue / 110) % 2 ? p.char.color : 0xff4400);
-    } else {
-      p.body.setFillStyle(p.char.color);
-    }
+    p.visual.setAlpha(p.invuln > 0 && (Math.floor(p.invuln / 80) % 2) ? 0.3 : 1);
+    p.overlay.setAlpha(p.fatigue > 0 && (Math.floor(p.fatigue / 110) % 2) ? 0.45 : 0);
   }
 
   tickTimers(p, dt) {
@@ -506,8 +537,9 @@ class GameScene extends Phaser.Scene {
     burst(this, p.body.x, p.body.y, p.char.color, 10);
     this.cameras.main.shake(230, 0.015);
     p.body.body.enable = false;
-    p.body.setVisible(false).setPosition(-500, -500);
-    p.head.setVisible(false).setPosition(-500, -500);
+    p.body.setPosition(-500, -500);
+    p.visual.setVisible(false);
+    p.overlay.setVisible(false);
     tone(this, 110, 'sawtooth', 0.18, 0.35);
     this.refreshHud();
     if (p.lives <= 0) {
@@ -532,19 +564,17 @@ class GameScene extends Phaser.Scene {
     p.slam = 0;
     p.body.body.enable = true;
     p.body.body.reset(s.x, s.y);
-    p.body.setVisible(true).setAlpha(1);
-    p.head.setVisible(true).setAlpha(1);
-    p.shield.setVisible(true).setAlpha(0.5);
+    p.visual.setVisible(true).setAlpha(1).setPosition(s.x, s.y);
+    p.overlay.setVisible(true).setAlpha(0).setPosition(s.x, s.y);
     this.syncHead(p);
     burst(this, s.x, s.y, p.char.accent, 6);
     tone(this, 520, 'triangle', 0.08, 0.16);
   }
 
   syncHead(p) {
-    p.head.x = p.body.x;
-    p.head.y = p.body.y - 30;
-    p.shield.x = p.body.x;
-    p.shield.y = p.body.y - 10;
+    p.visual.setPosition(p.body.x, p.body.y);
+    p.visual.setScale(p.face < 0 ? -1 : 1, 1);
+    p.overlay.setPosition(p.body.x, p.body.y);
   }
 
   flash(x, y, w, h, c, dur) {
@@ -584,10 +614,7 @@ class EndScene extends Phaser.Scene {
     const col = this.winner === 1 ? C.p1 : C.p2;
     const ch = this.char;
     if (ch) {
-      const cx = W / 2, cy = 300;
-      this.add.rectangle(cx, cy + 16, 48, 76, ch.color);
-      ch.head ? this.add.rectangle(cx, cy - 38, 28, 24, ch.accent)
-              : this.add.circle(cx, cy - 38, 14, ch.accent);
+      buildFighter(this, W / 2, 316, ch, 1.3);
       addLabel(this, W / 2, 170, ch.name + ' WINS', 52, col, 'center').setOrigin(0.5);
     } else {
       addLabel(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
