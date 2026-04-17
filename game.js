@@ -636,7 +636,6 @@ class GameScene extends Phaser.Scene {
 
   makePlayer(idx, id) {
     const ch = CHARS.find(c => c.id === id) || CHARS[0], s = SPAWNS[idx];
-    // Physics hitbox — transparent, drives all gameplay logic
     const body = this.add.rectangle(s.x, s.y, 26, 40, 0x000000, 0);
     this.physics.add.existing(body);
     body.body.setCollideWorldBounds(false).setMaxVelocity(700, 1000);
@@ -655,7 +654,7 @@ class GameScene extends Phaser.Scene {
       stamina: 100, staminaMax: 100, invuln: 0, fatigue: 0, stun: 0,
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0 }, _auraType: null, recovering: false,
-      canAirDodge: true, shielding: false, comboHits: 0, comboT: 0,
+      canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0,
       _hud: { seg: 10, sp: -1, bk: 0, fat: false }, _lastAlpha: -1, _lastOvAlpha: -1, _lastOvColor: -1, _lastSx: 0,
     };
   }
@@ -710,12 +709,15 @@ class GameScene extends Phaser.Scene {
     const na = p.invuln > 0 && (Math.floor(now / 80) % 2) ? 0.3 :
                lowStam && (Math.floor(now / 600) % 2) ? 0.65 : 1;
     if (na !== p._lastAlpha) { p.visual.setAlpha(na); p._lastAlpha = na; }
-    if (!p.body.body.blocked.down && p.body.body.velocity.y > 100)
+    if (p.canEdgeSnap && !p.body.body.blocked.down && p.body.body.velocity.y > 80)
       for (const pd of this.platData) {
         const ed = Math.abs(p.body.x - pd.hitbox.x) - pd.hitbox.width / 2;
         const yd = p.body.y - (pd.hitbox.y - 10);
-        if (ed > 0 && ed < 28 && yd > 0 && yd < 60)
-          p.body.body.velocity.x += (p.body.x < pd.hitbox.x ? 1 : -1) * 40;
+        if (ed > 0 && ed < 24 && yd > 0 && yd < 50) {
+          p.canEdgeSnap = false;
+          p.body.body.velocity.x += (p.body.x < pd.hitbox.x ? 1 : -1) * 80;
+          break;
+        }
       }
     const no = p.shielding ? 0.45 : p.fatigue > 0 ? 0.5 : 0;
     const nc = p.shielding ? 0x4488ff : 0xff4400;
@@ -768,7 +770,7 @@ class GameScene extends Phaser.Scene {
     const L = p.idx ? 'P2_L' : 'P1_L';
     const R = p.idx ? 'P2_R' : 'P1_R';
     const U = p.idx ? 'P2_U' : 'P1_U';
-    if (b.blocked.down || b.touching.down) { p.jumps = 2; p.canAirDodge = true; }
+    if (b.blocked.down || b.touching.down) { p.jumps = 2; p.canAirDodge = true; p.canEdgeSnap = true; }
     if (p.stun > 0) return;
     if (p.dashT > 0) return;
     if (p.shielding) { b.setVelocityX(0); return; }
@@ -952,7 +954,7 @@ class GameScene extends Phaser.Scene {
     p.slam = 0;
     p.lastHitTime = 0;
     p.buffs.power = p.buffs.speed = p.buffs.regen = 0;
-    p._auraType = null; p.shielding = false; p.canAirDodge = true; p.comboHits = 0; p.comboT = 0;
+    p._auraType = null; p.shielding = false; p.canAirDodge = true; p.canEdgeSnap = true; p.comboHits = 0; p.comboT = 0;
     p.aura.setVisible(false).setAngle(0);
     p.recovering = false;
     p._lastAlpha = -1; p._lastOvAlpha = -1; p._lastOvColor = -1;
