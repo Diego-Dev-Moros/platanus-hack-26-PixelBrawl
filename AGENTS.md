@@ -1,111 +1,312 @@
-# AI Agent Instructions for Platanus Hack 26: Arcade Challenge
+# AI Agent Instructions for Pixel Brawl
 
-You are helping build an arcade game for a hackathon challenge. Follow these instructions carefully.
+You are helping build `Pixel Brawl`, a compact local multiplayer platform fighter for the Platanus arcade challenge.
 
-## Your Goal
+Follow these instructions strictly.
 
-Create an engaging, fun arcade game in **game.js** using **Phaser 3** (v3.87.0) that meets all restrictions.
+## Goal
 
-## ⚠️ IMPORTANT: Files to Edit
+Build a fun, readable, compact Phaser 3 game in `game.js`.
 
-**ONLY edit these three files:**
-- `game.js` - Your game code
-- `metadata.json` - Game name, description, and player mode
-- `cover.png` - Game cover image (800x600 pixels)
+The game is:
+- local `1v1`
+- arcade-first
+- platform fighter inspired by Smash-like ring-outs
+- simplified for size, speed, and clarity
 
-**DO NOT edit any other files** (including index.html, check-restrictions files, config files, etc.)
+Core loop:
+- move
+- jump
+- collide with platforms
+- attack
+- build knockback through stamina loss
+- knock the opponent off the stage
+- respawn until lives are exhausted
 
-## Critical Restrictions
+## Files To Edit
 
-1. **Size**: Game must be ≤50KB after minification (before gzip)
-2. **No imports**: Pure vanilla JavaScript only - no `import` or `require`
-3. **No external URLs**: No `http://`, `https://`, or `//` (except `data:` URIs for base64)
-4. **No network calls**: No `fetch`, `XMLHttpRequest`, or similar
-5. **Sandboxed environment**: Game runs in iframe with no internet access
+For gameplay tasks, only edit:
+- `game.js`
+- `metadata.json`
+- `cover.png`
 
-## What's Allowed
+Only edit other files if the user explicitly asks.
 
--  Base64-encoded images (as `data:` URIs)
--  Procedurally generated graphics using Phaser's Graphics API
--  Generated audio tones using Phaser's Web Audio API
--  Canvas-based rendering and effects
+## Hard Restrictions
 
-## Development Workflow
+1. Game code must stay at or under `50kb` after minification
+2. Vanilla JavaScript only
+3. No `import` or `require`
+4. No external URLs
+5. No network calls
+6. No external assets
+7. Game runs in a sandboxed iframe with no internet access
 
-1. **Edit game.js**: Write your game code in this single file
-2. **Update metadata.json**: Set `game_name`, `description`, and `player_mode` (`single_player` or `two_player`)
-3. **Create cover.png**: Design an 800x600 pixel cover image for your game
-4. **Check restrictions**: Run `npm run check-restrictions` frequently
-5. **DO NOT start dev servers**: The user will handle running `npm run dev` - do not run it yourself
+## Asset Policy
 
-## Phaser 3 Resources
+Do not use:
+- external images
+- spritesheets
+- audio files
+- web-loaded fonts
 
-- **Quick start guide**: @docs/phaser-quick-start.md
-- **API documentation**: For specific Phaser methods and examples, search within docs/phaser-api.md
+Use only code-generated content:
+- rectangles
+- circles
+- graphics
+- text
+- simple particles
+- generated tones / procedural audio
 
-## Size Optimization Tips
+## Game Definition
 
-- Use short variable names before minification
-- Avoid large data structures or arrays
-- Generate graphics procedurally instead of embedding images
-- Keep game logic simple and efficient
-- Test size early and often with `npm run check-restrictions`
+Name: `Pixel Brawl`
+
+Match rules:
+- `2` players
+- `3` lives each
+- falling out of bounds loses a life
+- automatic respawn
+- short respawn invulnerability
+- last player with lives remaining wins
+
+## Core Mechanics
+
+### Movement
+
+Required:
+- left / right
+- jump
+- gravity
+- platform collision
+
+Optional:
+- double jump, only if cheap and stable
+
+### Combat
+
+Required:
+- short-range basic attack
+- dash or lunge
+- clear knockback response
+
+Planned:
+- one unique special per character
+
+### Stamina System
+
+This game does not rely on a traditional health bar.
+
+Each player has:
+- `stamina`
+- `staminaMax`
+- knockback scaling based on remaining stamina
+
+Rules:
+- hits reduce stamina
+- lower stamina means higher knockback received
+- at `0` stamina, player enters a short fatigue state
+- fatigue should be simple, readable, and cheap to implement
+
+### Pickups
+
+If implemented, keep them lightweight.
+
+Allowed effects:
+- restore stamina
+- increase `staminaMax`
+- increase attack strength
+
+## Characters
+
+There are `3` playable characters.
+
+Shared across all characters:
+- same movement
+- same base stats
+- same jump
+- same speed
+
+Only difference:
+- special move
+
+Suggested specials:
+1. `Shockwave`: radial push
+2. `Uppercut`: vertical launcher
+3. `Ground Slam`: downward attack with landing burst
+
+## Visual Direction
+
+Everything must be generated in code.
+
+### Arena
+
+- dark background
+- neon grid drawn with `Graphics`
+- simple floating platforms
+
+### Players
+
+- body: `rectangle`
+- head: `circle` or small `rectangle`
+- different colors per player / character
+
+### Attacks
+
+- temporary hitboxes
+- short flash effects
+- simple particles
+
+### UI
+
+- lives
+- stamina bars
+- minimal readable text
+
+## Architecture Guidance
+
+Prefer a small scene structure:
+- `BootScene`
+- `MenuScene`
+- `GameScene`
+- `EndScene`
+
+Prefer:
+- one compact source file
+- shared helper functions
+- flat data structures
+- minimal state
+- minimal duplication
+
+Avoid:
+- deep class hierarchies
+- large config objects unless they save code
+- overengineered entity systems
+- unnecessary abstractions
+
+## Phaser Guidance
+
+Available docs:
+- `docs/phaser-quick-start.md`
+- `docs/phaser-api.md`
+
+Use them correctly:
+- `phaser-quick-start.md` is for examples and fast inspiration
+- `phaser-api.md` is for exact method and property lookup
+
+Important:
+- `phaser-quick-start.md` mixes old Phaser 2 snippets with Phaser 3 material
+- prefer Phaser 3 scene-based patterns for this repo
+- if a snippet uses `game.state`, adapt it before use
+
+Preferred Phaser 3 patterns:
+- `preload()`
+- `create()`
+- `update()`
+- `this.add`
+- `this.physics`
+- `this.tweens`
+- `this.sound`
+- `this.input`
+
+## Controls
+
+Use arcade codes in gameplay logic:
+- `P1_U`, `P1_D`, `P1_L`, `P1_R`
+- `P1_1` to `P1_6`
+- `P2_U`, `P2_D`, `P2_L`, `P2_R`
+- `P2_1` to `P2_6`
+- `START1`, `START2`
+
+Never use raw keyboard keys directly in core game logic.
+
+Do not replace existing mappings inside `CABINET_KEYS`.
+If local test keys are needed, append them only.
+
+Preferred mapping concept:
+- Player 1: move, jump, attack, dash/special
+- Player 2: move, jump, attack, dash/special
+
+## Storage
+
+Use `window.platanusArcadeStorage` if persistence is needed.
+
+```js
+const result = await window.platanusArcadeStorage.get('my-key');
+await window.platanusArcadeStorage.set('my-key', { score: 100 });
+await window.platanusArcadeStorage.remove('my-key');
+```
+
+Storage is optional. Do not add persistence unless it improves the game enough to justify the bytes.
+
+## Development Priorities
+
+Build in this order:
+
+1. stable movement
+2. gravity and platform collisions
+3. fall death and respawn
+4. life tracking and win condition
+5. basic attack hitboxes
+6. knockback
+7. stamina scaling
+8. character specials
+9. pickups
+10. polish: particles, tiny sounds, camera shake, UI cleanup
+
+## Size And Performance Strategy
+
+Always optimize for:
+- small code
+- responsive controls
+- clear feedback
+- low visual overhead
+
+Useful habits:
+- reuse logic aggressively
+- keep objects lightweight
+- avoid large arrays or data blobs
+- generate visuals procedurally
+- only add effects that improve readability or feel
 
 ## Validation
 
-Always validate your work:
+Validate regularly with:
+
 ```bash
 npm run check-restrictions
 ```
 
 This checks:
-- File size after minification
-- No forbidden imports
-- No network calls
-- No external URLs
-- Code safety warnings
+- final size after minification
+- forbidden imports
+- forbidden URLs
+- network usage
+- safety warnings
 
-## Game Structure
+Do not run `npm run dev` unless the user explicitly asks. The user handles manual testing.
 
-`game.js` already contains a full working starter — two players moving around with sound and storage. Use it as your base. A copy is also in the README for reference.
+## Response Style
 
-## Controls
+When working on this repo:
+- prioritize implementation over theory
+- explain technical decisions briefly
+- keep suggestions pragmatic
+- call out file-size risks early
+- avoid unnecessary features
+- prefer iterative improvements over big rewrites
 
-- Use the arcade codes (`P1_U`, `P1_1`, `START1`, etc.) in your game logic — never raw keyboard keys
-- **Do NOT change or replace existing keys in `CABINET_KEYS`** — they map to the physical cabinet wiring. To add local testing shortcuts, append to the arrays (e.g. `P1_U: ['w', 'ArrowUp']`)
-- Keep controls simple: joystick + 1–2 action buttons is the sweet spot for arcade feel
+## First Milestone
 
-## Storage
+If the user asks where to start, begin with:
 
-Use `window.platanusArcadeStorage` for persistence (e.g. leaderboards):
+1. base Phaser setup
+2. `GameScene`
+3. platforms
+4. two players
+5. movement + gravity
+6. collision handling
+7. death by falling
+8. respawn
 
-```js
-const result = await window.platanusArcadeStorage.get('my-key'); // { found, value }
-await window.platanusArcadeStorage.set('my-key', { score: 100 });
-await window.platanusArcadeStorage.remove('my-key');
-```
-
-- Storage persists across releases — always validate data you read back, the shape may have changed
-- Keys: `[A-Za-z0-9._:/-]`, 1–128 chars; values: JSON-compatible, under 64 KiB
-
-## cover.png
-
-- Must be exactly **800×600 pixels**, PNG format, **500 KB or less**
-- Generate it programmatically or draw it — just make it represent your game
-
-## Important Notes
-
-- Phaser is loaded externally via CDN (not counted in 50KB limit)
-- Focus on gameplay and creativity within size constraints
-- Use Phaser's built-in features (sprites, physics, tweens, etc.)
-- Keep code readable - minification happens automatically
-
-## Best Practices
-
-1. **Start simple**: Get a working game first, optimize later
-2. **Check size frequently**: Don't wait until the end
-3. **Use Phaser features**: Leverage built-in physics, tweens, and effects
-4. **Generate assets**: Draw shapes instead of using images when possible
-5. **Let the user test**: The user will run `npm run dev` when they want to test - focus on building the game
-
-Good luck building an amazing arcade game! <�
+Combat should come after the movement loop feels good.

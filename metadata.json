@@ -1,5 +1,5 @@
 {
-  "game_name": "<FILL THIS>",
-  "description": "<FILL THIS>",
+  "game_name": "Pixel Brawl",
+  "description": "Local 1v1 platform fighter. Knock your opponent off the stage to drain their 3 lives. Last one standing wins! P1: A/D/W | P2: Arrows",
   "player_mode": "two_player"
 }
