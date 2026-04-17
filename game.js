@@ -41,19 +41,6 @@ function nk(k) { return k === ' ' ? 'space' : k.length === 1 ? k.toLowerCase() :
 const KEY_MAP = {};
 for (const [code, keys] of Object.entries(CABINET_KEYS)) for (const k of keys) KEY_MAP[nk(k)] = code;
 
-function setupShell() {
-  if (!document.getElementById('game-root')) {
-    const root = document.createElement('div');
-    root.id = 'game-root';
-    document.body.appendChild(root);
-  }
-}
-
-function fit(scene) {
-  const vw = scene.scale.width, vh = scene.scale.height;
-  return { vw, vh, ox: (vw - W) * 0.5, oy: (vh - H) * 0.5 };
-}
-
 function tone(scene, f, type, vol, dur) {
   try {
     const ctx = scene.sound.context;
@@ -68,15 +55,20 @@ function tone(scene, f, type, vol, dur) {
 }
 
 function bindKeys(scene) {
-  scene.ctrl = { held: {}, pressed: {} };
+  scene.ctrl = { held: {}, pressed: {}, rawHeld: {}, rawPressed: {} };
   const onDown = e => {
-    const code = KEY_MAP[nk(e.key)];
+    const raw = nk(e.key);
+    if (!scene.ctrl.rawHeld[raw]) scene.ctrl.rawPressed[raw] = true;
+    scene.ctrl.rawHeld[raw] = true;
+    const code = KEY_MAP[raw];
     if (!code) return;
     if (!scene.ctrl.held[code]) scene.ctrl.pressed[code] = true;
     scene.ctrl.held[code] = true;
   };
   const onUp = e => {
-    const code = KEY_MAP[nk(e.key)];
+    const raw = nk(e.key);
+    scene.ctrl.rawHeld[raw] = false;
+    const code = KEY_MAP[raw];
     if (code) scene.ctrl.held[code] = false;
   };
   window.addEventListener('keydown', onDown);
@@ -87,7 +79,10 @@ function bindKeys(scene) {
   });
 }
 
-function flush(scene) { for (const k in scene.ctrl.pressed) scene.ctrl.pressed[k] = false; }
+function flush(scene) {
+  for (const k in scene.ctrl.pressed) scene.ctrl.pressed[k] = false;
+  for (const k in scene.ctrl.rawPressed) scene.ctrl.rawPressed[k] = false;
+}
 
 function addLabel(scene, x, y, text, size, color, align) {
   return scene.add.text(x, y, text, {
@@ -95,6 +90,8 @@ function addLabel(scene, x, y, text, size, color, align) {
   });
 }
 
+function uiPressed(scene, key) { return !!scene.ctrl.rawPressed[key]; }
+function uiHeld(scene, key) { return !!scene.ctrl.rawHeld[key]; }
 function anyPressed(scene, keys) { return keys.some(k => scene.ctrl.pressed[k]); }
 
 function hitRect(a, b) {
@@ -115,16 +112,15 @@ function burst(scene, x, y, color, n) {
 }
 
 function arcadeBg(scene, title, kicker) {
-  const { vw, vh } = fit(scene);
-  scene.add.rectangle(vw * 0.5, vh * 0.5, vw, vh, C.bg);
+  scene.add.rectangle(W / 2, H / 2, W, H, C.bg);
   const g = scene.add.graphics();
   g.lineStyle(1, C.grid, 0.38);
-  for (let x = 0; x <= vw; x += 40) g.lineBetween(x, 0, x, vh);
-  for (let y = 0; y <= vh; y += 40) g.lineBetween(0, y, vw, y);
-  g.lineStyle(2, C.frame, 0.8).strokeRect(24, 24, vw - 48, vh - 48);
-  g.lineStyle(2, 0x18354f, 0.8).strokeRect(40, 40, vw - 80, vh - 80);
-  addLabel(scene, vw * 0.5, 54, title, 34, C.text, 'center').setOrigin(0.5);
-  if (kicker) addLabel(scene, vw * 0.5, 94, kicker, 13, C.dim, 'center').setOrigin(0.5);
+  for (let x = 0; x <= W; x += 40) g.lineBetween(x, 0, x, H);
+  for (let y = 0; y <= H; y += 40) g.lineBetween(0, y, W, y);
+  g.lineStyle(2, C.frame, 0.8).strokeRect(24, 24, W - 48, H - 48);
+  g.lineStyle(2, 0x18354f, 0.8).strokeRect(40, 40, W - 80, H - 80);
+  addLabel(scene, W / 2, 54, title, 34, C.text, 'center').setOrigin(0.5);
+  if (kicker) addLabel(scene, W / 2, 94, kicker, 13, C.dim, 'center').setOrigin(0.5);
 }
 
 function drawFighter(scene, x, y, ch, scale) {
@@ -144,20 +140,19 @@ class MenuScene extends Phaser.Scene {
     bindKeys(this);
     this.sel = 0;
     this.opts = ['PLAY', 'CONTROLS', 'CREDITS', 'EXIT'];
-    const { vw } = fit(this);
     arcadeBg(this, 'PIXEL BRAWL', 'RETRO ARCADE PLATFORM FIGHTER');
-    drawFighter(this, vw * 0.5 - 72, 188, CHARS[0], 1);
-    drawFighter(this, vw * 0.5, 178, CHARS[1], 1.08);
-    drawFighter(this, vw * 0.5 + 72, 188, CHARS[2], 1);
-    this.items = this.opts.map((t, i) => addLabel(this, vw * 0.5, 306 + i * 50, t, 24, C.dim, 'center').setOrigin(0.5));
-    this.note = addLabel(this, vw * 0.5, fit(this).vh - 80, '', 12, '#ff93ba', 'center').setOrigin(0.5);
-    addLabel(this, vw * 0.5, fit(this).vh - 46, 'W/S OR ARROWS TO MOVE  -  ENTER TO SELECT', 12, C.dim, 'center').setOrigin(0.5);
+    drawFighter(this, W / 2 - 72, 188, CHARS[0], 1);
+    drawFighter(this, W / 2, 178, CHARS[1], 1.08);
+    drawFighter(this, W / 2 + 72, 188, CHARS[2], 1);
+    this.items = this.opts.map((t, i) => addLabel(this, W / 2, 306 + i * 50, t, 24, C.dim, 'center').setOrigin(0.5));
+    this.note = addLabel(this, W / 2, 520, '', 12, '#ff93ba', 'center').setOrigin(0.5);
+    addLabel(this, W / 2, 548, 'W/S OR ARROWS TO MOVE  -  ENTER TO SELECT', 12, C.dim, 'center').setOrigin(0.5);
     this.refresh();
   }
   update() {
-    if (anyPressed(this, ['P1_U', 'P2_U'])) this.sel = (this.sel + this.opts.length - 1) % this.opts.length;
-    if (anyPressed(this, ['P1_D', 'P2_D'])) this.sel = (this.sel + 1) % this.opts.length;
-    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P1_4', 'P2_1', 'P2_4'])) this.pick();
+    if (anyPressed(this, ['P1_U', 'P2_U']) || uiPressed(this, 'w')) this.sel = (this.sel + this.opts.length - 1) % this.opts.length;
+    if (anyPressed(this, ['P1_D', 'P2_D']) || uiPressed(this, 's')) this.sel = (this.sel + 1) % this.opts.length;
+    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P1_4', 'P2_1', 'P2_4']) || uiPressed(this, 'enter')) this.pick();
     this.refresh();
     flush(this);
   }
@@ -185,23 +180,22 @@ class ControlsScene extends Phaser.Scene {
   constructor() { super('Controls'); }
   create() {
     bindKeys(this);
-    const { vw, vh } = fit(this);
-    arcadeBg(this, 'CONTROLS', '');
-    addLabel(this, vw * 0.5 - 210, 178, 'PLAYER 1', 22, C.p1).setOrigin(0.5);
-    addLabel(this, vw * 0.5 - 210, 220, 'A / D   = MOVE', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 - 210, 250, 'W       = JUMP (x2)', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 - 210, 280, 'U / J   = ATTACK', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 - 210, 310, 'I / K   = DASH + SPECIAL', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 + 210, 178, 'PLAYER 2', 22, C.p2).setOrigin(0.5);
-    addLabel(this, vw * 0.5 + 210, 220, 'LEFT/RIGHT   = MOVE', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 + 210, 250, 'UP           = JUMP (x2)', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 + 210, 280, 'R / F        = ATTACK', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 + 210, 310, 'T / G        = DASH + SPECIAL', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5, vh * 0.68, 'WIN BY KNOCKING YOUR RIVAL OFF THE STAGE.', 14, C.dim, 'center').setOrigin(0.5);
-    addLabel(this, vw * 0.5, vh - 46, 'PRESS START TO RETURN', 13, C.hot, 'center').setOrigin(0.5);
+    arcadeBg(this, 'CONTROLS', 'SIMPLE INPUTS. FAST MATCHES.');
+    addLabel(this, 162, 178, 'PLAYER 1', 22, C.p1);
+    addLabel(this, 162, 220, 'A / D = MOVE', 16, C.text);
+    addLabel(this, 162, 250, 'W     = JUMP', 16, C.text);
+    addLabel(this, 162, 280, 'F     = ATTACK', 16, C.text);
+    addLabel(this, 162, 310, 'G     = DASH / SPECIAL', 16, C.text);
+    addLabel(this, 432, 178, 'PLAYER 2', 22, C.p2);
+    addLabel(this, 432, 220, 'LEFT / RIGHT = MOVE', 16, C.text);
+    addLabel(this, 432, 250, 'UP           = JUMP', 16, C.text);
+    addLabel(this, 432, 280, 'K            = ATTACK', 16, C.text);
+    addLabel(this, 432, 310, 'L            = DASH / SPECIAL', 16, C.text);
+    addLabel(this, W / 2, 410, 'WIN BY KNOCKING YOUR RIVAL OFF THE STAGE.', 14, C.dim, 'center').setOrigin(0.5);
+    addLabel(this, W / 2, 548, 'PRESS ENTER TO RETURN', 13, C.hot, 'center').setOrigin(0.5);
   }
   update() {
-    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P2_1'])) this.scene.start('Menu');
+    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P2_1']) || uiPressed(this, 'enter')) this.scene.start('Menu');
     flush(this);
   }
 }
@@ -210,17 +204,18 @@ class CreditsScene extends Phaser.Scene {
   constructor() { super('Credits'); }
   create() {
     bindKeys(this);
-    const { vw, vh } = fit(this), cx = vw * 0.5, cy = vh * 0.5;
+    const cx = W / 2, cy = H / 2;
     arcadeBg(this, 'CREDITS', '');
     addLabel(this, cx, cy - 90, 'PLATANUS HACK 26', 20, C.text, 'center').setOrigin(0.5);
-    addLabel(this, cx, cy - 52, 'ARCADE CHALLENGE', 20, C.text, 'center').setOrigin(0.5);
-    addLabel(this, cx, cy + 8, 'DEVELOPED BY', 12, C.dim, 'center').setOrigin(0.5);
-    addLabel(this, cx, cy + 52, 'ALEJANDRO BIARRIETA', 20, C.hot, 'center').setOrigin(0.5);
-    addLabel(this, cx, cy + 88, 'DIEGO MOROS', 20, C.hot, 'center').setOrigin(0.5);
-    addLabel(this, cx, vh - 46, 'PRESS ENTER TO RETURN', 13, C.dim, 'center').setOrigin(0.5);
+    addLabel(this, cx, cy - 52, 'BUENOS AIRES', 20, C.text, 'center').setOrigin(0.5);
+    addLabel(this, cx, cy - 14, 'ARCADE CHALLENGE', 20, C.text, 'center').setOrigin(0.5);
+    addLabel(this, cx, cy + 34, 'DEVELOPED BY', 12, C.dim, 'center').setOrigin(0.5);
+    addLabel(this, cx, cy + 78, 'ALEJANDRO BIARRIETA', 20, C.hot, 'center').setOrigin(0.5);
+    addLabel(this, cx, cy + 114, 'DIEGO MOROS', 20, C.hot, 'center').setOrigin(0.5);
+    addLabel(this, cx, 548, 'PRESS ENTER TO RETURN', 13, C.dim, 'center').setOrigin(0.5);
   }
   update() {
-    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P2_1'])) this.scene.start('Menu');
+    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P2_1']) || uiPressed(this, 'enter')) this.scene.start('Menu');
     flush(this);
   }
 }
@@ -232,10 +227,9 @@ class CharacterSelectScene extends Phaser.Scene {
     this.sel = [0, 1];
     this.lock = [0, 0];
     this.cards = [];
-    const { vw, vh } = fit(this), base = vw * 0.5 - 240;
-    arcadeBg(this, 'SELECT YOUR BRAWLER', '');
+    arcadeBg(this, 'SELECT YOUR BRAWLER', 'BOTH PLAYERS MAY PICK THE SAME CHARACTER');
     for (let i = 0; i < 3; i++) {
-      const ch = CHARS[i], x = base + i * 240, y = 288;
+      const ch = CHARS[i], x = 160 + i * 240, y = 288;
       const box = this.add.rectangle(x, y, 180, 246, 0x0d1d31).setStrokeStyle(2, 0x2c4f6d);
       drawFighter(this, x, y, ch, 1);
       addLabel(this, x, y - 108, ch.name, 18, '#ffffff', 'center').setOrigin(0.5);
@@ -243,22 +237,22 @@ class CharacterSelectScene extends Phaser.Scene {
       const mark = addLabel(this, x, y + 116, '', 12, '#ffffff', 'center').setOrigin(0.5);
       this.cards.push({ box, mark });
     }
-    this.status = addLabel(this, vw * 0.5, vh - 74, '', 14, C.hot, 'center').setOrigin(0.5);
-    addLabel(this, vw * 0.5, vh - 46, 'P1: A/D + U/J TO LOCK   ·   P2: ARROWS + R/F TO LOCK   ·   START = BEGIN', 12, C.dim, 'center').setOrigin(0.5);
+    this.status = addLabel(this, W / 2, 516, '', 14, C.hot, 'center').setOrigin(0.5);
+    addLabel(this, W / 2, 544, 'P1: A/D + F TO LOCK    P2: LEFT/RIGHT + K TO LOCK', 12, C.dim, 'center').setOrigin(0.5);
     this.refresh();
   }
   update() {
     if (!this.lock[0]) {
       if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
       if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
-      if (this.ctrl.pressed.P1_1 || this.ctrl.pressed.P1_4) { this.lock[0] = 1; tone(this, 480, 'square', 0.06, 0.08); }
+      if (uiPressed(this, 'f')) { this.lock[0] = 1; tone(this, 480, 'square', 0.06, 0.08); }
     }
     if (!this.lock[1]) {
       if (this.ctrl.pressed.P2_L) this.sel[1] = (this.sel[1] + 2) % 3;
       if (this.ctrl.pressed.P2_R) this.sel[1] = (this.sel[1] + 1) % 3;
-      if (this.ctrl.pressed.P2_1 || this.ctrl.pressed.P2_4) { this.lock[1] = 1; tone(this, 620, 'square', 0.06, 0.08); }
+      if (uiPressed(this, 'k')) { this.lock[1] = 1; tone(this, 620, 'square', 0.06, 0.08); }
     }
-    if (this.lock[0] && this.lock[1] && (this.ctrl.pressed.START1 || this.ctrl.pressed.START2)) {
+    if (this.lock[0] && this.lock[1] && (this.ctrl.pressed.START1 || uiPressed(this, 'enter') || uiPressed(this, 'space'))) {
       this.scene.start('Game', { picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
       return;
     }
@@ -275,7 +269,7 @@ class CharacterSelectScene extends Phaser.Scene {
       this.cards[i].box.setFillStyle(fill).setStrokeStyle(2, stroke);
       this.cards[i].mark.setText(mark);
     }
-    this.status.setText(this.lock[0] && this.lock[1] ? 'PRESS START TO BEGIN' : !this.lock[0] ? 'P1  SELECT A CHARACTER' : 'P2  SELECT A CHARACTER');
+    this.status.setText(this.lock[0] && this.lock[1] ? 'PRESS ENTER TO START' : 'WAITING FOR BOTH PLAYERS');
   }
 }
 
@@ -285,7 +279,6 @@ class GameScene extends Phaser.Scene {
 
   create() {
     bindKeys(this);
-    this.view = fit(this);
     this.over = 0;
     this.drawStage();
     this.makeStage();
@@ -294,39 +287,34 @@ class GameScene extends Phaser.Scene {
     this.refreshHud();
   }
 
-  wp(x, y) { return { x: this.view.ox + x, y: this.view.oy + y }; }
-
   drawStage() {
-    const { vw, vh, ox, oy } = this.view;
-    this.add.rectangle(vw * 0.5, vh * 0.5, vw, vh, C.bg);
+    this.add.rectangle(W / 2, H / 2, W, H, C.bg);
     const g = this.add.graphics().lineStyle(1, C.grid, 0.38);
-    for (let x = 0; x <= vw; x += 40) g.lineBetween(x, 0, x, vh);
-    for (let y = 0; y <= vh; y += 40) g.lineBetween(0, y, vw, y);
-    g.lineStyle(2, C.frame, 0.7).strokeRect(26, 26, vw - 52, vh - 52);
-    g.lineStyle(2, 0x70253b, 0.5).lineBetween(ox, oy + 592, ox + W, oy + 592);
+    for (let x = 0; x <= W; x += 40) g.lineBetween(x, 0, x, H);
+    for (let y = 0; y <= H; y += 40) g.lineBetween(0, y, W, y);
+    g.lineStyle(2, C.frame, 0.7).strokeRect(26, 26, W - 52, H - 52);
+    g.lineStyle(2, 0x70253b, 0.5).lineBetween(0, 592, W, 592);
   }
 
   makeStage() {
     this.plats = this.physics.add.staticGroup();
     for (const p of STAGE) {
-      const q = this.wp(p.x, p.y);
-      const r = this.add.rectangle(q.x, q.y, p.w, p.h, C.plat).setStrokeStyle(2, C.edge);
+      const r = this.add.rectangle(p.x, p.y, p.w, p.h, C.plat).setStrokeStyle(2, C.edge);
       this.plats.add(r);
     }
     this.plats.refresh();
   }
 
   makeHud() {
-    const { vw } = this.view;
-    addLabel(this, vw * 0.5, 10, 'PIXEL BRAWL', 14, '#5ca7d0', 'center').setOrigin(0.5, 0);
+    addLabel(this, W / 2, 10, 'PIXEL BRAWL', 14, '#5ca7d0', 'center').setOrigin(0.5, 0);
     this.hudP1 = addLabel(this, 14, 12, '', 14, C.p1);
     this.hudS1 = addLabel(this, 14, 34, '', 12, C.dim);
-    this.hudP2 = addLabel(this, vw - 14, 12, '', 14, C.p2).setOrigin(1, 0);
-    this.hudS2 = addLabel(this, vw - 14, 34, '', 12, C.dim).setOrigin(1, 0);
+    this.hudP2 = addLabel(this, W - 14, 12, '', 14, C.p2).setOrigin(1, 0);
+    this.hudS2 = addLabel(this, W - 14, 34, '', 12, C.dim).setOrigin(1, 0);
   }
 
   makePlayer(idx, id) {
-    const ch = CHARS.find(c => c.id === id) || CHARS[0], s = this.wp(SPAWNS[idx].x, SPAWNS[idx].y);
+    const ch = CHARS.find(c => c.id === id) || CHARS[0], s = SPAWNS[idx];
     const body = this.add.rectangle(s.x, s.y, 26, 40, ch.color);
     this.physics.add.existing(body);
     body.body.setCollideWorldBounds(false).setMaxVelocity(700, 1000);
@@ -342,7 +330,7 @@ class GameScene extends Phaser.Scene {
 
   update(_, dt) {
     if (this.over) {
-      if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
+      if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2 || uiPressed(this, 'enter')) this.scene.start('Menu');
       flush(this); return;
     }
     const p1 = this.players[0], p2 = this.players[1];
@@ -355,7 +343,7 @@ class GameScene extends Phaser.Scene {
   tickPlayer(p, foe, dt) {
     if (!p.alive) return;
     this.tickTimers(p, dt);
-    if (p.body.x < this.view.ox - DEATH_X || p.body.x > this.view.ox + W + DEATH_X || p.body.y > this.view.oy + DEATH_Y) { this.killPlayer(p); return; }
+    if (p.body.x < -DEATH_X || p.body.x > W + DEATH_X || p.body.y > DEATH_Y) { this.killPlayer(p); return; }
     this.movePlayer(p);
     this.handleActions(p);
     this.updateAttack(p, foe);
@@ -397,10 +385,10 @@ class GameScene extends Phaser.Scene {
   }
 
   handleActions(p) {
-    const atk = anyPressed(this, p.idx ? ['P2_1', 'P2_4'] : ['P1_1', 'P1_4']);
-    const alt = anyPressed(this, p.idx ? ['P2_2', 'P2_5'] : ['P1_2', 'P1_5']);
+    const atk = p.idx ? anyPressed(this, ['P2_1', 'P2_4']) || uiPressed(this, 'k') : anyPressed(this, ['P1_1', 'P1_4']) || uiPressed(this, 'f');
+    const alt = p.idx ? anyPressed(this, ['P2_2', 'P2_5']) || uiPressed(this, 'l') : anyPressed(this, ['P1_2', 'P1_5']) || uiPressed(this, 'g');
     const L = p.idx ? 'P2_L' : 'P1_L', R = p.idx ? 'P2_R' : 'P1_R';
-    const moving = this.ctrl.held[L] || this.ctrl.held[R];
+    const moving = this.ctrl.held[L] || this.ctrl.held[R] || uiHeld(this, p.idx ? 'arrowleft' : 'a') || uiHeld(this, p.idx ? 'arrowright' : 'd');
     if (p.stun > 0) return;
     if (atk && p.atkCd <= 0) this.basicAttack(p);
     if (alt && p.fatigue <= 0) {
@@ -503,7 +491,7 @@ class GameScene extends Phaser.Scene {
 
   respawnPlayer(p) {
     if (this.over) return;
-    const s = this.wp(SPAWNS[p.idx].x, SPAWNS[p.idx].y);
+    const s = SPAWNS[p.idx];
     p.alive = 1; p.jumps = 2; p.stamina = p.staminaMax; p.invuln = INVULN_MS; p.fatigue = 0; p.stun = 0; p.atk = null; p.slam = 0;
     p.body.body.enable = true; p.body.body.reset(s.x, s.y);
     p.body.setVisible(true).setAlpha(1); p.head.setVisible(true).setAlpha(1); p.shield.setVisible(true).setAlpha(0.5);
@@ -533,11 +521,9 @@ class GameScene extends Phaser.Scene {
       return '█'.repeat(n) + '·'.repeat(10 - n);
     };
     const cool = p => (p.spCd > 0 ? ' SP ' + Math.ceil(p.spCd / 1000) : ' SP READY');
-    const { vw } = this.view;
     const p1 = this.players[0], p2 = this.players[1];
     this.hudP1.setText('P1 ' + p1.char.name + ' ' + dots(p1.lives));
-    this.hudP2.setText(dots(p2.lives) + ' ' + p2.char.name + ' P2').setPosition(vw - 14, 12);
-    this.hudS2.setPosition(vw - 14, 34);
+    this.hudP2.setText(dots(p2.lives) + ' ' + p2.char.name + ' P2');
     this.hudS1.setText('STM ' + bar(p1) + (p1.fatigue > 0 ? ' FATIGUE' : '') + cool(p1));
     this.hudS2.setText((p2.fatigue > 0 ? 'FATIGUE ' : '') + bar(p2) + ' STM' + cool(p2));
   }
@@ -548,32 +534,35 @@ class EndScene extends Phaser.Scene {
   init(data) { this.winner = data.winner || 1; this.char = data.char || null; }
   create() {
     bindKeys(this);
-    const { vw, vh } = fit(this);
     arcadeBg(this, 'MATCH OVER', '');
     const col = this.winner === 1 ? C.p1 : C.p2;
     if (this.char) {
-      drawFighter(this, vw * 0.5, vh * 0.5 + 10, this.char, 1.1);
-      addLabel(this, vw * 0.5, vh * 0.5 - 122, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
-      addLabel(this, vw * 0.5, vh * 0.5 - 72, this.char.name, 22, C.hot, 'center').setOrigin(0.5);
-    } else addLabel(this, vw * 0.5, vh * 0.5 - 20, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
-    addLabel(this, vw * 0.5, vh - 46, 'PRESS START TO RETURN TO MENU', 14, C.dim, 'center').setOrigin(0.5);
+      drawFighter(this, W / 2, H / 2 + 10, this.char, 1.1);
+      addLabel(this, W / 2, H / 2 - 122, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
+      addLabel(this, W / 2, H / 2 - 72, this.char.name, 22, C.hot, 'center').setOrigin(0.5);
+    } else addLabel(this, W / 2, H / 2 - 20, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
+    addLabel(this, W / 2, 536, 'PRESS START TO RETURN TO MENU', 14, C.dim, 'center').setOrigin(0.5);
   }
   update() {
-    if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
+    if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2 || uiPressed(this, 'enter')) this.scene.start('Menu');
     flush(this);
   }
 }
 
-setupShell();
+if (!document.getElementById('game-root')) {
+  const root = document.createElement('div');
+  root.id = 'game-root';
+  document.body.appendChild(root);
+}
 
 const config = {
   type: Phaser.AUTO,
-  width: window.innerWidth,
-  height: window.innerHeight,
+  width: W,
+  height: H,
   parent: 'game-root',
   backgroundColor: '#08111f',
   physics: { default: 'arcade', arcade: { gravity: { y: GRAVITY }, debug: false } },
-  scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [BootScene, MenuScene, ControlsScene, CreditsScene, CharacterSelectScene, GameScene, EndScene],
 };
 
