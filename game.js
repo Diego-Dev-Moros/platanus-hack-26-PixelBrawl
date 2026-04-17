@@ -2,7 +2,7 @@
 
 const W = 800, H = 600;
 const GRAVITY = 980, SPEED = 220, JUMP = -420, LIVES = 3;
-const ATK_CD = 280, DASH_CD = 900, FATIGUE_MS = 900, INVULN_MS = 1200;
+const ATK_CD = 280, DASH_CD = 900, FATIGUE_MS = 1000, INVULN_MS = 1200, EXHAUST_RECOVER = 35;
 const BASE_KB_X = 240, BASE_KB_Y = 155;
 const DEATH_X = 80, DEATH_Y = 680;
 
@@ -519,6 +519,8 @@ class GameScene extends Phaser.Scene {
     this.makeHud();
     this.players = [this.makePlayer(0, this.picks[0]), this.makePlayer(1, this.picks[1])];
     this.refreshHud();
+    this.pickup = null;
+    this.scheduleNextPickup();
     this.startCountdown();
   }
 
@@ -582,12 +584,14 @@ class GameScene extends Phaser.Scene {
       lives: LIVES, alive: 1, face, jumps: 2,
       stamina: 100, staminaMax: 100, invuln: 0, fatigue: 0, stun: 0,
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
+      lastHitTime: 0, powerBoost: 0, recovering: false,
     };
   }
 
   update(_, dt) {
     updateBackground(this, dt);
     updatePlatforms(this);
+    this.updatePickup(dt);
     if (this.over) {
       if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
       flush(this); return;
@@ -607,23 +611,37 @@ class GameScene extends Phaser.Scene {
     this.handleActions(p);
     this.updateAttack(p, foe);
     this.checkSlam(p, foe);
+    this.checkPickup(p);
     this.animatePlayer(p);
-    p.visual.setAlpha(p.invuln > 0 && (Math.floor(p.invuln / 80) % 2) ? 0.3 : 1);
-    p.overlay.setAlpha(p.fatigue > 0 && (Math.floor(p.fatigue / 110) % 2) ? 0.45 : 0);
+    const lowStam = p.stamina > 0 && p.stamina < p.staminaMax * 0.35 && p.fatigue <= 0;
+    p.visual.setAlpha(
+      p.invuln > 0 && (Math.floor(p.invuln / 80) % 2) ? 0.3 :
+      lowStam && (Math.floor(this.time.now / 600) % 2) ? 0.65 : 1
+    );
+    p.overlay.setAlpha(p.fatigue > 0 ? 0.5 : 0);
   }
 
   tickTimers(p, dt) {
     if (p.invuln > 0) p.invuln -= dt;
-    if (p.fatigue > 0) p.fatigue -= dt;
-    if (p.stun > 0) p.stun -= dt;
-    if (p.atkCd > 0) p.atkCd -= dt;
+    if (p.stun > 0)   p.stun   -= dt;
+    if (p.atkCd > 0)  p.atkCd  -= dt;
     if (p.dashCd > 0) p.dashCd -= dt;
-    if (p.spCd > 0) p.spCd -= dt;
-    if (p.dashT > 0) p.dashT -= dt;
-    if (p.atk) {
-      p.atk.t -= dt;
-      if (p.atk.t <= 0) p.atk = null;
+    if (p.spCd > 0)   p.spCd   -= dt;
+    if (p.dashT > 0)  p.dashT  -= dt;
+    if (p.powerBoost > 0) p.powerBoost -= dt;
+    if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
+    // Exhausted state countdown + recovery reward
+    const wasExh = p.fatigue > 0;
+    if (p.fatigue > 0) p.fatigue -= dt;
+    if (wasExh && p.fatigue <= 0) {
+      p.stamina = Math.min(p.staminaMax, p.stamina + EXHAUST_RECOVER);
+      p.recovering = true;
+      this.time.delayedCall(220, () => { p.recovering = false; });
+      tone(this, 500, 'triangle', 0.06, 0.18);
     }
+    // Passive recovery: 8 stamina/s after 2s without being hit
+    if (p.fatigue <= 0 && p.stamina < p.staminaMax && this.time.now - p.lastHitTime > 2000)
+      p.stamina = Math.min(p.staminaMax, p.stamina + dt * 0.008);
   }
 
   movePlayer(p) {
@@ -654,9 +672,9 @@ class GameScene extends Phaser.Scene {
     const altCode = p.idx ? 'P1_6' : 'P2_5';
     const L = p.idx ? 'P2_L' : 'P1_L', R = p.idx ? 'P2_R' : 'P1_R';
     const moving = this.ctrl.held[L] || this.ctrl.held[R];
-    if (p.stun > 0) return;
+    if (p.stun > 0 || p.fatigue > 0) return;
     if (this.ctrl.pressed[atkCode] && p.atkCd <= 0) this.basicAttack(p);
-    if (this.ctrl.pressed[altCode] && p.fatigue <= 0) {
+    if (this.ctrl.pressed[altCode]) {
       if (moving && p.dashCd <= 0) this.doDash(p);
       else if (p.spCd <= 0) this.doSpecial(p);
       else if (p.dashCd <= 0) this.doDash(p);
@@ -727,12 +745,18 @@ class GameScene extends Phaser.Scene {
     const b = t.body.body;
     const ratio = t.stamina / t.staminaMax;
     const mul = 1 + (1 - ratio) * 0.8;
+    const pwr = p.powerBoost > 0 ? 1.35 : 1;
     const dir = p.body.x <= t.body.x ? 1 : -1;
-    let vx = dir * BASE_KB_X * (a.fx || 1) * mul;
-    let vy = -BASE_KB_Y * (a.fy || 0.75) * mul;
-    if (a.kind === 'dash') vy = -95 * mul;
-    t.stamina = Math.max(0, t.stamina - a.dmg);
-    if (t.stamina <= 0) t.fatigue = Math.max(t.fatigue, FATIGUE_MS);
+    let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr;
+    let vy = -BASE_KB_Y * (a.fy || 0.75) * mul * pwr;
+    if (a.kind === 'dash') vy = -95 * mul * pwr;
+    t.lastHitTime = this.time.now;
+    t.stamina = Math.max(0, t.stamina - a.dmg * pwr);
+    if (t.stamina <= 0) {
+      t.fatigue = FATIGUE_MS;
+      t.atk = null;
+      t.slam = 0;
+    }
     t.stun = a.kind === 'basic' ? 110 : a.kind === 'dash' ? 130 : 150;
     b.setVelocity(vx, vy);
     // Visual feedback — sparks + flash, scaled by attack strength
@@ -783,9 +807,12 @@ class GameScene extends Phaser.Scene {
     p.stun = 0;
     p.atk = null;
     p.slam = 0;
+    p.lastHitTime = 0;
+    p.powerBoost = 0;
+    p.recovering = false;
     p.body.body.enable = true;
     p.body.body.reset(s.x, s.y);
-    p.visual.setVisible(true).setAlpha(1).setPosition(s.x, s.y);
+    p.visual.setVisible(true).setAlpha(1).setAngle(0).setPosition(s.x, s.y);
     p.overlay.setVisible(true).setAlpha(0).setPosition(s.x, s.y);
     this.syncHead(p);
     burst(this, s.x, s.y, p.char.accent, 6);
@@ -803,22 +830,38 @@ class GameScene extends Phaser.Scene {
   animatePlayer(p) {
     const t = this.time.now;
     const b = p.body.body;
+    const sx = p.face < 0 ? -1 : 1;
+
+    if (p.fatigue > 0) {
+      // Exhausted: lerp fighter sideways (collapse)
+      const target = 82 * sx;
+      p.visual.setAngle(Phaser.Math.Linear(p.visual.angle, target, 0.18));
+      p.visual.setPosition(p.body.x, p.body.y).setScale(sx, 1);
+      p.overlay.setPosition(p.body.x, p.body.y);
+      return;
+    }
+    if (p.recovering) {
+      // Lerp back to upright after exhaustion ends
+      p.visual.setAngle(Phaser.Math.Linear(p.visual.angle, 0, 0.22));
+      p.visual.setPosition(p.body.x, p.body.y).setScale(sx, 1);
+      p.overlay.setPosition(p.body.x, p.body.y);
+      return;
+    }
+
     const vx = Math.abs(b.velocity.x);
-    // Per-character bob speed/amplitude
     const bF = p.char.id === 'volt' ? 0.0048 : p.char.id === 'crush' ? 0.0020 : 0.0034;
     const bA = p.char.id === 'crush' ? 2.2 : 1.4;
     let yOff = 0, ang = 0;
     if (p.stun > 0) {
-      yOff = Math.sin(t * 0.08) * 2;                        // stun jitter
+      yOff = Math.sin(t * 0.08) * 2;
     } else if (vx > 20 && b.blocked.down) {
-      yOff = Math.sin(t * bF * 4) * bA;                     // walk bob
+      yOff = Math.sin(t * bF * 4) * bA;
       ang  = Math.sin(t * bF * 4 + Math.PI / 2) * 2.5 * p.face;
     } else {
-      yOff = Math.sin(t * bF) * bA;                         // idle bob
+      yOff = Math.sin(t * bF) * bA;
     }
-    p.visual.setPosition(p.body.x, p.body.y + yOff);
-    p.visual.setScale(p.face < 0 ? -1 : 1, 1);
-    p.visual.setAngle(p.face < 0 ? -ang : ang);
+    p.visual.setPosition(p.body.x, p.body.y + yOff).setScale(sx, 1);
+    p.visual.setAngle(sx < 0 ? -ang : ang);
     p.overlay.setPosition(p.body.x, p.body.y);
   }
 
@@ -866,6 +909,57 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  scheduleNextPickup() {
+    this.pickupTimer = 7000 + Math.random() * 3000;
+  }
+
+  updatePickup(dt) {
+    if (!this.pickup) {
+      if ((this.pickupTimer -= dt) <= 0) this.spawnPickup();
+      return;
+    }
+    const nx = this.pickup.plat.hitbox.x + this.pickup.offX;
+    const ny = this.pickup.plat.hitbox.y - 22;
+    this.pickup.orb.setPosition(nx, ny);
+    this.pickup.x = nx; this.pickup.y = ny;
+    if ((this.pickup.life -= dt) <= 0) {
+      this.tweens.killTweensOf(this.pickup.orb);
+      this.pickup.orb.destroy();
+      this.pickup = null;
+      this.scheduleNextPickup();
+    }
+  }
+
+  spawnPickup() {
+    const pl = this.platData[Phaser.Math.Between(0, this.platData.length - 1)];
+    const offX = Phaser.Math.Between(-30, 30);
+    const type = Math.random() < 0.6 ? 'recovery' : 'power';
+    const col  = type === 'recovery' ? 0x00ffaa : 0xff8c00;
+    const orb  = this.add.circle(pl.hitbox.x + offX, pl.hitbox.y - 22, 8, col, 0.9);
+    this.tweens.add({ targets: orb, scaleX: 1.4, scaleY: 1.4, alpha: 0.65, duration: 380, yoyo: true, repeat: -1 });
+    this.pickup = { orb, type, x: orb.x, y: orb.y, plat: pl, offX, life: 5500 };
+  }
+
+  checkPickup(p) {
+    if (!this.pickup) return;
+    const dx = p.body.x - this.pickup.x, dy = p.body.y - this.pickup.y;
+    if (dx * dx + dy * dy > 24 * 24) return;
+    const { type, x, y, orb } = this.pickup;
+    this.tweens.killTweensOf(orb);
+    orb.destroy();
+    this.pickup = null;
+    this.scheduleNextPickup();
+    burst(this, x, y, type === 'recovery' ? 0x00ffaa : 0xff8c00, 7);
+    if (type === 'recovery') {
+      p.stamina = Math.min(p.staminaMax, p.stamina + 35);
+      p.lastHitTime = 0;
+      tone(this, 660, 'triangle', 0.07, 0.18);
+    } else {
+      p.powerBoost = 5000;
+      tone(this, 880, 'square', 0.07, 0.12);
+    }
+  }
+
   flash(x, y, w, h, c, dur) {
     const r = this.add.rectangle(x, y, w, h, c, 0.8);
     this.tweens.add({ targets: r, alpha: 0, scaleX: 1.3, scaleY: 1.3, duration: dur, onComplete: () => r.destroy() });
@@ -882,7 +976,7 @@ class GameScene extends Phaser.Scene {
       const n = Math.max(0, Math.ceil((p.stamina / p.staminaMax) * 10));
       return '█'.repeat(n) + '·'.repeat(10 - n);
     };
-    const cool = p => (p.spCd > 0 ? ' SP ' + Math.ceil(p.spCd / 1000) : ' SP READY');
+    const cool = p => (p.powerBoost > 0 ? ' PWR!' : p.spCd > 0 ? ' SP ' + Math.ceil(p.spCd / 1000) : ' SP RDY');
     const p1 = this.players[0], p2 = this.players[1];
     this.hudP1.setText('P1 ' + p1.char.name + ' ' + dots(p1.lives));
     this.hudP2.setText(dots(p2.lives) + ' ' + p2.char.name + ' P2');
