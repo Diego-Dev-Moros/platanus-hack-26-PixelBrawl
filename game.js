@@ -655,7 +655,8 @@ class GameScene extends Phaser.Scene {
       stamina: 100, staminaMax: 100, invuln: 0, fatigue: 0, stun: 0,
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0 }, _auraType: null, recovering: false,
-      _hud: { seg: 10, sp: -1, bk: 0, fat: false }, _lastAlpha: -1, _lastOvAlpha: -1, _lastSx: 0,
+      canAirDodge: true, shielding: false, comboHits: 0, comboT: 0,
+      _hud: { seg: 10, sp: -1, bk: 0, fat: false }, _lastAlpha: -1, _lastOvAlpha: -1, _lastOvColor: -1, _lastSx: 0,
     };
   }
 
@@ -678,6 +679,12 @@ class GameScene extends Phaser.Scene {
     if (!p.alive) return;
     const now = this.time.now;
     this.tickTimers(p, dt);
+    const shldCode = p.idx ? 'P2_6' : 'P1_4';
+    p.shielding = p.fatigue <= 0 && p.stun <= 0 && p.stamina > 0 && !!this.ctrl.held[shldCode];
+    if (p.shielding) {
+      p.stamina = Math.max(0, p.stamina - dt * 0.025);
+      if (p.stamina <= 0) { p.fatigue = FATIGUE_MS * 0.6; p.shielding = false; }
+    }
     if (this.ready && (p.body.x < -DEATH_X || p.body.x > W + DEATH_X || p.body.y > DEATH_Y)) { this.killPlayer(p); return; }
     this.movePlayer(p);
     this.handleActions(p);
@@ -703,8 +710,19 @@ class GameScene extends Phaser.Scene {
     const na = p.invuln > 0 && (Math.floor(now / 80) % 2) ? 0.3 :
                lowStam && (Math.floor(now / 600) % 2) ? 0.65 : 1;
     if (na !== p._lastAlpha) { p.visual.setAlpha(na); p._lastAlpha = na; }
-    const no = p.fatigue > 0 ? 0.5 : 0;
-    if (no !== p._lastOvAlpha) { p.overlay.setAlpha(no); p._lastOvAlpha = no; }
+    if (!p.body.body.blocked.down && p.body.body.velocity.y > 100)
+      for (const pd of this.platData) {
+        const ed = Math.abs(p.body.x - pd.hitbox.x) - pd.hitbox.width / 2;
+        const yd = p.body.y - (pd.hitbox.y - 10);
+        if (ed > 0 && ed < 28 && yd > 0 && yd < 60)
+          p.body.body.velocity.x += (p.body.x < pd.hitbox.x ? 1 : -1) * 40;
+      }
+    const no = p.shielding ? 0.45 : p.fatigue > 0 ? 0.5 : 0;
+    const nc = p.shielding ? 0x4488ff : 0xff4400;
+    if (no !== p._lastOvAlpha || nc !== p._lastOvColor) {
+      p.overlay.setFillStyle(nc).setAlpha(no);
+      p._lastOvAlpha = no; p._lastOvColor = nc;
+    }
   }
 
   tickTimers(p, dt) {
@@ -718,6 +736,7 @@ class GameScene extends Phaser.Scene {
     if (p.buffs.speed > 0) p.buffs.speed = Math.max(0, p.buffs.speed - dt);
     if (p.buffs.regen > 0) p.buffs.regen = Math.max(0, p.buffs.regen - dt);
     if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
+    if (p.comboT > 0) { p.comboT -= dt; if (p.comboT <= 0) p.comboHits = 0; }
     // Exhausted state countdown + recovery reward
     const wasExh = p.fatigue > 0;
     if (p.fatigue > 0) p.fatigue -= dt;
@@ -749,9 +768,10 @@ class GameScene extends Phaser.Scene {
     const L = p.idx ? 'P2_L' : 'P1_L';
     const R = p.idx ? 'P2_R' : 'P1_R';
     const U = p.idx ? 'P2_U' : 'P1_U';
-    if (b.blocked.down || b.touching.down) p.jumps = 2;
+    if (b.blocked.down || b.touching.down) { p.jumps = 2; p.canAirDodge = true; }
     if (p.stun > 0) return;
     if (p.dashT > 0) return;
+    if (p.shielding) { b.setVelocityX(0); return; }
     const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1);
     let vx = 0;
     if (this.ctrl.held[L]) { vx = -spd; p.face = -1; }
@@ -772,10 +792,13 @@ class GameScene extends Phaser.Scene {
     const altCode = p.idx ? 'P1_6' : 'P2_5';
     const L = p.idx ? 'P2_L' : 'P1_L', R = p.idx ? 'P2_R' : 'P1_R';
     const moving = this.ctrl.held[L] || this.ctrl.held[R];
-    if (p.stun > 0 || p.fatigue > 0) return;
+    if (p.stun > 0 || p.fatigue > 0 || p.shielding) return;
     if (this.ctrl.pressed[atkCode] && p.atkCd <= 0) this.basicAttack(p);
     if (this.ctrl.pressed[altCode]) {
-      if (moving && p.dashCd <= 0) this.doDash(p);
+      const onGround = p.body.body.blocked.down || p.body.body.touching.down;
+      if (!onGround && p.canAirDodge && (this.ctrl.held[L] || this.ctrl.held[R]))
+        this.doAirDodge(p);
+      else if (moving && p.dashCd <= 0) this.doDash(p);
       else if (p.spCd <= 0) this.doSpecial(p);
       else if (p.dashCd <= 0) this.doDash(p);
     }
@@ -797,6 +820,17 @@ class GameScene extends Phaser.Scene {
     b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500));
     this.flash(p.body.x, p.body.y, 44, 20, p.char.color, 110);
     tone(this, 90, 'sawtooth', 0.06, 0.14);
+  }
+
+  doAirDodge(p) {
+    const L = p.idx ? 'P2_L' : 'P1_L';
+    const dir = this.ctrl.held[L] ? -1 : 1;
+    p.canAirDodge = false;
+    p.invuln = Math.max(p.invuln, 160);
+    p.dashCd = DASH_CD * 0.7;
+    p.body.body.setVelocity(dir * 370, -60);
+    this.flash(p.body.x, p.body.y, 34, 34, p.char.color, 130);
+    tone(this, 480, 'triangle', 0.04, 0.10);
   }
 
   doSpecial(p) {
@@ -837,6 +871,10 @@ class GameScene extends Phaser.Scene {
     const box = { x: p.body.x + a.ox, y: p.body.y + a.oy, w: a.w, h: a.h };
     const target = { x: foe.body.x, y: foe.body.y, w: 26, h: 40 };
     if (!hitRect(box, target)) return;
+    if (a.kind === 'basic' || a.kind === 'dash') {
+      const d2 = (p.body.x - foe.body.x) ** 2 + (p.body.y - foe.body.y) ** 2;
+      a._sweet = d2 < 900 ? 1.25 : d2 > 3364 ? 0.80 : 1.0;
+    } else { a._sweet = 1.0; }
     a.hit = 1;
     this.hitPlayer(foe, p, a);
   }
@@ -844,33 +882,35 @@ class GameScene extends Phaser.Scene {
   hitPlayer(t, p, a) {
     const b = t.body.body;
     const ratio = t.stamina / t.staminaMax;
-    const mul = 1 + (1 - ratio) * 0.8;
-    const pwr = p.buffs.power > 0 ? 1.40 : 1;
-    const dir = p.body.x <= t.body.x ? 1 : -1;
-    let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr;
-    let vy = -BASE_KB_Y * (a.fy || 0.75) * mul * pwr;
-    if (a.kind === 'dash') vy = -95 * mul * pwr;
+    const mul  = 1 + (1 - ratio) * 0.8;
+    const pwr  = p.buffs.power > 0 ? 1.40 : 1;
+    const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
+      ? 1 + (1 - p.stamina / p.staminaMax) * 0.30 : 1;
+    const sweet = a._sweet || 1.0;
+    const shld  = t.shielding ? 0.30 : 1;
+    const dir  = p.body.x <= t.body.x ? 1 : -1;
+    let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * shld;
+    let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * shld;
+    if (a.kind === 'dash') vy = -95 * mul * pwr * sweet * rage * shld;
+    if (this.ctrl.held[t.idx ? 'P2_L' : 'P1_L']) vx -= 80;
+    if (this.ctrl.held[t.idx ? 'P2_R' : 'P1_R']) vx += 80;
+    if (this.ctrl.held[t.idx ? 'P2_U' : 'P1_U']) vy -= 35;
     t.lastHitTime = this.time.now;
-    t.stamina = Math.max(0, t.stamina - a.dmg * pwr);
-    if (t.stamina <= 0) {
-      t.fatigue = FATIGUE_MS;
-      t.atk = null;
-      t.slam = 0;
-    }
-    t.stun = a.kind === 'basic' ? 110 : a.kind === 'dash' ? 130 : 150;
+    t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
+    if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
+    t.comboHits++; t.comboT = 1800;
+    t.stun = (a.kind === 'basic' ? 110 : a.kind === 'dash' ? 130 : 150)
+      * Math.max(0.60, 1 - (t.comboHits - 1) * 0.10);
     b.setVelocity(vx, vy);
-    // Visual feedback — sparks + flash, scaled by attack strength
     const heavy = a.kind !== 'basic';
+    if (sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, 5);
     this.spark(t.body.x, t.body.y - 8, p.char.accent, heavy ? 7 : 4);
     this.flash(t.body.x, t.body.y - 6, heavy ? 38 : 24, 24, p.char.accent, 90);
-    // Screen shake varies by attack type
     const [shkDur, shkAmt] = a.kind === 'basic' ? [35, 0.003] : a.kind === 'dash' ? [85, 0.007] : [120, 0.013];
     this.cameras.main.shake(shkDur, shkAmt);
-    // Brief physics freeze on heavy hits for visual impact
     if (heavy) this.hitFreeze(a.kind === 'dash' ? 45 : 72);
-    // Sound varies by type
-    const hitF = a.kind === 'dash' ? 200 : a.kind === 'basic' ? 280 : 150;
-    tone(this, hitF, a.kind === 'dash' ? 'sawtooth' : 'square', 0.08, 0.09);
+    tone(this, a.kind === 'dash' ? 200 : a.kind === 'basic' ? 280 : 150,
+         a.kind === 'dash' ? 'sawtooth' : 'square', 0.08, 0.09);
   }
 
   killPlayer(p) {
@@ -880,7 +920,7 @@ class GameScene extends Phaser.Scene {
     p.atk = null;
     p.slam = 0;
     p.buffs.power = p.buffs.speed = p.buffs.regen = 0;
-    p._auraType = null;
+    p._auraType = null; p.shielding = false;
     p.aura.setVisible(false);
     burst(this, p.body.x, p.body.y, p.char.color, 8);
     this.cameras.main.shake(230, 0.015);
@@ -912,10 +952,10 @@ class GameScene extends Phaser.Scene {
     p.slam = 0;
     p.lastHitTime = 0;
     p.buffs.power = p.buffs.speed = p.buffs.regen = 0;
-    p._auraType = null;
+    p._auraType = null; p.shielding = false; p.canAirDodge = true; p.comboHits = 0; p.comboT = 0;
     p.aura.setVisible(false).setAngle(0);
     p.recovering = false;
-    p._lastAlpha = -1; p._lastOvAlpha = -1;
+    p._lastAlpha = -1; p._lastOvAlpha = -1; p._lastOvColor = -1;
     p.body.body.enable = true;
     p.body.body.reset(s.x, s.y);
     p.visual.setVisible(true).setAlpha(1).setAngle(0).setPosition(s.x, s.y);
