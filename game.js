@@ -4,6 +4,13 @@ const W = 800, H = 600;
 const GRAVITY = 980, SPEED = 220, JUMP = -420, LIVES = 3;
 const ATK_CD = 280, DASH_CD = 900, FATIGUE_MS = 1000, INVULN_MS = 1200, EXHAUST_RECOVER = 35;
 const BUFF_POWER_DUR = 10000, BUFF_SPEED_DUR = 10000, BUFF_REGEN_DUR = 8000;
+
+const PICKUP_CFG = {
+  recovery: { col: 0x00ffaa, txt: 'STAMINA +35', tc: '#00ffaa', f: 660, ft: 'triangle', fd: 0.18 },
+  power:    { col: 0x44ff44, txt: 'POWER UP!',   tc: '#44ff44', f: 880, ft: 'square',   fd: 0.12, bk: 'power', dur: BUFF_POWER_DUR },
+  speed:    { col: 0x4488ff, txt: 'SPEED UP!',   tc: '#4488ff', f: 660, ft: 'square',   fd: 0.10, bk: 'speed', dur: BUFF_SPEED_DUR },
+  regen:    { col: 0x00cccc, txt: 'REGEN UP!',   tc: '#00cccc', f: 550, ft: 'triangle', fd: 0.14, bk: 'regen', dur: BUFF_REGEN_DUR },
+};
 const BASE_KB_X = 240, BASE_KB_Y = 155;
 const DEATH_X = 80, DEATH_Y = 680;
 
@@ -565,6 +572,7 @@ class GameScene extends Phaser.Scene {
     bindKeys(this);
     this.over = 0;
     this.ready = false;
+    this.hudDirty = false;
     this.drawStage();
     this.makeStage();
     this.makeHud();
@@ -639,6 +647,7 @@ class GameScene extends Phaser.Scene {
       stamina: 100, staminaMax: 100, invuln: 0, fatigue: 0, stun: 0,
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0 }, _auraType: null, recovering: false,
+      _hud: { seg: 10, sp: -1, bk: 0, fat: false }, _lastAlpha: -1, _lastOvAlpha: -1, _lastSx: 0,
     };
   }
 
@@ -653,12 +662,13 @@ class GameScene extends Phaser.Scene {
     const p1 = this.players[0], p2 = this.players[1];
     this.tickPlayer(p1, p2, dt);
     this.tickPlayer(p2, p1, dt);
-    this.refreshHud();
+    if (this.hudDirty) { this.refreshHud(); this.hudDirty = false; }
     flush(this);
   }
 
   tickPlayer(p, foe, dt) {
     if (!p.alive) return;
+    const now = this.time.now;
     this.tickTimers(p, dt);
     if (this.ready && (p.body.x < -DEATH_X || p.body.x > W + DEATH_X || p.body.y > DEATH_Y)) { this.killPlayer(p); return; }
     this.movePlayer(p);
@@ -666,8 +676,7 @@ class GameScene extends Phaser.Scene {
     this.updateAttack(p, foe);
     this.checkSlam(p, foe);
     this.checkPickup(p);
-    this.animatePlayer(p);
-    // Buff aura — priority: power > speed > regen
+    this.animatePlayer(p, now);
     const auraType = p.buffs.power > 0 ? 'power' : p.buffs.speed > 0 ? 'speed' : p.buffs.regen > 0 ? 'regen' : null;
     if (auraType !== p._auraType) {
       p._auraType = auraType;
@@ -680,14 +689,14 @@ class GameScene extends Phaser.Scene {
     }
     if (auraType) {
       p.aura.setPosition(p.body.x, p.body.y);
-      p.aura.setAlpha(0.22 + 0.12 * Math.sin(this.time.now * 0.005));
+      p.aura.setAlpha(0.22 + 0.12 * Math.sin(now * 0.005));
     }
     const lowStam = p.stamina > 0 && p.stamina < p.staminaMax * 0.35 && p.fatigue <= 0;
-    p.visual.setAlpha(
-      p.invuln > 0 && (Math.floor(p.invuln / 80) % 2) ? 0.3 :
-      lowStam && (Math.floor(this.time.now / 600) % 2) ? 0.65 : 1
-    );
-    p.overlay.setAlpha(p.fatigue > 0 ? 0.5 : 0);
+    const na = p.invuln > 0 && (Math.floor(now / 80) % 2) ? 0.3 :
+               lowStam && (Math.floor(now / 600) % 2) ? 0.65 : 1;
+    if (na !== p._lastAlpha) { p.visual.setAlpha(na); p._lastAlpha = na; }
+    const no = p.fatigue > 0 ? 0.5 : 0;
+    if (no !== p._lastOvAlpha) { p.overlay.setAlpha(no); p._lastOvAlpha = no; }
   }
 
   tickTimers(p, dt) {
@@ -710,12 +719,19 @@ class GameScene extends Phaser.Scene {
       this.time.delayedCall(220, () => { p.recovering = false; });
       tone(this, 500, 'triangle', 0.06, 0.18);
     }
-    // Stamina recovery: regen buff is instant (no delay), passive needs 2s gap
     if (p.fatigue <= 0 && p.stamina < p.staminaMax) {
       if (p.buffs.regen > 0)
         p.stamina = Math.min(p.staminaMax, p.stamina + dt * 0.022);
       else if (this.time.now - p.lastHitTime > 2000)
         p.stamina = Math.min(p.staminaMax, p.stamina + dt * 0.008);
+    }
+    const ns = Math.ceil(p.stamina / p.staminaMax * 10);
+    const nsp = p.spCd > 0 ? Math.ceil(p.spCd / 1000) : -1;
+    const nbk = (p.buffs.power > 0 ? 4 : 0) | (p.buffs.speed > 0 ? 2 : 0) | (p.buffs.regen > 0 ? 1 : 0);
+    const nf  = p.fatigue > 0;
+    if (ns !== p._hud.seg || nsp !== p._hud.sp || nbk !== p._hud.bk || nf !== p._hud.fat) {
+      p._hud.seg = ns; p._hud.sp = nsp; p._hud.bk = nbk; p._hud.fat = nf;
+      this.hudDirty = true;
     }
   }
 
@@ -837,7 +853,7 @@ class GameScene extends Phaser.Scene {
     b.setVelocity(vx, vy);
     // Visual feedback — sparks + flash, scaled by attack strength
     const heavy = a.kind !== 'basic';
-    this.spark(t.body.x, t.body.y - 8, p.char.accent, heavy ? 9 : 5);
+    this.spark(t.body.x, t.body.y - 8, p.char.accent, heavy ? 7 : 4);
     this.flash(t.body.x, t.body.y - 6, heavy ? 38 : 24, 24, p.char.accent, 90);
     // Screen shake varies by attack type
     const [shkDur, shkAmt] = a.kind === 'basic' ? [35, 0.003] : a.kind === 'dash' ? [85, 0.007] : [120, 0.013];
@@ -858,14 +874,14 @@ class GameScene extends Phaser.Scene {
     p.buffs.power = p.buffs.speed = p.buffs.regen = 0;
     p._auraType = null;
     p.aura.setVisible(false);
-    burst(this, p.body.x, p.body.y, p.char.color, 10);
+    burst(this, p.body.x, p.body.y, p.char.color, 8);
     this.cameras.main.shake(230, 0.015);
     p.body.body.enable = false;
     p.body.setPosition(-500, -500);
     p.visual.setVisible(false);
     p.overlay.setVisible(false);
     tone(this, 90, 'sawtooth', 0.22, 0.5);
-    this.refreshHud();
+    this.hudDirty = true;
     if (p.lives <= 0) {
       this.over = 1;
       const win = this.players[1 - p.idx];
@@ -891,12 +907,14 @@ class GameScene extends Phaser.Scene {
     p._auraType = null;
     p.aura.setVisible(false).setAngle(0);
     p.recovering = false;
+    p._lastAlpha = -1; p._lastOvAlpha = -1;
     p.body.body.enable = true;
     p.body.body.reset(s.x, s.y);
     p.visual.setVisible(true).setAlpha(1).setAngle(0).setPosition(s.x, s.y);
     p.overlay.setVisible(true).setAlpha(0).setPosition(s.x, s.y);
     this.syncHead(p);
-    burst(this, s.x, s.y, p.char.accent, 6);
+    this.hudDirty = true;
+    burst(this, s.x, s.y, p.char.accent, 5);
     tone(this, 400, 'triangle', 0.07, 0.08);
     this.time.delayedCall(80,  () => tone(this, 520, 'triangle', 0.07, 0.08));
     this.time.delayedCall(160, () => tone(this, 660, 'triangle', 0.07, 0.12));
@@ -908,40 +926,35 @@ class GameScene extends Phaser.Scene {
     p.overlay.setPosition(p.body.x, p.body.y);
   }
 
-  animatePlayer(p) {
-    const t = this.time.now;
+  animatePlayer(p, now) {
     const b = p.body.body;
     const sx = p.face < 0 ? -1 : 1;
-
+    if (sx !== p._lastSx) { p.visual.setScale(sx, 1); p._lastSx = sx; }
     if (p.fatigue > 0) {
-      // Exhausted: lerp fighter sideways (collapse)
-      const target = 82 * sx;
-      p.visual.setAngle(Phaser.Math.Linear(p.visual.angle, target, 0.18));
-      p.visual.setPosition(p.body.x, p.body.y).setScale(sx, 1);
+      p.visual.setAngle(Phaser.Math.Linear(p.visual.angle, 82 * sx, 0.18));
+      p.visual.setPosition(p.body.x, p.body.y);
       p.overlay.setPosition(p.body.x, p.body.y);
       return;
     }
     if (p.recovering) {
-      // Lerp back to upright after exhaustion ends
       p.visual.setAngle(Phaser.Math.Linear(p.visual.angle, 0, 0.22));
-      p.visual.setPosition(p.body.x, p.body.y).setScale(sx, 1);
+      p.visual.setPosition(p.body.x, p.body.y);
       p.overlay.setPosition(p.body.x, p.body.y);
       return;
     }
-
     const vx = Math.abs(b.velocity.x);
     const bF = p.char.id === 'volt' ? 0.0048 : p.char.id === 'crush' ? 0.0020 : 0.0034;
     const bA = p.char.id === 'crush' ? 2.2 : 1.4;
     let yOff = 0, ang = 0;
     if (p.stun > 0) {
-      yOff = Math.sin(t * 0.08) * 2;
+      yOff = Math.sin(now * 0.08) * 2;
     } else if (vx > 20 && b.blocked.down) {
-      yOff = Math.sin(t * bF * 4) * bA;
-      ang  = Math.sin(t * bF * 4 + Math.PI / 2) * 2.5 * p.face;
+      yOff = Math.sin(now * bF * 4) * bA;
+      ang  = Math.sin(now * bF * 4 + Math.PI / 2) * 2.5 * p.face;
     } else {
-      yOff = Math.sin(t * bF) * bA;
+      yOff = Math.sin(now * bF) * bA;
     }
-    p.visual.setPosition(p.body.x, p.body.y + yOff).setScale(sx, 1);
+    p.visual.setPosition(p.body.x, p.body.y + yOff);
     p.visual.setAngle(sx < 0 ? -ang : ang);
     p.overlay.setPosition(p.body.x, p.body.y);
   }
@@ -1016,8 +1029,7 @@ class GameScene extends Phaser.Scene {
     const offX = Phaser.Math.Between(-30, 30);
     const rnd  = Math.random();
     const type = rnd < 0.40 ? 'recovery' : rnd < 0.60 ? 'power' : rnd < 0.80 ? 'speed' : 'regen';
-    const PCOL = { recovery: 0x00ffaa, power: 0x44ff44, speed: 0x4488ff, regen: 0x00cccc };
-    const col  = PCOL[type];
+    const col = PICKUP_CFG[type].col;
     const orb  = this.add.circle(pl.hitbox.x + offX, pl.hitbox.y - 22, 8, col, 0.9);
     this.tweens.add({ targets: orb, scaleX: 1.4, scaleY: 1.4, alpha: 0.65, duration: 380, yoyo: true, repeat: -1 });
     this.pickup = { orb, type, x: orb.x, y: orb.y, plat: pl, offX, life: 5500 };
@@ -1032,26 +1044,13 @@ class GameScene extends Phaser.Scene {
     orb.destroy();
     this.pickup = null;
     this.scheduleNextPickup();
-    const BCOL = { recovery: 0x00ffaa, power: 0x44ff44, speed: 0x4488ff, regen: 0x00cccc };
-    burst(this, x, y, BCOL[type], 7);
-    if (type === 'recovery') {
-      p.stamina = Math.min(p.staminaMax, p.stamina + 35);
-      p.lastHitTime = 0;
-      showPickupText(this, x, y, 'STAMINA +35', '#00ffaa');
-      tone(this, 660, 'triangle', 0.07, 0.18);
-    } else if (type === 'power') {
-      p.buffs.power = BUFF_POWER_DUR;
-      showPickupText(this, x, y, 'POWER UP!', '#44ff44');
-      tone(this, 880, 'square', 0.07, 0.12);
-    } else if (type === 'speed') {
-      p.buffs.speed = BUFF_SPEED_DUR;
-      showPickupText(this, x, y, 'SPEED UP!', '#4488ff');
-      tone(this, 660, 'square', 0.07, 0.10);
-    } else {
-      p.buffs.regen = BUFF_REGEN_DUR;
-      showPickupText(this, x, y, 'REGEN UP!', '#00cccc');
-      tone(this, 550, 'triangle', 0.07, 0.14);
-    }
+    const cfg = PICKUP_CFG[type];
+    burst(this, x, y, cfg.col, 5);
+    showPickupText(this, x, y, cfg.txt, cfg.tc);
+    tone(this, cfg.f, cfg.ft, 0.07, cfg.fd);
+    if (cfg.bk) { p.buffs[cfg.bk] = cfg.dur; }
+    else { p.stamina = Math.min(p.staminaMax, p.stamina + 35); p.lastHitTime = 0; }
+    this.hudDirty = true;
   }
 
   flash(x, y, w, h, c, dur) {
