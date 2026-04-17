@@ -331,12 +331,94 @@ class GameScene extends Phaser.Scene {
   }
 
   drawStage() {
-    this.add.rectangle(W / 2, H / 2, W, H, C.bg);
-    const g = this.add.graphics().lineStyle(1, C.grid, 0.38);
-    for (let x = 0; x <= W; x += 40) g.lineBetween(x, 0, x, H);
-    for (let y = 0; y <= H; y += 40) g.lineBetween(0, y, W, y);
-    g.lineStyle(2, C.frame, 0.7).strokeRect(26, 26, W - 52, H - 52);
-    g.lineStyle(2, 0x70253b, 0.5).lineBetween(0, 592, W, 592);
+    // ── Sky ──────────────────────────────────────────────────────────────
+    this.add.rectangle(W / 2, H / 2, W, H, 0x06101c);
+    const g = this.add.graphics();
+
+    // Horizon fire glow
+    g.fillStyle(0x1c0808, 0.48); g.fillRect(0, 370, W, H - 370);
+    g.fillStyle(0x280d06, 0.30); g.fillRect(0, 455, W, H - 455);
+
+    // Moon + aura rings
+    g.fillStyle(0xc6a448, 0.62); g.fillCircle(652, 72, 34);
+    g.fillStyle(0xaa8832, 0.08); g.fillCircle(652, 72, 58);
+    g.fillStyle(0x906820, 0.04); g.fillCircle(652, 72, 82);
+
+    // Fixed star field
+    g.fillStyle(0xffffff, 0.65);
+    [[26,22],[74,48],[108,14],[162,38],[218,20],[266,54],[338,12],[376,44],
+     [448,28],[512,18],[552,44],[610,22],[692,56],[728,18],[762,38],[794,26],
+     [44,82],[152,76],[296,90],[468,66],[642,84],[736,72]
+    ].forEach(([sx, sy]) => g.fillRect(sx, sy, 2, 2));
+
+    // ── Far buildings (darkest silhouettes) ──────────────────────────────
+    const FAR = [
+      [50, 44, 220],[118, 30, 172],[186, 56, 258],[308, 38, 146],
+      [492, 34, 164],[576, 62, 238],[658, 44, 194],[726, 50, 206],
+    ];
+    FAR.forEach(([bx, bw, bh]) => {
+      g.fillStyle(0x070b12, 1);
+      g.fillRect(bx - bw/2, H - bh, bw, bh);
+      // Broken parapet notches (sky-colored cutouts)
+      g.fillStyle(0x06101c, 1);
+      g.fillRect(bx - bw/2 + 4,   H - bh,              8, ~~(bh * 0.07));
+      g.fillRect(bx + bw/2 - 13,  H - bh,              9, ~~(bh * 0.05));
+    });
+
+    // ── Near buildings (mid-dark + windows) ──────────────────────────────
+    const NEAR = [
+      [86, 28, 154],[174, 38, 196],[262, 24, 128],
+      [590, 32, 174],[684, 42, 150],[756, 28, 136],
+    ];
+    NEAR.forEach(([bx, bw, bh]) => {
+      g.fillStyle(0x0c1824, 1);
+      g.fillRect(bx - bw/2, H - bh, bw, bh);
+      // Broken top
+      g.fillStyle(0x06101c, 1);
+      g.fillRect(bx - 2,          H - bh, 7, ~~(bh * 0.08));
+      g.fillRect(bx + bw/2 - 11,  H - bh, 9, ~~(bh * 0.06));
+      // Dim windows
+      g.fillStyle(0x3a5a70, 0.28);
+      for (let wy = H - bh + 24; wy < H - 55; wy += 30) {
+        g.fillRect(bx - bw/2 + 6, wy, 5, 3);
+        if (bw > 30) g.fillRect(bx + 4, wy + 12, 5, 3);
+      }
+    });
+
+    // Tilted ruin accents (leaning towers)
+    this.add.rectangle(200, H - 128, 16, 228, 0x07101a).setAngle(4);
+    this.add.rectangle(614, H - 104, 13, 192, 0x0a1620).setAngle(-3);
+
+    // ── Ground atmosphere ─────────────────────────────────────────────────
+    g.fillStyle(0x0a1828, 0.42); g.fillRect(0, 510, W, H - 510);
+    g.fillStyle(0x0c1e2e, 0.22); g.fillRect(0, 475, W, 50);
+    g.fillStyle(0x152030, 0.16); g.fillCircle(148, 530, 64);
+    g.fillStyle(0x152030, 0.12); g.fillCircle(462, 520, 86);
+    g.fillStyle(0x152030, 0.10); g.fillCircle(704, 538, 52);
+
+    // Animated ash/ember particles
+    for (let i = 0; i < 12; i++) {
+      const sx = Phaser.Math.Between(40, W - 40);
+      const sy = Phaser.Math.Between(420, H - 20);
+      const pt = this.add.rectangle(sx, sy, Phaser.Math.Between(1, 3), Phaser.Math.Between(1, 3), 0x886040, 0.45);
+      this.tweens.add({
+        targets: pt,
+        y: sy - Phaser.Math.Between(120, 220),
+        x: sx + Phaser.Math.Between(-25, 25),
+        alpha: 0,
+        duration: Phaser.Math.Between(2800, 5500),
+        delay: i * 280,
+        repeat: -1,
+        onRepeat: () => { pt.setPosition(sx, sy); pt.setAlpha(0.45); },
+      });
+    }
+
+    // ── Arena grid (faint retro overlay) ─────────────────────────────────
+    const grid = this.add.graphics().lineStyle(1, C.grid, 0.10);
+    for (let x = 0; x <= W; x += 40) grid.lineBetween(x, 0, x, H);
+    for (let y = 0; y <= H; y += 40) grid.lineBetween(0, y, W, y);
+    grid.lineStyle(2, C.frame, 0.55).strokeRect(28, 28, W - 56, H - 56);
+    grid.lineStyle(1, 0x6e1e2a, 0.40).lineBetween(0, 540, W, 540);
   }
 
   makeStage() {
