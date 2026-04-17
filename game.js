@@ -42,30 +42,11 @@ const KEY_MAP = {};
 for (const [code, keys] of Object.entries(CABINET_KEYS)) for (const k of keys) KEY_MAP[nk(k)] = code;
 
 function setupShell() {
-  const d = document, e = d.documentElement, b = d.body;
-  e.style.margin = b.style.margin = '0';
-  e.style.width = b.style.width = '100%';
-  e.style.height = b.style.height = '100%';
-  e.style.overflow = b.style.overflow = 'hidden';
-  b.style.background = '#08111f';
-  let root = d.getElementById('game-root');
-  if (!root) {
-    root = d.createElement('div');
+  if (!document.getElementById('game-root')) {
+    const root = document.createElement('div');
     root.id = 'game-root';
-    b.appendChild(root);
+    document.body.appendChild(root);
   }
-  root.style.position = 'fixed';
-  root.style.inset = '0';
-  root.style.width = '100vw';
-  root.style.height = '100vh';
-  root.style.zIndex = '2147483647';
-  root.style.background = '#08111f';
-  const hide = () => {
-    const kids = [...b.children];
-    for (const n of kids) if (n !== root) n.style.display = 'none';
-  };
-  hide();
-  new MutationObserver(hide).observe(b, { childList: true });
 }
 
 function fit(scene) {
@@ -87,20 +68,15 @@ function tone(scene, f, type, vol, dur) {
 }
 
 function bindKeys(scene) {
-  scene.ctrl = { held: {}, pressed: {}, rawHeld: {}, rawPressed: {} };
+  scene.ctrl = { held: {}, pressed: {} };
   const onDown = e => {
-    const raw = nk(e.key);
-    if (!scene.ctrl.rawHeld[raw]) scene.ctrl.rawPressed[raw] = true;
-    scene.ctrl.rawHeld[raw] = true;
-    const code = KEY_MAP[raw];
+    const code = KEY_MAP[nk(e.key)];
     if (!code) return;
     if (!scene.ctrl.held[code]) scene.ctrl.pressed[code] = true;
     scene.ctrl.held[code] = true;
   };
   const onUp = e => {
-    const raw = nk(e.key);
-    scene.ctrl.rawHeld[raw] = false;
-    const code = KEY_MAP[raw];
+    const code = KEY_MAP[nk(e.key)];
     if (code) scene.ctrl.held[code] = false;
   };
   window.addEventListener('keydown', onDown);
@@ -111,10 +87,7 @@ function bindKeys(scene) {
   });
 }
 
-function flush(scene) {
-  for (const k in scene.ctrl.pressed) scene.ctrl.pressed[k] = false;
-  for (const k in scene.ctrl.rawPressed) scene.ctrl.rawPressed[k] = false;
-}
+function flush(scene) { for (const k in scene.ctrl.pressed) scene.ctrl.pressed[k] = false; }
 
 function addLabel(scene, x, y, text, size, color, align) {
   return scene.add.text(x, y, text, {
@@ -122,8 +95,6 @@ function addLabel(scene, x, y, text, size, color, align) {
   });
 }
 
-function uiPressed(scene, key) { return !!scene.ctrl.rawPressed[key]; }
-function uiHeld(scene, key) { return !!scene.ctrl.rawHeld[key]; }
 function anyPressed(scene, keys) { return keys.some(k => scene.ctrl.pressed[k]); }
 
 function hitRect(a, b) {
@@ -184,9 +155,9 @@ class MenuScene extends Phaser.Scene {
     this.refresh();
   }
   update() {
-    if (anyPressed(this, ['P1_U', 'P2_U']) || uiPressed(this, 'w')) this.sel = (this.sel + this.opts.length - 1) % this.opts.length;
-    if (anyPressed(this, ['P1_D', 'P2_D']) || uiPressed(this, 's')) this.sel = (this.sel + 1) % this.opts.length;
-    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P1_4', 'P2_1', 'P2_4']) || uiPressed(this, 'enter')) this.pick();
+    if (anyPressed(this, ['P1_U', 'P2_U'])) this.sel = (this.sel + this.opts.length - 1) % this.opts.length;
+    if (anyPressed(this, ['P1_D', 'P2_D'])) this.sel = (this.sel + 1) % this.opts.length;
+    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P1_4', 'P2_1', 'P2_4'])) this.pick();
     this.refresh();
     flush(this);
   }
@@ -217,20 +188,20 @@ class ControlsScene extends Phaser.Scene {
     const { vw, vh } = fit(this);
     arcadeBg(this, 'CONTROLS', '');
     addLabel(this, vw * 0.5 - 210, 178, 'PLAYER 1', 22, C.p1).setOrigin(0.5);
-    addLabel(this, vw * 0.5 - 210, 220, 'A / D = MOVE', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 - 210, 250, 'W     = JUMP', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 - 210, 280, 'F     = ATTACK', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 - 210, 310, 'G     = DASH / SPECIAL', 16, C.text).setOrigin(0.5);
+    addLabel(this, vw * 0.5 - 210, 220, 'A / D   = MOVE', 16, C.text).setOrigin(0.5);
+    addLabel(this, vw * 0.5 - 210, 250, 'W       = JUMP (x2)', 16, C.text).setOrigin(0.5);
+    addLabel(this, vw * 0.5 - 210, 280, 'U / J   = ATTACK', 16, C.text).setOrigin(0.5);
+    addLabel(this, vw * 0.5 - 210, 310, 'I / K   = DASH + SPECIAL', 16, C.text).setOrigin(0.5);
     addLabel(this, vw * 0.5 + 210, 178, 'PLAYER 2', 22, C.p2).setOrigin(0.5);
-    addLabel(this, vw * 0.5 + 210, 220, 'LEFT / RIGHT = MOVE', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 + 210, 250, 'UP           = JUMP', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 + 210, 280, 'K            = ATTACK', 16, C.text).setOrigin(0.5);
-    addLabel(this, vw * 0.5 + 210, 310, 'L            = DASH / SPECIAL', 16, C.text).setOrigin(0.5);
+    addLabel(this, vw * 0.5 + 210, 220, 'LEFT/RIGHT   = MOVE', 16, C.text).setOrigin(0.5);
+    addLabel(this, vw * 0.5 + 210, 250, 'UP           = JUMP (x2)', 16, C.text).setOrigin(0.5);
+    addLabel(this, vw * 0.5 + 210, 280, 'R / F        = ATTACK', 16, C.text).setOrigin(0.5);
+    addLabel(this, vw * 0.5 + 210, 310, 'T / G        = DASH + SPECIAL', 16, C.text).setOrigin(0.5);
     addLabel(this, vw * 0.5, vh * 0.68, 'WIN BY KNOCKING YOUR RIVAL OFF THE STAGE.', 14, C.dim, 'center').setOrigin(0.5);
-    addLabel(this, vw * 0.5, vh - 46, 'PRESS ENTER TO RETURN', 13, C.hot, 'center').setOrigin(0.5);
+    addLabel(this, vw * 0.5, vh - 46, 'PRESS START TO RETURN', 13, C.hot, 'center').setOrigin(0.5);
   }
   update() {
-    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P2_1']) || uiPressed(this, 'enter')) this.scene.start('Menu');
+    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P2_1'])) this.scene.start('Menu');
     flush(this);
   }
 }
@@ -249,7 +220,7 @@ class CreditsScene extends Phaser.Scene {
     addLabel(this, cx, vh - 46, 'PRESS ENTER TO RETURN', 13, C.dim, 'center').setOrigin(0.5);
   }
   update() {
-    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P2_1']) || uiPressed(this, 'enter')) this.scene.start('Menu');
+    if (anyPressed(this, ['START1', 'START2', 'P1_1', 'P2_1'])) this.scene.start('Menu');
     flush(this);
   }
 }
@@ -273,21 +244,21 @@ class CharacterSelectScene extends Phaser.Scene {
       this.cards.push({ box, mark });
     }
     this.status = addLabel(this, vw * 0.5, vh - 74, '', 14, C.hot, 'center').setOrigin(0.5);
-    addLabel(this, vw * 0.5, vh - 46, 'P1: A/D + F TO LOCK    P2: LEFT/RIGHT + K TO LOCK', 12, C.dim, 'center').setOrigin(0.5);
+    addLabel(this, vw * 0.5, vh - 46, 'P1: A/D + U/J TO LOCK   ·   P2: ARROWS + R/F TO LOCK   ·   START = BEGIN', 12, C.dim, 'center').setOrigin(0.5);
     this.refresh();
   }
   update() {
     if (!this.lock[0]) {
       if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
       if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
-      if (uiPressed(this, 'f')) { this.lock[0] = 1; tone(this, 480, 'square', 0.06, 0.08); }
+      if (this.ctrl.pressed.P1_1 || this.ctrl.pressed.P1_4) { this.lock[0] = 1; tone(this, 480, 'square', 0.06, 0.08); }
     }
     if (!this.lock[1]) {
       if (this.ctrl.pressed.P2_L) this.sel[1] = (this.sel[1] + 2) % 3;
       if (this.ctrl.pressed.P2_R) this.sel[1] = (this.sel[1] + 1) % 3;
-      if (uiPressed(this, 'k')) { this.lock[1] = 1; tone(this, 620, 'square', 0.06, 0.08); }
+      if (this.ctrl.pressed.P2_1 || this.ctrl.pressed.P2_4) { this.lock[1] = 1; tone(this, 620, 'square', 0.06, 0.08); }
     }
-    if (this.lock[0] && this.lock[1] && (this.ctrl.pressed.START1 || uiPressed(this, 'enter') || uiPressed(this, 'space'))) {
+    if (this.lock[0] && this.lock[1] && (this.ctrl.pressed.START1 || this.ctrl.pressed.START2)) {
       this.scene.start('Game', { picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
       return;
     }
@@ -304,7 +275,7 @@ class CharacterSelectScene extends Phaser.Scene {
       this.cards[i].box.setFillStyle(fill).setStrokeStyle(2, stroke);
       this.cards[i].mark.setText(mark);
     }
-    this.status.setText(this.lock[0] && this.lock[1] ? 'PRESS ENTER TO START' : 'WAITING FOR BOTH PLAYERS');
+    this.status.setText(this.lock[0] && this.lock[1] ? 'PRESS START TO BEGIN' : !this.lock[0] ? 'P1  SELECT A CHARACTER' : 'P2  SELECT A CHARACTER');
   }
 }
 
@@ -371,7 +342,7 @@ class GameScene extends Phaser.Scene {
 
   update(_, dt) {
     if (this.over) {
-      if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2 || uiPressed(this, 'enter')) this.scene.start('Menu');
+      if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
       flush(this); return;
     }
     const p1 = this.players[0], p2 = this.players[1];
@@ -426,10 +397,10 @@ class GameScene extends Phaser.Scene {
   }
 
   handleActions(p) {
-    const atk = p.idx ? anyPressed(this, ['P2_1', 'P2_4']) || uiPressed(this, 'k') : anyPressed(this, ['P1_1', 'P1_4']) || uiPressed(this, 'f');
-    const alt = p.idx ? anyPressed(this, ['P2_2', 'P2_5']) || uiPressed(this, 'l') : anyPressed(this, ['P1_2', 'P1_5']) || uiPressed(this, 'g');
+    const atk = anyPressed(this, p.idx ? ['P2_1', 'P2_4'] : ['P1_1', 'P1_4']);
+    const alt = anyPressed(this, p.idx ? ['P2_2', 'P2_5'] : ['P1_2', 'P1_5']);
     const L = p.idx ? 'P2_L' : 'P1_L', R = p.idx ? 'P2_R' : 'P1_R';
-    const moving = this.ctrl.held[L] || this.ctrl.held[R] || uiHeld(this, p.idx ? 'arrowleft' : 'a') || uiHeld(this, p.idx ? 'arrowright' : 'd');
+    const moving = this.ctrl.held[L] || this.ctrl.held[R];
     if (p.stun > 0) return;
     if (atk && p.atkCd <= 0) this.basicAttack(p);
     if (alt && p.fatigue <= 0) {
@@ -588,7 +559,7 @@ class EndScene extends Phaser.Scene {
     addLabel(this, vw * 0.5, vh - 46, 'PRESS START TO RETURN TO MENU', 14, C.dim, 'center').setOrigin(0.5);
   }
   update() {
-    if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2 || uiPressed(this, 'enter')) this.scene.start('Menu');
+    if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
     flush(this);
   }
 }
