@@ -86,6 +86,19 @@ function hitRect(a, b) {
   return Math.abs(a.x - b.x) * 2 < a.w + b.w && Math.abs(a.y - b.y) * 2 < a.h + b.h;
 }
 
+function burst(scene, x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const ang = (Math.PI * 2 * i) / n + Math.random() * 0.4;
+    const dist = Phaser.Math.Between(38, 100);
+    const r = scene.add.rectangle(x, y, 5, 5, color, 1);
+    scene.tweens.add({
+      targets: r, x: x + Math.cos(ang) * dist, y: y + Math.sin(ang) * dist,
+      alpha: 0, scaleX: 0.2, scaleY: 0.2, duration: 350 + Math.random() * 80,
+      onComplete: () => r.destroy(),
+    });
+  }
+}
+
 class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
   create() { this.scene.start('Menu'); }
@@ -238,6 +251,11 @@ class GameScene extends Phaser.Scene {
       p.body.alpha = 1; p.head.alpha = 1;
       p.shield.setVisible(false);
     }
+    if (p.fatigue > 0) {
+      p.body.setFillStyle(Math.floor(p.fatigue / 110) % 2 ? p.char.color : 0xff4400);
+    } else {
+      p.body.setFillStyle(p.char.color);
+    }
   }
 
   tickTimers(p, dt) {
@@ -305,7 +323,7 @@ class GameScene extends Phaser.Scene {
     p.spCd = p.char.sp;
     if (p.char.id === 'pulse') {
       p.atk = { kind: 'pulse', t: 110, hit: 0, w: 116, h: 116, ox: 0, oy: 0, dmg: p.char.sd, fx: 1.02, fy: 0.7 };
-      this.ring(p.body.x, p.body.y, 16, 64, p.char.color, 140);
+      this.ring(p.body.x, p.body.y, 16, 4, p.char.color, 140);
       tone(this, 260, 'triangle', 0.06, 0.14);
     } else if (p.char.id === 'volt') {
       p.atk = { kind: 'volt', t: 110, hit: 0, w: 34, h: 68, ox: p.face * 16, oy: -40, dmg: p.char.sd, fx: 0.55, fy: 1.28 };
@@ -324,8 +342,10 @@ class GameScene extends Phaser.Scene {
     const b = p.body.body;
     if (b.blocked.down || b.touching.down) {
       p.slam = 0;
-      p.atk = { kind: 'crush', t: 90, hit: 0, w: 124, h: 50, ox: 0, oy: 6, dmg: p.char.sd, fx: 1.08, fy: 0.78 };
-      this.flash(p.body.x, p.body.y + 10, 72, 18, p.char.accent, 120);
+      p.atk = { kind: 'crush', t: 90, hit: 0, w: 130, h: 60, ox: 0, oy: 6, dmg: p.char.sd, fx: 1.08, fy: 0.78 };
+      this.ring(p.body.x, p.body.y + 12, 12, 5.5, p.char.accent, 140);
+      this.flash(p.body.x, p.body.y + 10, 90, 22, p.char.accent, 120);
+      this.cameras.main.shake(90, 0.009);
       tone(this, 100, 'square', 0.08, 0.16);
       this.updateAttack(p, foe);
     }
@@ -354,6 +374,7 @@ class GameScene extends Phaser.Scene {
     t.stun = a.kind === 'basic' ? 110 : a.kind === 'dash' ? 130 : 150;
     b.setVelocity(vx, vy);
     this.flash(t.body.x, t.body.y - 6, 30, 30, p.char.accent, 100);
+    if (a.kind !== 'basic') this.cameras.main.shake(60, 0.006);
     tone(this, 180, 'square', 0.05, 0.08);
   }
 
@@ -363,6 +384,8 @@ class GameScene extends Phaser.Scene {
     p.lives--;
     p.atk = null;
     p.slam = 0;
+    burst(this, p.body.x, p.body.y, p.char.color, 10);
+    this.cameras.main.shake(230, 0.015);
     p.body.body.enable = false;
     p.body.setVisible(false).setPosition(-500, -500);
     p.head.setVisible(false).setPosition(-500, -500);
@@ -371,7 +394,7 @@ class GameScene extends Phaser.Scene {
     if (p.lives <= 0) {
       this.over = 1;
       const win = this.players[1 - p.idx];
-      this.time.delayedCall(500, () => this.scene.start('End', { winner: win.idx + 1 }));
+      this.time.delayedCall(600, () => this.scene.start('End', { winner: win.idx + 1, char: win.char }));
       return;
     }
     this.time.delayedCall(INVULN_MS, () => this.respawnPlayer(p));
@@ -394,6 +417,7 @@ class GameScene extends Phaser.Scene {
     p.head.setVisible(true).setAlpha(1);
     p.shield.setVisible(true).setAlpha(0.5);
     this.syncHead(p);
+    burst(this, s.x, s.y, p.char.accent, 6);
     tone(this, 520, 'triangle', 0.08, 0.16);
   }
 
@@ -409,9 +433,9 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: r, alpha: 0, scaleX: 1.3, scaleY: 1.3, duration: dur, onComplete: () => r.destroy() });
   }
 
-  ring(x, y, a, b, c, dur) {
-    const ring = this.add.circle(x, y, a, c, 0.2).setStrokeStyle(3, c);
-    this.tweens.add({ targets: ring, radius: b, alpha: 0, duration: dur, onComplete: () => ring.destroy() });
+  ring(x, y, r, endScale, c, dur) {
+    const circ = this.add.circle(x, y, r, c, 0.15).setStrokeStyle(3, c);
+    this.tweens.add({ targets: circ, scaleX: endScale, scaleY: endScale, alpha: 0, duration: dur, onComplete: () => circ.destroy() });
   }
 
   refreshHud() {
@@ -431,13 +455,25 @@ class GameScene extends Phaser.Scene {
 
 class EndScene extends Phaser.Scene {
   constructor() { super('End'); }
-  init(data) { this.winner = data.winner || 1; }
+  init(data) { this.winner = data.winner || 1; this.char = data.char || null; }
   create() {
     bindKeys(this);
     this.add.rectangle(W / 2, H / 2, W, H, 0x050b16);
-    addLabel(this, W / 2, 210, 'P' + this.winner + ' WINS', 54, this.winner === 1 ? C.p1 : C.p2, 'center').setOrigin(0.5);
-    addLabel(this, W / 2, 298, 'PRESS START', 18, C.text, 'center').setOrigin(0.5);
-    addLabel(this, W / 2, 326, 'TO RETURN TO SELECT', 14, C.dim, 'center').setOrigin(0.5);
+    const g = this.add.graphics().lineStyle(1, C.grid, 0.28);
+    for (let x = 0; x <= W; x += 40) g.lineBetween(x, 0, x, H);
+    for (let y = 0; y <= H; y += 40) g.lineBetween(0, y, W, y);
+    const col = this.winner === 1 ? C.p1 : C.p2;
+    const ch = this.char;
+    if (ch) {
+      const cx = W / 2, cy = 300;
+      this.add.rectangle(cx, cy + 16, 48, 76, ch.color);
+      ch.head ? this.add.rectangle(cx, cy - 38, 28, 24, ch.accent)
+              : this.add.circle(cx, cy - 38, 14, ch.accent);
+      addLabel(this, W / 2, 170, ch.name + ' WINS', 52, col, 'center').setOrigin(0.5);
+    } else {
+      addLabel(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
+    }
+    addLabel(this, W / 2, 400, 'PRESS START  ·  RETURN TO SELECT', 14, C.dim, 'center').setOrigin(0.5);
   }
   update() {
     if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
