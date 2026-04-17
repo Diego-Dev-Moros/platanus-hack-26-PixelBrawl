@@ -513,11 +513,13 @@ class GameScene extends Phaser.Scene {
   create() {
     bindKeys(this);
     this.over = 0;
+    this.ready = false;
     this.drawStage();
     this.makeStage();
     this.makeHud();
     this.players = [this.makePlayer(0, this.picks[0]), this.makePlayer(1, this.picks[1])];
     this.refreshHud();
+    this.startCountdown();
   }
 
   drawStage() {
@@ -600,12 +602,12 @@ class GameScene extends Phaser.Scene {
   tickPlayer(p, foe, dt) {
     if (!p.alive) return;
     this.tickTimers(p, dt);
-    if (p.body.x < -DEATH_X || p.body.x > W + DEATH_X || p.body.y > DEATH_Y) { this.killPlayer(p); return; }
+    if (this.ready && (p.body.x < -DEATH_X || p.body.x > W + DEATH_X || p.body.y > DEATH_Y)) { this.killPlayer(p); return; }
     this.movePlayer(p);
     this.handleActions(p);
     this.updateAttack(p, foe);
     this.checkSlam(p, foe);
-    this.syncHead(p);
+    this.animatePlayer(p);
     p.visual.setAlpha(p.invuln > 0 && (Math.floor(p.invuln / 80) % 2) ? 0.3 : 1);
     p.overlay.setAlpha(p.fatigue > 0 && (Math.floor(p.fatigue / 110) % 2) ? 0.45 : 0);
   }
@@ -625,6 +627,7 @@ class GameScene extends Phaser.Scene {
   }
 
   movePlayer(p) {
+    if (!this.ready) return;
     const b = p.body.body;
     const L = p.idx ? 'P2_L' : 'P1_L';
     const R = p.idx ? 'P2_R' : 'P1_R';
@@ -644,6 +647,7 @@ class GameScene extends Phaser.Scene {
   }
 
   handleActions(p) {
+    if (!this.ready) return;
     // P1: F (P2_4) = attack, G (P2_5) = dash+special
     // P2: K (P1_5) = attack, L (P1_6) = dash+special
     const atkCode = p.idx ? 'P1_5' : 'P2_4';
@@ -663,7 +667,7 @@ class GameScene extends Phaser.Scene {
     p.atkCd = ATK_CD;
     p.atk = { kind: 'basic', t: 85, hit: 0, w: 40, h: 26, ox: p.face * 30, oy: -4, dmg: 8, fx: 0.95, fy: 0.72 };
     this.flash(p.body.x + p.face * 22, p.body.y - 4, 32, 16, p.char.accent, 85);
-    tone(this, p.idx ? 240 : 210, 'square', 0.035, 0.05);
+    tone(this, p.idx ? 300 : 260, 'square', 0.07, 0.06);
   }
 
   doDash(p) {
@@ -674,7 +678,7 @@ class GameScene extends Phaser.Scene {
     p.atk = { kind: 'dash', t: 95, hit: 0, w: 32, h: 34, ox: dir * 18, oy: 0, dmg: 10, fx: 0.9, fy: 0.5 };
     b.setVelocityX(dir * 500);
     this.flash(p.body.x, p.body.y, 44, 20, p.char.color, 110);
-    tone(this, 150, 'sawtooth', 0.045, 0.08);
+    tone(this, 90, 'sawtooth', 0.06, 0.14);
   }
 
   doSpecial(p) {
@@ -731,9 +735,18 @@ class GameScene extends Phaser.Scene {
     if (t.stamina <= 0) t.fatigue = Math.max(t.fatigue, FATIGUE_MS);
     t.stun = a.kind === 'basic' ? 110 : a.kind === 'dash' ? 130 : 150;
     b.setVelocity(vx, vy);
-    this.flash(t.body.x, t.body.y - 6, 30, 30, p.char.accent, 100);
-    if (a.kind !== 'basic') this.cameras.main.shake(60, 0.006);
-    tone(this, 180, 'square', 0.05, 0.08);
+    // Visual feedback — sparks + flash, scaled by attack strength
+    const heavy = a.kind !== 'basic';
+    this.spark(t.body.x, t.body.y - 8, p.char.accent, heavy ? 9 : 5);
+    this.flash(t.body.x, t.body.y - 6, heavy ? 38 : 24, 24, p.char.accent, 90);
+    // Screen shake varies by attack type
+    const [shkDur, shkAmt] = a.kind === 'basic' ? [35, 0.003] : a.kind === 'dash' ? [85, 0.007] : [120, 0.013];
+    this.cameras.main.shake(shkDur, shkAmt);
+    // Brief physics freeze on heavy hits for visual impact
+    if (heavy) this.hitFreeze(a.kind === 'dash' ? 45 : 72);
+    // Sound varies by type
+    const hitF = a.kind === 'dash' ? 200 : a.kind === 'basic' ? 280 : 150;
+    tone(this, hitF, a.kind === 'dash' ? 'sawtooth' : 'square', 0.08, 0.09);
   }
 
   killPlayer(p) {
@@ -748,7 +761,7 @@ class GameScene extends Phaser.Scene {
     p.body.setPosition(-500, -500);
     p.visual.setVisible(false);
     p.overlay.setVisible(false);
-    tone(this, 110, 'sawtooth', 0.18, 0.35);
+    tone(this, 90, 'sawtooth', 0.22, 0.5);
     this.refreshHud();
     if (p.lives <= 0) {
       this.over = 1;
@@ -776,13 +789,81 @@ class GameScene extends Phaser.Scene {
     p.overlay.setVisible(true).setAlpha(0).setPosition(s.x, s.y);
     this.syncHead(p);
     burst(this, s.x, s.y, p.char.accent, 6);
-    tone(this, 520, 'triangle', 0.08, 0.16);
+    tone(this, 400, 'triangle', 0.07, 0.08);
+    this.time.delayedCall(80,  () => tone(this, 520, 'triangle', 0.07, 0.08));
+    this.time.delayedCall(160, () => tone(this, 660, 'triangle', 0.07, 0.12));
   }
 
   syncHead(p) {
-    p.visual.setPosition(p.body.x, p.body.y);
+    p.visual.setPosition(p.body.x, p.body.y).setAngle(0);
     p.visual.setScale(p.face < 0 ? -1 : 1, 1);
     p.overlay.setPosition(p.body.x, p.body.y);
+  }
+
+  animatePlayer(p) {
+    const t = this.time.now;
+    const b = p.body.body;
+    const vx = Math.abs(b.velocity.x);
+    // Per-character bob speed/amplitude
+    const bF = p.char.id === 'volt' ? 0.0048 : p.char.id === 'crush' ? 0.0020 : 0.0034;
+    const bA = p.char.id === 'crush' ? 2.2 : 1.4;
+    let yOff = 0, ang = 0;
+    if (p.stun > 0) {
+      yOff = Math.sin(t * 0.08) * 2;                        // stun jitter
+    } else if (vx > 20 && b.blocked.down) {
+      yOff = Math.sin(t * bF * 4) * bA;                     // walk bob
+      ang  = Math.sin(t * bF * 4 + Math.PI / 2) * 2.5 * p.face;
+    } else {
+      yOff = Math.sin(t * bF) * bA;                         // idle bob
+    }
+    p.visual.setPosition(p.body.x, p.body.y + yOff);
+    p.visual.setScale(p.face < 0 ? -1 : 1, 1);
+    p.visual.setAngle(p.face < 0 ? -ang : ang);
+    p.overlay.setPosition(p.body.x, p.body.y);
+  }
+
+  hitFreeze(ms) {
+    this.physics.pause();
+    this.time.delayedCall(ms, () => { if (!this.over) this.physics.resume(); });
+  }
+
+  spark(x, y, color, n) {
+    for (let i = 0; i < n; i++) {
+      const ang = (Math.PI * 2 * i) / n + Math.random() * 0.6;
+      const r = this.add.rectangle(x, y, Phaser.Math.Between(2, 5), 2, color);
+      this.tweens.add({
+        targets: r,
+        x: x + Math.cos(ang) * Phaser.Math.Between(10, 30),
+        y: y + Math.sin(ang) * Phaser.Math.Between(10, 30),
+        alpha: 0, duration: Phaser.Math.Between(60, 140),
+        onComplete: () => r.destroy(),
+      });
+    }
+  }
+
+  startCountdown() {
+    const txt = this.add.text(W / 2, H / 2 - 30, '', {
+      fontFamily: 'monospace', fontSize: '90px', fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0.5).setDepth(20);
+    const steps = [
+      { s: '3', c: '#ff6040', f: 330 },
+      { s: '2', c: '#ff9020', f: 440 },
+      { s: '1', c: '#ffe060', f: 550 },
+      { s: 'BRAWL!', c: '#ffffff', f: 880 },
+    ];
+    steps.forEach(({ s, c, f }, i) => {
+      this.time.delayedCall(i * 900, () => {
+        txt.setText(s).setColor(c).setScale(1.8).setAlpha(1);
+        this.tweens.add({ targets: txt, scaleX: 1, scaleY: 1, duration: 500, ease: 'Power2.easeOut' });
+        tone(this, f, 'square', 0.12, i === 3 ? 0.28 : 0.14);
+        if (i === steps.length - 1) {
+          this.time.delayedCall(600, () => {
+            this.tweens.add({ targets: txt, alpha: 0, duration: 280, onComplete: () => txt.destroy() });
+            this.ready = true;
+          });
+        }
+      });
+    });
   }
 
   flash(x, y, w, h, c, dur) {
@@ -828,6 +909,11 @@ class EndScene extends Phaser.Scene {
       addLabel(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
     }
     addLabel(this, W / 2, 400, 'PRESS START  ·  RETURN TO SELECT', 14, C.dim, 'center').setOrigin(0.5);
+    // Victory fanfare
+    const win = this;
+    [0, 100, 200, 350].forEach((delay, i) => {
+      win.time.delayedCall(300 + delay, () => tone(win, [440, 554, 660, 880][i], 'square', 0.07, i === 3 ? 0.3 : 0.12));
+    });
   }
   update() {
     if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
