@@ -26,6 +26,13 @@ const STAGE = [
 
 const SPAWNS = [{ x: 320, y: 300 }, { x: 480, y: 300 }];
 
+// ── 8-bit music data ──────────────────────────────────────────────────────
+const NOTES = { A2:110.0, C3:130.8, G3:196.0, C5:523.3, D5:587.3, E5:659.3, G5:784.0, A5:880.0 };
+// A-minor pentatonic, 16-step loop at 130 BPM (8th-note grid)
+const MELODY = ['E5',null,'G5','A5','E5','D5','E5',null,'C5',null,'E5','G5','A5',null,'E5',null];
+const BASS   = ['A2',null,null,null,'A2',null,'G3',null,'A2',null,null,null,'C3',null,'A2',null];
+const RHYTHM = [1,0,1,1,0,1,0,1];   // 8-step hi-hat pattern, loops inside 16
+
 // DO NOT replace existing keys - they match the physical arcade cabinet wiring.
 const CABINET_KEYS = {
   P1_U: ['w'], P1_D: ['s'], P1_L: ['a'], P1_R: ['d'],
@@ -57,6 +64,8 @@ function tone(scene, f, type, vol, dur) {
 function bindKeys(scene) {
   scene.ctrl = { held: {}, pressed: {} };
   const onDown = e => {
+    const ctx = scene.sound && scene.sound.context;
+    if (ctx && ctx.state === 'suspended') ctx.resume();
     const code = KEY_MAP[nk(e.key)];
     if (!code) return;
     if (!scene.ctrl.held[code]) scene.ctrl.pressed[code] = true;
@@ -137,6 +146,40 @@ function buildFighter(scene, x, y, ch, s) {
 
 function hitRect(a, b) {
   return Math.abs(a.x - b.x) * 2 < a.w + b.w && Math.abs(a.y - b.y) * 2 < a.h + b.h;
+}
+
+// ── Music engine ──────────────────────────────────────────────────────────
+
+function playNote(ctx, freq, type, startTime, dur, vol) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, startTime);
+  g.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+  o.start(startTime); o.stop(startTime + dur + 0.01);
+}
+
+function startMusic(scene) {
+  if (scene._musicEvent) return;
+  let step = 0;
+  scene._musicEvent = scene.time.addEvent({
+    delay: 231,   // ms per 8th note at 130 BPM
+    loop: true,
+    callback: () => {
+      const ctx = scene.sound && scene.sound.context;
+      if (!ctx || ctx.state !== 'running') return;
+      const t = ctx.currentTime + 0.005;
+      const m = MELODY[step % 16];  if (m) playNote(ctx, NOTES[m], 'square',   t, 0.14, 0.038);
+      const b = BASS[step % 16];    if (b) playNote(ctx, NOTES[b], 'square',   t, 0.20, 0.028);
+      if (RHYTHM[step % 8])               playNote(ctx, 220,       'triangle', t, 0.05, 0.018);
+      step++;
+    },
+  });
+  scene.events.once('shutdown', () => stopMusic(scene));
+}
+
+function stopMusic(scene) {
+  if (scene._musicEvent) { scene._musicEvent.remove(); scene._musicEvent = null; }
 }
 
 function burst(scene, x, y, color, n) {
@@ -522,6 +565,7 @@ class GameScene extends Phaser.Scene {
     this.pickup = null;
     this.scheduleNextPickup();
     this.startCountdown();
+    startMusic(this);
   }
 
   drawStage() {
