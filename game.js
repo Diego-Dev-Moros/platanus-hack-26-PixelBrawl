@@ -25,21 +25,12 @@ const CHARS = [
   { id: 'crush', name: 'CRUSH', color: 0xff3cac, accent: 0xff5a36, line: 'Ground Slam / landing burst', head: 0, sp: 2400, sd: 15 },
 ];
 
-const STAGE = [
-  { x: 400, y: 470, w: 420, h: 28 },
-  { x: 240, y: 352, w: 120, h: 20 },
-  { x: 560, y: 352, w: 120, h: 20 },
-  { x: 400, y: 270, w: 100, h: 18 },
-];
-
 const SPAWNS = [{ x: 320, y: 300 }, { x: 480, y: 300 }];
 
-// ── 8-bit music data ──────────────────────────────────────────────────────
 const NOTES = { A2:110.0, C3:130.8, G3:196.0, C5:523.3, D5:587.3, E5:659.3, G5:784.0, A5:880.0 };
-// A-minor pentatonic, 16-step loop at 130 BPM (8th-note grid)
 const MELODY = ['E5',null,'G5','A5','E5','D5','E5',null,'C5',null,'E5','G5','A5',null,'E5',null];
 const BASS   = ['A2',null,null,null,'A2',null,'G3',null,'A2',null,null,null,'C3',null,'A2',null];
-const RHYTHM = [1,0,1,1,0,1,0,1];   // 8-step hi-hat pattern, loops inside 16
+const RHYTHM = [1,0,1,1,0,1,0,1];
 
 // DO NOT replace existing keys - they match the physical arcade cabinet wiring.
 const CABINET_KEYS = {
@@ -112,46 +103,29 @@ function drawBg(scene, title) {
 
 function buildFighter(scene, x, y, ch, s) {
   const c = scene.add.container(x, y).setScale(s);
-  // Each entry: [x, y, w, h, color] — drawn back-to-front (shadow first, details last)
   const P = {
     pulse: [
-      // shadows (+2 right/down peek)
       [ 2,-15,10, 9,0x002233],[ 2,  2,12,17,0x002233],
-      // head + visor
       [ 0,-17,10, 9,0x0088aa],[ 0,-18,10, 2,0xffffff],[ 4,-18, 3, 2,0x00e5ff],
-      // torso: dark base + lit front strip + layered energy core
       [ 0,  0,12,17,0x006688],[-1, -1, 5,15,0x00aacc],[ 0,  1, 5, 5,0x00ccee],[ 0,  1, 3, 3,0xffffff],
-      // shoulder pads + slim dark arms + energy cuffs
       [-9, -8, 8, 4,0x00e5ff],[ 9, -8, 8, 4,0x00e5ff],
       [-12,  0, 5,10,0x004455],[ 12,  0, 5,10,0x004455],[-12,  7, 6, 4,0x00e5ff],[ 12,  7, 6, 4,0x00e5ff],
-      // legs + boots
       [-4, 13, 6,12,0x002233],[ 4, 13, 6,12,0x002233],[-4, 22, 8, 4,0x0088aa],[ 4, 22, 8, 4,0x0088aa],
     ],
     volt: [
-      // shadows
       [ 2,-15,14,10,0x331100],[ 2,  2,18,16,0x331100],
-      // torso (behind arms) + lightning mark + belt
       [ 0, -1,18,16,0xddaa00],[ 0, -4, 4,10,0xffee44],[ 0, 12,18, 3,0x332200],
-      // arms: wide upper + heavy forearms (drawn in front of torso)
       [-13, -2, 8, 6,0xcc9900],[ 13, -2, 8, 6,0xcc9900],[-13,  5, 9, 8,0x886600],[ 13,  5, 9, 8,0x886600],
-      // shoulder plates (drawn last = in front of arms)
       [-12, -8,12, 6,0xff7a00],[ 12, -8,12, 6,0xff7a00],
-      // head + brow crest + visor slit
       [ 0,-18,14,10,0xcc9900],[ 0,-22,10, 5,0xff7a00],[ 0,-18, 9, 2,0x221100],
-      // legs + boots
       [-5, 16, 8, 9,0x553300],[ 5, 16, 8, 9,0x553300],[-5, 26,10, 5,0xffdd00],[ 5, 26,10, 5,0xffdd00],
     ],
     crush: [
-      // shadows
       [ 2,-13,18,12,0x220010],[ 2,  2,24,20,0x220010],
-      // head + visor stripe
       [ 0,-15,18,12,0xcc1a7a],[ 0,-15,12, 3,0xff5a36],
-      // wide torso + raised chest plate
       [ 0,  0,24,20,0x880a40],[ 0, -2,16,10,0xff3cac],
-      // heavy arms: upper + thick forearms + bracer studs
       [-13, -1,12, 8,0xaa1855],[ 13, -1,12, 8,0xaa1855],[-14,  8,13, 8,0x440020],[ 14,  8,13, 8,0x440020],
       [-14, 14, 4, 3,0xff5a36],[ 14, 14, 4, 3,0xff5a36],
-      // waist + wide thighs + boots
       [ 0, 16,24, 4,0x220010],[-6, 18,10,12,0x550030],[ 6, 18,10,12,0x550030],[-6, 28,12, 5,0xff5a36],[ 6, 28,12, 5,0xff5a36],
     ],
   };
@@ -163,8 +137,6 @@ function buildFighter(scene, x, y, ch, s) {
 function hitRect(a, b) {
   return Math.abs(a.x - b.x) * 2 < a.w + b.w && Math.abs(a.y - b.y) * 2 < a.h + b.h;
 }
-
-// ── Music engine ──────────────────────────────────────────────────────────
 
 function playNote(ctx, freq, type, startTime, dur, vol) {
   const o = ctx.createOscillator(), g = ctx.createGain();
@@ -218,26 +190,19 @@ function burst(scene, x, y, color, n) {
   }
 }
 
-// ── Desert background ─────────────────────────────────────────────────────
-
 function createDesertBackground(scene) {
-  // Sky (static) ────────────────────────────────────────────────────────────
   const sk = scene.add.graphics();
   sk.fillStyle(0x1a0a04, 1); sk.fillRect(0, 0, W, H);
   sk.fillStyle(0x250e06, 0.55); sk.fillRect(0, 160, W, H - 160);
   sk.fillStyle(0x300e04, 0.32); sk.fillRect(0, 340, W, H - 340);
-  // Sun glow layers
   sk.fillStyle(0xc85000, 0.10); sk.fillCircle(138, 106, 98);
   sk.fillStyle(0xdc6a10, 0.22); sk.fillCircle(138, 106, 66);
   sk.fillStyle(0xee8820, 0.50); sk.fillCircle(138, 106, 44);
   sk.fillStyle(0xffa040, 0.80); sk.fillCircle(138, 106, 26);
   sk.fillStyle(0xffc870, 1.00); sk.fillCircle(138, 106, 14);
-  // Subtle noise dots
   sk.fillStyle(0xc08040, 0.18);
   [[300,40],[440,68],[560,30],[690,55],[740,22],[780,48],
    [200,88],[360,94],[520,75],[660,90]].forEach(([x, y]) => sk.fillRect(x, y, 2, 2));
-
-  // Far layer — slow-scrolling building silhouettes ──────────────────────────
   scene.bgFar = scene.add.container(0, 0);
   const fg = scene.add.graphics();
   scene.bgFar.add(fg);
@@ -256,13 +221,9 @@ function createDesertBackground(scene) {
     });
   });
 
-  // Mid layer — dunes + ruins, scrolls faster ────────────────────────────────
   scene.bgMid = scene.add.container(0, 0);
   const mg = scene.add.graphics();
   scene.bgMid.add(mg);
-
-  // Sine-wave dunes — frequencies chosen so W is an integer number of periods
-  // (n * 2π / W) ensures seamless wrap when container resets by W
   const dune = (baseY, amp, freq, col) => {
     mg.fillStyle(col, 1);
     [0, W].forEach(ox => {
@@ -276,11 +237,9 @@ function createDesertBackground(scene) {
       mg.fillPath();
     });
   };
-  dune(442, 20, 8 * Math.PI / W,  0x1e0f06);  // 4 periods
-  dune(460, 14, 10 * Math.PI / W, 0x180c04);  // 5 periods
-  dune(474, 10, 12 * Math.PI / W, 0x120902);  // 6 periods
-
-  // Half-buried ruins above dunes
+  dune(442, 20, 8 * Math.PI / W, 0x1e0f06);
+  dune(460, 14, 10 * Math.PI / W, 0x180c04);
+  dune(474, 10, 12 * Math.PI / W, 0x120902);
   [[80,16,52],[212,20,66],[388,14,48],[552,18,58],[726,16,54]].forEach(([rx, rw, rh]) => {
     [0, W].forEach(ox => {
       mg.fillStyle(0x0e0a04, 1);
@@ -289,10 +248,8 @@ function createDesertBackground(scene) {
     });
   });
 
-  // Particles layer — dust and wind streaks ─────────────────────────────────
   scene.bgParticles = scene.add.container(0, 0);
-  scene.dustParticles = [];
-  scene.windStreaks = [];
+  scene.dustParticles = []; scene.windStreaks = [];
 
   for (let i = 0; i < 22; i++) {
     const r = scene.add.rectangle(
@@ -318,76 +275,37 @@ function createDesertBackground(scene) {
 function updateBackground(scene, delta) {
   if (!scene.bgFar) return;
   const s = delta / 1000;
-  // Parallax scroll — far moves slower than mid
-  scene.bgFar.x -= 18 * s;
-  if (scene.bgFar.x <= -W) scene.bgFar.x += W;
-  scene.bgMid.x -= 42 * s;
-  if (scene.bgMid.x <= -W) scene.bgMid.x += W;
-  // Dust drifts right
-  for (const d of scene.dustParticles) {
-    d.r.x += d.spd * s;
-    if (d.r.x > W + 5) d.r.x = -5;
-  }
-  // Wind streaks move right, faster
+  scene.bgFar.x -= 18 * s; if (scene.bgFar.x <= -W) scene.bgFar.x += W;
+  scene.bgMid.x -= 42 * s; if (scene.bgMid.x <= -W) scene.bgMid.x += W;
+  for (const d of scene.dustParticles) { d.r.x += d.spd * s; if (d.r.x > W + 5) d.r.x = -5; }
   for (const w of scene.windStreaks) {
     w.r.x += w.spd * s;
     if (w.r.x > W + w.r.width / 2) w.r.x = -w.r.width / 2;
   }
 }
 
-// ── Platform ships ────────────────────────────────────────────────────────
-
 function buildPlatShip(scene, w, h, type) {
   const c = scene.add.container(0, 0);
   const hw = w / 2, hh = h / 2;
-  // R / Circ helpers — positions are local to container
   const R = (x, y, pw, ph, col, a) => { const r = scene.add.rectangle(x, y, pw, ph, col, a ?? 1); c.add(r); return r; };
   const G = (x, y, r, col, a)      => { const o = scene.add.circle(x, y, r, col, a); c.add(o); return o; };
-
-  // Hull body
-  R(0, 0, w, h, 0x2a1c0e);
-  // Glowing top landing strip
-  R(0, -hh + 1, w, 4, 0xff6600);
-  // Dark belly
-  R(0, hh - 2, w, 5, 0x180e04);
-
+  R(0, 0, w, h, 0x2a1c0e); R(0, -hh + 1, w, 4, 0xff6600); R(0, hh - 2, w, 5, 0x180e04);
   if (type === 'main') {
-    // Reinforced end caps + centre engine block
-    R(-hw + 8, 0, 16, h + 6, 0x3a2010);
-    R( hw - 8, 0, 16, h + 6, 0x3a2010);
-    R(0, 0, 80, h + 4, 0x241404);
-    // 4 thruster pods + fire glows
-    const glows = [-hw * 0.55, -hw * 0.2, hw * 0.2, hw * 0.55].map(tx => {
-      R(tx, hh + 4, 20, 7, 0x1e1008);
-      return G(tx, hh + 11, 6, 0xff8c00, 0.35);
-    });
-    // Running lights on top edge
+    R(-hw + 8, 0, 16, h + 6, 0x3a2010); R(hw - 8, 0, 16, h + 6, 0x3a2010); R(0, 0, 80, h + 4, 0x241404);
+    const glows = [-hw * 0.55, -hw * 0.2, hw * 0.2, hw * 0.55].map(tx => { R(tx, hh + 4, 20, 7, 0x1e1008); return G(tx, hh + 11, 6, 0xff8c00, 0.35); });
     const lights = [-hw * 0.45, 0, hw * 0.45].map(lx => G(lx, -hh - 3, 2, 0xffb030, 0.7));
     scene.tweens.add({ targets: glows,  alpha: { from: 0.22, to: 0.75 }, duration: 380, yoyo: true, repeat: -1 });
     scene.tweens.add({ targets: lights, alpha: { from: 0.3,  to: 1.0  }, duration: 660, yoyo: true, repeat: -1 });
-
   } else if (type === 'side') {
-    // Side fins
-    R(-hw - 5, 1, 10, h - 2, 0x2e1608);
-    R( hw + 5, 1, 10, h - 2, 0x2e1608);
-    // Cockpit bump + glass
-    R(0, -hh - 5, 24, 9, 0x2e1a08);
-    R(0, -hh - 5, 14, 6, 0xff6600, 0.35);
-    // 2 thruster pods
-    const glows = [-w * 0.22, w * 0.22].map(tx => {
-      R(tx, hh + 4, 12, 5, 0x1e1008);
-      return G(tx, hh + 9, 4, 0xff8c00, 0.35);
-    });
+    R(-hw - 5, 1, 10, h - 2, 0x2e1608); R(hw + 5, 1, 10, h - 2, 0x2e1608);
+    R(0, -hh - 5, 24, 9, 0x2e1a08); R(0, -hh - 5, 14, 6, 0xff6600, 0.35);
+    const glows = [-w * 0.22, w * 0.22].map(tx => { R(tx, hh + 4, 12, 5, 0x1e1008); return G(tx, hh + 9, 4, 0xff8c00, 0.35); });
     const lights = [G(-hw + 4, -hh - 3, 2, 0xffb030, 0.7), G(hw - 4, -hh - 3, 2, 0xffb030, 0.7)];
     scene.tweens.add({ targets: glows,  alpha: { from: 0.2, to: 0.7 }, duration: 320, yoyo: true, repeat: -1 });
     scene.tweens.add({ targets: lights, alpha: { from: 0.25, to: 0.9 }, duration: 540, yoyo: true, repeat: -1 });
-
-  } else { // top — scout vessel
-    R(-hw - 4, 0, 8, h - 2, 0x2e1608);
-    R( hw + 4, 0, 8, h - 2, 0x2e1608);
-    R(0, hh + 3, 12, 5, 0x1e1008);
-    const g = G(0, hh + 8, 4, 0xff8c00, 0.35);
-    const l = G(0, -hh - 3, 2, 0xffb030, 0.7);
+  } else {
+    R(-hw - 4, 0, 8, h - 2, 0x2e1608); R(hw + 4, 0, 8, h - 2, 0x2e1608); R(0, hh + 3, 12, 5, 0x1e1008);
+    const g = G(0, hh + 8, 4, 0xff8c00, 0.35), l = G(0, -hh - 3, 2, 0xffb030, 0.7);
     scene.tweens.add({ targets: [g], alpha: { from: 0.2,  to: 0.65 }, duration: 290, yoyo: true, repeat: -1 });
     scene.tweens.add({ targets: [l], alpha: { from: 0.3,  to: 0.9  }, duration: 700, yoyo: true, repeat: -1 });
   }
@@ -396,13 +314,13 @@ function buildPlatShip(scene, w, h, type) {
 
 function updatePlatforms(scene) {
   if (!scene.platData) return;
-  const t = scene.time.now * 0.001;
+  const t = scene.time.now * 0.001, sp = scene.finalPhase ? 1.6 : 1;
   let moved = false;
   for (const p of scene.platData) {
-    if (!p.speed) continue;
-    const nx = p.baseX + Math.sin(t * p.speed + p.phase) * p.range;
-    p.hitbox.x = nx;
-    p.visual.x  = nx;
+    if (!p.speed || !p.hitbox) continue;
+    const nx = p.baseX + Math.sin(t * p.speed * sp + p.phase) * p.range;
+    const ny = p.baseY + (scene.finalPhase && p.vRange ? Math.sin(t * p.vSpeed + p.vPhase) * p.vRange : 0);
+    p.hitbox.x = nx; p.hitbox.y = ny; p.visual.x = nx; p.visual.y = ny;
     moved = true;
   }
   if (moved) scene.plats.refresh();
@@ -481,13 +399,11 @@ class CharacterSelectScene extends Phaser.Scene {
     this.refresh();
   }
   update() {
-    // P1 navigation: A/D — lock: F (= P2_4 in cabinet wiring)
     if (!this.lock[0]) {
       if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
       if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
       if (this.ctrl.pressed.P2_4) { this.lock[0] = 1; tone(this, 480, 'square', 0.06, 0.08); }
     }
-    // P2 navigation: Arrows — lock: K (= P1_5 in cabinet wiring)
     if (!this.lock[1]) {
       if (this.ctrl.pressed.P2_L) this.sel[1] = (this.sel[1] + 2) % 3;
       if (this.ctrl.pressed.P2_R) this.sel[1] = (this.sel[1] + 1) % 3;
@@ -578,7 +494,7 @@ class GameScene extends Phaser.Scene {
 
   create() {
     bindKeys(this);
-    this.over = 0;
+    this.over = 0; this.matchTime = 180000; this.finalPhase = false;
     this.ready = false;
     this.hudDirty = false;
     this.drawStage();
@@ -608,24 +524,22 @@ class GameScene extends Phaser.Scene {
     this.platData = [];
     const PDEFS = [
       { x: 400, y: 470, w: 420, h: 28, type: 'main', speed: 0,   range: 0,  phase: 0 },
-      { x: 240, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: 0 },
-      { x: 560, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: Math.PI },
-      { x: 400, y: 270, w: 100, h: 18, type: 'top',  speed: 0.6, range: 28, phase: 0 },
+      { x: 240, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: 0,        vRange: 18, vSpeed: 0.7, vPhase: 0 },
+      { x: 560, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: Math.PI,  vRange: 18, vSpeed: 0.7, vPhase: Math.PI },
+      { x: 400, y: 270, w: 100, h: 18, type: 'top',  speed: 0.6, range: 28, phase: 0,        vRange: 14, vSpeed: 0.5, vPhase: 0 },
     ];
     for (const d of PDEFS) {
-      // Transparent hitbox — physics only
       const hitbox = this.add.rectangle(d.x, d.y, d.w, d.h, 0x000000, 0);
       this.plats.add(hitbox);
-      // Visual ship container — purely decorative
       const visual = buildPlatShip(this, d.w, d.h, d.type);
       visual.setPosition(d.x, d.y);
-      this.platData.push({ hitbox, visual, baseX: d.x, baseY: d.y, speed: d.speed, range: d.range, phase: d.phase });
+      this.platData.push({ hitbox, visual, baseX: d.x, baseY: d.y, speed: d.speed, range: d.range, phase: d.phase, vRange: d.vRange, vSpeed: d.vSpeed, vPhase: d.vPhase });
     }
     this.plats.refresh();
   }
 
   makeHud() {
-    addLabel(this, W / 2, 10, 'PIXEL BRAWL', 14, '#5ca7d0', 'center').setOrigin(0.5, 0);
+    this.hudTimer = addLabel(this, W / 2, 10, '3:00', 14, C.text, 'center').setOrigin(0.5, 0);
     this.hudP1 = addLabel(this, 14, 12, '', 14, C.p1);
     this.hudS1 = addLabel(this, 14, 34, '', 12, C.dim);
     this.hudP2 = addLabel(this, W - 14, 12, '', 14, C.p2).setOrigin(1, 0);
@@ -639,11 +553,8 @@ class GameScene extends Phaser.Scene {
     body.body.setCollideWorldBounds(false).setMaxVelocity(700, 1000);
     body.body.allowGravity = false;
     this.physics.add.collider(body, this.plats);
-    // Aura (created before visual so it renders behind the fighter)
     const aura = this.add.circle(s.x, s.y, 26, 0x44ff44).setVisible(false);
-    // Visual container — follows hitbox, flips with facing direction
     const visual = buildFighter(this, s.x, s.y, ch, 1);
-    // Fatigue overlay — semi-transparent tint tracked separately
     const overlay = this.add.rectangle(s.x, s.y, 24, 44, 0xff4400, 0);
     const face = idx ? -1 : 1;
     visual.setScale(face, 1);
@@ -670,6 +581,13 @@ class GameScene extends Phaser.Scene {
     this.tickPlayer(p1, p2, dt);
     this.tickPlayer(p2, p1, dt);
     if (this.hudDirty) { this.refreshHud(); this.hudDirty = false; }
+    if (!this.over && this.ready) {
+      this.matchTime -= dt;
+      if (!this.finalPhase && this.matchTime <= 60000) this.triggerFinalPhase();
+      if (this.matchTime <= 0) this.endMatch();
+      const s = Math.max(0, Math.ceil(this.matchTime / 1000));
+      this.hudTimer.setText(~~(s/60)+':'+String(s%60).padStart(2,'0')).setColor(this.finalPhase?'#ff4444':C.text);
+    }
     flush(this);
   }
 
@@ -773,7 +691,7 @@ class GameScene extends Phaser.Scene {
     if (p.stun > 0) return;
     if (p.dashT > 0) return;
     if (p.shielding) { b.setVelocityX(0); return; }
-    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1);
+    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * (this.finalPhase ? 1.18 : 1);
     let vx = 0;
     if (this.ctrl.held[L]) { vx = -spd; p.face = -1; }
     if (this.ctrl.held[R]) { vx = spd; p.face = 1; }
@@ -818,7 +736,7 @@ class GameScene extends Phaser.Scene {
     p.dashCd = DASH_CD;
     p.dashT = 95;
     p.atk = { kind: 'dash', t: 95, hit: 0, w: 32, h: 34, ox: dir * 18, oy: 0, dmg: 10, fx: 0.9, fy: 0.5 };
-    b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500));
+    b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500) * (this.finalPhase ? 1.15 : 1));
     this.flash(p.body.x, p.body.y, 44, 20, p.char.color, 110);
     tone(this, 90, 'sawtooth', 0.06, 0.14);
   }
@@ -902,6 +820,7 @@ class GameScene extends Phaser.Scene {
     t.comboHits++; t.comboT = 1800;
     t.stun = (a.kind === 'basic' ? 110 : a.kind === 'dash' ? 130 : 150)
       * Math.max(0.60, 1 - (t.comboHits - 1) * 0.10);
+    if (this.finalPhase) { vx *= 1.18; vy *= 1.18; }
     b.setVelocity(vx, vy);
     const heavy = a.kind !== 'basic';
     if (sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, 5);
@@ -1006,6 +925,41 @@ class GameScene extends Phaser.Scene {
     p.visual.setPosition(p.body.x, p.body.y + yOff);
     p.visual.setAngle(sx < 0 ? -ang : ang);
     p.overlay.setPosition(p.body.x, p.body.y);
+  }
+
+  triggerFinalPhase() {
+    this.finalPhase = true;
+    const txt = this.add.text(W/2, H/2, 'FINAL MINUTE', {
+      fontFamily:'monospace', fontSize:'46px', fontStyle:'bold', color:'#ff4444'
+    }).setOrigin(0.5).setDepth(20);
+    this.tweens.add({ targets:txt, alpha:0, y:H/2-80, duration:2000, onComplete:()=>txt.destroy() });
+    this.cameras.main.shake(220, 0.014);
+    tone(this, 880, 'square', 0.12, 0.28);
+    this.time.delayedCall(300, ()=>tone(this, 660, 'square', 0.10, 0.28));
+    const mp = this.platData[0];
+    mp.hitbox.setPosition(-2000, -2000); mp.visual.setVisible(false);
+    [[280,0],[520,Math.PI]].forEach(([bx,ph])=>{
+      const h = this.add.rectangle(bx, 470, 180, 28, 0x000000, 0);
+      this.plats.add(h);
+      const v = buildPlatShip(this, 180, 28, 'side'); v.setPosition(bx, 470);
+      this.platData.push({ hitbox:h, visual:v, baseX:bx, baseY:470, speed:1.2, range:90, phase:ph, vRange:16, vSpeed:0.8, vPhase:ph });
+    });
+    this.plats.refresh();
+  }
+
+  endMatch() {
+    if (this.over) return;
+    this.over = 1;
+    const [p1,p2] = this.players;
+    const w = p1.lives>p2.lives?p1 : p2.lives>p1.lives?p2 :
+              p1.stamina>p2.stamina?p1 : p2.stamina>p1.stamina?p2 : null;
+    this.add.text(W/2, H/2, w?'TIME!':'DRAW!', {
+      fontFamily:'monospace', fontSize:'62px', fontStyle:'bold', color:w?(w.idx?C.p2:C.p1):'#fff0aa'
+    }).setOrigin(0.5).setDepth(20);
+    tone(this, 660, 'square', 0.08, 0.5);
+    this.time.delayedCall(700, ()=>w
+      ? this.scene.start('End',{winner:w.idx+1,char:w.char})
+      : this.scene.start('Menu'));
   }
 
   hitFreeze(ms) {
