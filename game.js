@@ -151,7 +151,7 @@ function startMusic(scene) {
   if (scene._musicEvent) return;
   let step = 0;
   scene._musicEvent = scene.time.addEvent({
-    delay: 231,   // ms per 8th note at 130 BPM
+    delay: 231,
     loop: true,
     callback: () => {
       const ctx = scene.sound && scene.sound.context;
@@ -331,8 +331,6 @@ class BootScene extends Phaser.Scene {
   create() { this.scene.start('Menu'); }
 }
 
-// ── Main Menu ──────────────────────────────────────────────────────────────
-
 class MenuScene extends Phaser.Scene {
   constructor() { super('Menu'); }
   create() {
@@ -374,8 +372,6 @@ class MenuScene extends Phaser.Scene {
     }
   }
 }
-
-// ── Character Select ───────────────────────────────────────────────────────
 
 class CharacterSelectScene extends Phaser.Scene {
   constructor() { super('Select'); }
@@ -438,8 +434,6 @@ class CharacterSelectScene extends Phaser.Scene {
   }
 }
 
-// ── Controls Screen ────────────────────────────────────────────────────────
-
 class ControlsScene extends Phaser.Scene {
   constructor() { super('Controls'); }
   create() {
@@ -465,8 +459,6 @@ class ControlsScene extends Phaser.Scene {
     flush(this);
   }
 }
-
-// ── Credits Screen ─────────────────────────────────────────────────────────
 
 class CreditsScene extends Phaser.Scene {
   constructor() { super('Credits'); }
@@ -510,7 +502,6 @@ class GameScene extends Phaser.Scene {
 
   drawStage() {
     createDesertBackground(this);
-    // Arena overlay — sits above desert, below platforms and players
     const g = this.add.graphics();
     g.lineStyle(1, 0x4a2000, 0.07);
     for (let x = 0; x <= W; x += 40) g.lineBetween(x, 0, x, H);
@@ -656,7 +647,6 @@ class GameScene extends Phaser.Scene {
     if (p.buffs.regen > 0) p.buffs.regen = Math.max(0, p.buffs.regen - dt);
     if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
     if (p.comboT > 0) { p.comboT -= dt; if (p.comboT <= 0) p.comboHits = 0; }
-    // Exhausted state countdown + recovery reward
     const wasExh = p.fatigue > 0;
     if (p.fatigue > 0) p.fatigue -= dt;
     if (wasExh && p.fatigue <= 0) {
@@ -705,8 +695,6 @@ class GameScene extends Phaser.Scene {
 
   handleActions(p) {
     if (!this.ready) return;
-    // P1: F (P2_4) = attack, G (P2_5) = dash+special
-    // P2: K (P1_5) = attack, L (P1_6) = dash+special
     const atkCode = p.idx ? 'P1_5' : 'P2_4';
     const altCode = p.idx ? 'P1_6' : 'P2_5';
     const L = p.idx ? 'P2_L' : 'P1_L', R = p.idx ? 'P2_R' : 'P1_R';
@@ -725,9 +713,12 @@ class GameScene extends Phaser.Scene {
 
   basicAttack(p) {
     p.atkCd = ATK_CD;
-    p.atk = { kind: 'basic', t: 85, hit: 0, w: 40, h: 26, ox: p.face * 30, oy: -4, dmg: 8, fx: 0.95, fy: 0.72 };
-    this.flash(p.body.x + p.face * 22, p.body.y - 4, 32, 16, p.char.accent, 85);
-    tone(this, p.idx ? 300 : 260, 'square', 0.07, 0.06);
+    const gr = p.body.body.blocked.down || p.body.body.touching.down;
+    p.atk = gr
+      ? { kind:'basic', t:85, hit:0, w:40, h:26, ox:p.face*30, oy:-4,  dmg:8, fx:0.95, fy:0.72 }
+      : { kind:'basic', t:90, hit:0, w:34, h:34, ox:p.face*20, oy:14,  dmg:9, fx:0.80, fy:0.98 };
+    this.flash(p.body.x+p.face*22, p.body.y+(gr?-4:14), 30, 20, p.char.accent, 85);
+    tone(this, p.idx?300:260, 'square', 0.07, 0.06);
   }
 
   doDash(p) {
@@ -764,6 +755,7 @@ class GameScene extends Phaser.Scene {
       tone(this, 360, 'square', 0.06, 0.12);
     } else {
       p.slam = 1;
+      p.invuln = Math.max(p.invuln, 380);
       p.body.body.setVelocityY(600);
       this.flash(p.body.x, p.body.y + 10, 28, 34, p.char.color, 120);
       tone(this, 120, 'sawtooth', 0.06, 0.12);
@@ -818,11 +810,16 @@ class GameScene extends Phaser.Scene {
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
     t.comboHits++; t.comboT = 1800;
+    if (t.comboHits === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
+    else if (t.comboHits === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
     t.stun = (a.kind === 'basic' ? 110 : a.kind === 'dash' ? 130 : 150)
       * Math.max(0.60, 1 - (t.comboHits - 1) * 0.10);
     if (this.finalPhase) { vx *= 1.18; vy *= 1.18; }
+    // VOLT bonus vs airborne targets
+    if (p.char.id === 'volt' && !t.body.body.blocked.down && !t.body.body.touching.down) { vx *= 1.22; vy *= 1.22; }
     b.setVelocity(vx, vy);
     const heavy = a.kind !== 'basic';
+    if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, 5);
     if (sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, 5);
     this.spark(t.body.x, t.body.y - 8, p.char.accent, heavy ? 7 : 4);
     this.flash(t.body.x, t.body.y - 6, heavy ? 38 : 24, 24, p.char.accent, 90);
@@ -842,8 +839,9 @@ class GameScene extends Phaser.Scene {
     p.buffs.power = p.buffs.speed = p.buffs.regen = 0;
     p._auraType = null; p.shielding = false;
     p.aura.setVisible(false);
-    burst(this, p.body.x, p.body.y, p.char.color, 8);
-    this.cameras.main.shake(230, 0.015);
+    burst(this, p.body.x, p.body.y, p.char.color, 10);
+    this.cameras.main.shake(420, 0.024);
+    this.tweens.add({ targets: this.cameras.main, zoom: 1.13, duration: 110, yoyo: true });
     p.body.body.enable = false;
     p.body.setPosition(-500, -500);
     p.visual.setVisible(false);
@@ -985,13 +983,7 @@ class GameScene extends Phaser.Scene {
     const txt = this.add.text(W / 2, H / 2 - 30, '', {
       fontFamily: 'monospace', fontSize: '90px', fontStyle: 'bold', color: '#ffffff',
     }).setOrigin(0.5).setDepth(20);
-    const steps = [
-      { s: '3', c: '#ff6040', f: 330 },
-      { s: '2', c: '#ff9020', f: 440 },
-      { s: '1', c: '#ffe060', f: 550 },
-      { s: 'BRAWL!', c: '#ffffff', f: 880 },
-    ];
-    steps.forEach(({ s, c, f }, i) => {
+    [['3','#ff6040',330],['2','#ff9020',440],['1','#ffe060',550],['BRAWL!','#ffffff',880]].forEach(([s,c,f],i)=>{
       this.time.delayedCall(i * 900, () => {
         txt.setText(s).setColor(c).setScale(1.8).setAlpha(1);
         this.tweens.add({ targets: txt, scaleX: 1, scaleY: 1, duration: 500, ease: 'Power2.easeOut' });
@@ -1101,13 +1093,13 @@ class EndScene extends Phaser.Scene {
     const col = this.winner === 1 ? C.p1 : C.p2;
     const ch = this.char;
     if (ch) {
-      buildFighter(this, W / 2, 316, ch, 1.3);
+      const fig = buildFighter(this, W / 2, 316, ch, 1.3);
+      this.tweens.add({ targets: fig, y: 290, duration: 380, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
       addLabel(this, W / 2, 170, ch.name + ' WINS', 52, col, 'center').setOrigin(0.5);
     } else {
       addLabel(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
     }
     addLabel(this, W / 2, 400, 'PRESS START  ·  RETURN TO SELECT', 14, C.dim, 'center').setOrigin(0.5);
-    // Victory fanfare
     const win = this;
     [0, 100, 200, 350].forEach((delay, i) => {
       win.time.delayedCall(300 + delay, () => tone(win, [440, 554, 660, 880][i], 'square', 0.07, i === 3 ? 0.3 : 0.12));
