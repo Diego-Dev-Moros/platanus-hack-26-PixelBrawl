@@ -192,83 +192,44 @@ function burst(scene, x, y, color, n) {
 
 function createDesertBackground(scene) {
   const sk = scene.add.graphics();
-  sk.fillStyle(0x1a0a04, 1); sk.fillRect(0, 0, W, H);
-  sk.fillStyle(0x250e06, 0.55); sk.fillRect(0, 160, W, H - 160);
-  sk.fillStyle(0x300e04, 0.32); sk.fillRect(0, 340, W, H - 340);
-  sk.fillStyle(0xc85000, 0.10); sk.fillCircle(138, 106, 98);
-  sk.fillStyle(0xdc6a10, 0.22); sk.fillCircle(138, 106, 66);
-  sk.fillStyle(0xee8820, 0.50); sk.fillCircle(138, 106, 44);
-  sk.fillStyle(0xffa040, 0.80); sk.fillCircle(138, 106, 26);
-  sk.fillStyle(0xffc870, 1.00); sk.fillCircle(138, 106, 14);
-  sk.fillStyle(0xc08040, 0.18);
-  [[300,40],[440,68],[560,30],[690,55],[740,22],[780,48],
-   [200,88],[360,94],[520,75],[660,90]].forEach(([x, y]) => sk.fillRect(x, y, 2, 2));
+  sk.fillStyle(0xff9035, 1); sk.fillRect(0, 0, W, H);
+  sk.fillStyle(0xff7020, 0.60); sk.fillRect(0, 140, W, H - 140);
+  sk.fillStyle(0xe85808, 0.50); sk.fillRect(0, 320, W, H - 320);
+  sk.fillStyle(0xd84005, 0.45); sk.fillRect(0, 440, W, H - 440);
+  sk.fillStyle(0xffd27a, 0.18); sk.fillCircle(148, 108, 92);
+  sk.fillStyle(0xffd27a, 0.40); sk.fillCircle(148, 108, 62);
+  sk.fillStyle(0xffe890, 0.75); sk.fillCircle(148, 108, 38);
+  sk.fillStyle(0xfff0b0, 1.00); sk.fillCircle(148, 108, 18);
+  sk.fillStyle(0xffffff, 1.00); sk.fillCircle(148, 108,  8);
   scene.bgFar = scene.add.container(0, 0);
-  const fg = scene.add.graphics();
-  scene.bgFar.add(fg);
-  const FAR = [
-    [40,42,165],[108,28,128],[178,50,195],[262,34,112],
-    [360,46,175],[460,26,108],[544,52,185],[640,36,138],
-    [718,44,162],[790,28,118],
-  ];
-  FAR.forEach(([bx, bw, bh]) => {
-    [0, W].forEach(ox => {
-      fg.fillStyle(0x0e0706, 1);
-      fg.fillRect(ox + bx - bw / 2, H - bh, bw, bh);
-      fg.fillStyle(0x1a0a04, 1);
-      fg.fillRect(ox + bx - bw / 2 + 3, H - bh, 6, ~~(bh * 0.10));
-      fg.fillRect(ox + bx + bw / 2 - 11, H - bh, 7, ~~(bh * 0.07));
-    });
-  });
-
+  const fg = scene.add.graphics(); scene.bgFar.add(fg);
+  [[40,42,165],[108,28,128],[178,50,195],[262,34,112],[360,46,175],
+   [460,26,108],[544,52,185],[640,36,138],[718,44,162],[790,28,118]].forEach(([bx,bw,bh]) =>
+    [0,W].forEach(ox => { fg.fillStyle(0x5c2808,1); fg.fillRect(ox+bx-bw/2,H-bh,bw,bh); })
+  );
   scene.bgMid = scene.add.container(0, 0);
-  const mg = scene.add.graphics();
-  scene.bgMid.add(mg);
-  const dune = (baseY, amp, freq, col) => {
+  const mg = scene.add.graphics(); scene.bgMid.add(mg);
+  const dune = (y, a, f, col) => {
     mg.fillStyle(col, 1);
     [0, W].forEach(ox => {
-      mg.beginPath();
-      mg.moveTo(ox - 20, baseY + amp * Math.sin((ox - 20) * freq));
-      for (let x = ox - 14; x <= ox + W + 20; x += 6)
-        mg.lineTo(x, baseY + amp * Math.sin(x * freq));
-      mg.lineTo(ox + W + 20, H);
-      mg.lineTo(ox - 20, H);
-      mg.closePath();
-      mg.fillPath();
+      mg.beginPath(); mg.moveTo(ox-20, y+a*Math.sin((ox-20)*f));
+      for (let x=ox-14; x<=ox+W+20; x+=6) mg.lineTo(x, y+a*Math.sin(x*f));
+      mg.lineTo(ox+W+20, H); mg.lineTo(ox-20, H); mg.closePath(); mg.fillPath();
     });
   };
-  dune(442, 20, 8 * Math.PI / W, 0x1e0f06);
-  dune(460, 14, 10 * Math.PI / W, 0x180c04);
-  dune(474, 10, 12 * Math.PI / W, 0x120902);
-  [[80,16,52],[212,20,66],[388,14,48],[552,18,58],[726,16,54]].forEach(([rx, rw, rh]) => {
-    [0, W].forEach(ox => {
-      mg.fillStyle(0x0e0a04, 1);
-      mg.fillRect(ox + rx - rw / 2, 438 - rh, rw, rh);
-      mg.fillRect(ox + rx - rw / 2 + 2, 438 - rh - 10, 5, 10);
-    });
-  });
-
+  dune(442, 20, 8*Math.PI/W, 0xd89a4c);
+  dune(458, 14, 10*Math.PI/W, 0xc8823c);
+  dune(472, 10, 12*Math.PI/W, 0xb87030);
   scene.bgParticles = scene.add.container(0, 0);
   scene.dustParticles = []; scene.windStreaks = [];
-
   for (let i = 0; i < 22; i++) {
-    const r = scene.add.rectangle(
-      Phaser.Math.Between(0, W), Phaser.Math.Between(200, H - 60),
-      Phaser.Math.Between(2, 5), 1, 0xc89a50,
-      Phaser.Math.FloatBetween(0.12, 0.40)
-    );
-    scene.bgParticles.add(r);
-    scene.dustParticles.push({ r, spd: Phaser.Math.FloatBetween(18, 55) });
+    const r = scene.add.rectangle(Phaser.Math.Between(0,W), Phaser.Math.Between(200,H-60), Phaser.Math.Between(2,5), 1, 0xe8a050, Phaser.Math.FloatBetween(0.15,0.45));
+    scene.bgParticles.add(r); scene.dustParticles.push({ r, spd: Phaser.Math.FloatBetween(18,55) });
   }
   for (let i = 0; i < 10; i++) {
-    const len = Phaser.Math.Between(28, 72);
-    const r = scene.add.rectangle(
-      Phaser.Math.Between(-W, W), Phaser.Math.Between(100, H - 80),
-      len, 1, 0xd0a060,
-      Phaser.Math.FloatBetween(0.06, 0.22)
-    );
-    scene.bgParticles.add(r);
-    scene.windStreaks.push({ r, spd: Phaser.Math.FloatBetween(70, 160) });
+    const len = Phaser.Math.Between(28,72);
+    const r = scene.add.rectangle(Phaser.Math.Between(-W,W), Phaser.Math.Between(100,H-80), len, 1, 0xf0b060, Phaser.Math.FloatBetween(0.08,0.25));
+    scene.bgParticles.add(r); scene.windStreaks.push({ r, spd: Phaser.Math.FloatBetween(70,160) });
   }
 }
 
@@ -532,9 +493,11 @@ class GameScene extends Phaser.Scene {
   makeHud() {
     this.hudTimer = addLabel(this, W / 2, 10, '3:00', 14, C.text, 'center').setOrigin(0.5, 0);
     this.hudP1 = addLabel(this, 14, 12, '', 14, C.p1);
-    this.hudS1 = addLabel(this, 14, 34, '', 12, C.dim);
+    this.hudS1 = addLabel(this, 150, 34, '', 11, C.dim);
     this.hudP2 = addLabel(this, W - 14, 12, '', 14, C.p2).setOrigin(1, 0);
-    this.hudS2 = addLabel(this, W - 14, 34, '', 12, C.dim).setOrigin(1, 0);
+    this.hudS2 = addLabel(this, W - 150, 34, '', 11, C.dim).setOrigin(1, 0);
+    this.hudBar1 = this.add.graphics();
+    this.hudBar2 = this.add.graphics();
   }
 
   makePlayer(idx, id) {
@@ -819,7 +782,7 @@ class GameScene extends Phaser.Scene {
     if (p.char.id === 'volt' && !t.body.body.blocked.down && !t.body.body.touching.down) { vx *= 1.22; vy *= 1.22; }
     b.setVelocity(vx, vy);
     const heavy = a.kind !== 'basic';
-    if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, 5);
+    if (heavy) { this.spark(t.body.x, t.body.y, 0xff3300, 5); this.bloodImpact(t.body.x, t.body.y - 6); }
     if (sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, 5);
     this.spark(t.body.x, t.body.y - 8, p.char.accent, heavy ? 7 : 4);
     this.flash(t.body.x, t.body.y - 6, heavy ? 38 : 24, 24, p.char.accent, 90);
@@ -960,6 +923,8 @@ class GameScene extends Phaser.Scene {
       : this.scene.start('Menu'));
   }
 
+  bloodImpact(x,y){for(let i=0;i<5;i++){const a=-Math.PI/2+(Math.random()-.5)*Math.PI,r=this.add.rectangle(x,y,3,3,0xcc0000);this.tweens.add({targets:r,x:x+Math.cos(a)*20,y:y+Math.sin(a)*20+14,alpha:0,duration:270,onComplete:()=>r.destroy()});}}
+
   hitFreeze(ms) {
     this.physics.pause();
     this.time.delayedCall(ms, () => { if (!this.over) this.physics.resume(); });
@@ -1024,12 +989,25 @@ class GameScene extends Phaser.Scene {
   spawnPickup() {
     const pl = this.platData[Phaser.Math.Between(0, this.platData.length - 1)];
     const offX = Phaser.Math.Between(-30, 30);
-    const rnd  = Math.random();
-    const type = rnd < 0.40 ? 'recovery' : rnd < 0.60 ? 'power' : rnd < 0.80 ? 'speed' : 'regen';
-    const col = PICKUP_CFG[type].col;
-    const orb  = this.add.circle(pl.hitbox.x + offX, pl.hitbox.y - 22, 8, col, 0.9);
-    this.tweens.add({ targets: orb, scaleX: 1.4, scaleY: 1.4, alpha: 0.65, duration: 380, yoyo: true, repeat: -1 });
-    this.pickup = { orb, type, x: orb.x, y: orb.y, plat: pl, offX, life: 5500 };
+    const rnd = Math.random();
+    const type = rnd<0.40?'recovery':rnd<0.60?'power':rnd<0.80?'speed':'regen';
+    const cfg = PICKUP_CFG[type];
+    const ox = pl.hitbox.x + offX, oy = pl.hitbox.y - 22;
+    const orb = this.add.container(ox, oy);
+    const g = this.add.graphics(); orb.add(g);
+    g.fillStyle(cfg.col, 0.22); g.fillCircle(0, 0, 11);
+    g.fillStyle(cfg.col, 0.95);
+    if (type === 'recovery') {
+      [[-1,-2],[0,-3],[1,-2],[2,-1],[2,0],[1,1],[0,2],[-1,1],[-2,0],[-2,-1]].forEach(([x,y])=>g.fillRect(x*1.5,y*1.5,1.8,1.8));
+    } else if (type === 'power') {
+      g.fillRect(-3,-5,7,3); g.fillRect(-2,-2,8,3); g.fillRect(-2,1,6,3);
+    } else if (type === 'speed') {
+      g.fillRect(1,-5,3,5); g.fillRect(-3,0,3,5); g.fillRect(-3,0,6,2);
+    } else {
+      g.fillRect(-2,-1,5,6); g.fillRect(-1,-4,3,3); g.fillRect(0,-5,2,1);
+    }
+    this.tweens.add({ targets: orb, scaleX: 1.3, scaleY: 1.3, alpha: 0.8, duration: 380, yoyo: true, repeat: -1 });
+    this.pickup = { orb, type, x: ox, y: oy, plat: pl, offX, life: 5500 };
   }
 
   checkPickup(p) {
@@ -1062,23 +1040,15 @@ class GameScene extends Phaser.Scene {
 
   refreshHud() {
     const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
-    const bar = p => {
-      const n = Math.max(0, Math.ceil((p.stamina / p.staminaMax) * 10));
-      return '█'.repeat(n) + '·'.repeat(10 - n);
-    };
-    const cool = p => (p.spCd > 0 ? ' SP ' + Math.ceil(p.spCd / 1000) : ' SP RDY');
-    const bufStr = p => {
-      const b = [];
-      if (p.buffs.power > 0) b.push('P');
-      if (p.buffs.speed > 0) b.push('S');
-      if (p.buffs.regen > 0) b.push('R');
-      return b.length ? ' [' + b.join('') + ']' : '';
-    };
+    const cool = p => p.spCd > 0 ? ' SP '+Math.ceil(p.spCd/1000) : ' SP RDY';
+    const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('P'); if(p.buffs.speed>0)b.push('S'); if(p.buffs.regen>0)b.push('R'); return b.length?' ['+b.join('')+']':''; };
     const p1 = this.players[0], p2 = this.players[1];
+    const dB=(g,p,x)=>{g.clear();const c=p._hud.seg>=7?0x00e5ff:p._hud.seg>=4?0xffdd00:0xff3344;for(let i=0;i<10;i++){g.fillStyle(i<p._hud.seg?c:0x1a2a3a,i<p._hud.seg?1:.3);g.fillRect(x+i*13,34,11,7);}};
+    dB(this.hudBar1,p1,14); dB(this.hudBar2,p2,W-144);
     this.hudP1.setText('P1 ' + p1.char.name + ' ' + dots(p1.lives));
     this.hudP2.setText(dots(p2.lives) + ' ' + p2.char.name + ' P2');
-    this.hudS1.setText('STM ' + bar(p1) + bufStr(p1) + (p1.fatigue > 0 ? ' EXH' : '') + cool(p1));
-    this.hudS2.setText((p2.fatigue > 0 ? 'EXH ' : '') + bar(p2) + bufStr(p2) + ' STM' + cool(p2));
+    this.hudS1.setText(bufStr(p1) + (p1.fatigue > 0 ? ' EXH' : '') + cool(p1));
+    this.hudS2.setText((p2.fatigue > 0 ? 'EXH ' : '') + bufStr(p2) + cool(p2));
   }
 }
 
@@ -1095,7 +1065,9 @@ class EndScene extends Phaser.Scene {
     const ch = this.char;
     if (ch) {
       const fig = buildFighter(this, W / 2, 316, ch, 1.3);
-      this.tweens.add({ targets: fig, y: 290, duration: 380, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+      this.tweens.add({targets:fig, y:240, duration:420, ease:'Power2.easeOut',
+        onComplete:()=>this.tweens.add({targets:fig,y:316,duration:360,ease:'Bounce.easeOut',
+          onComplete:()=>this.tweens.add({targets:fig,y:298,duration:280,ease:'Sine.easeInOut',yoyo:true,repeat:-1})})});
       addLabel(this, W / 2, 170, ch.name + ' WINS', 52, col, 'center').setOrigin(0.5);
     } else {
       addLabel(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
