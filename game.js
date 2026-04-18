@@ -3,13 +3,14 @@
 const W = 800, H = 600;
 const GRAVITY = 980, SPEED = 220, JUMP = -420, LIVES = 3;
 const ATK_CD = 280, DASH_CD = 900, FATIGUE_MS = 1000, INVULN_MS = 1200, EXHAUST_RECOVER = 35;
-const BUFF_POWER_DUR = 10000, BUFF_SPEED_DUR = 10000, BUFF_REGEN_DUR = 8000;
+const BUFF_POWER_DUR = 10000, BUFF_SPEED_DUR = 10000, BUFF_REGEN_DUR = 8000, BUFF_GUARD_DUR = 9000;
 
 const PICKUP_CFG = {
-  recovery: { col: 0x00ffaa, txt: 'STAMINA +35', tc: '#00ffaa', f: 660, ft: 'triangle', fd: 0.18 },
-  power:    { col: 0x44ff44, txt: 'POWER UP!',   tc: '#44ff44', f: 880, ft: 'square',   fd: 0.12, bk: 'power', dur: BUFF_POWER_DUR },
-  speed:    { col: 0x4488ff, txt: 'SPEED UP!',   tc: '#4488ff', f: 660, ft: 'square',   fd: 0.10, bk: 'speed', dur: BUFF_SPEED_DUR },
-  regen:    { col: 0x00cccc, txt: 'REGEN UP!',   tc: '#00cccc', f: 550, ft: 'triangle', fd: 0.14, bk: 'regen', dur: BUFF_REGEN_DUR },
+  recovery: { col: 0xff5f77, txt: 'STAMINA +35', tc: '#ff8094', f: 660, ft: 'triangle', fd: 0.18 },
+  power:    { col: 0x67ff5c, txt: 'POWER UP!',   tc: '#67ff5c', f: 880, ft: 'square',   fd: 0.12, bk: 'power', dur: BUFF_POWER_DUR },
+  speed:    { col: 0x63b8ff, txt: 'SPEED UP!',   tc: '#63b8ff', f: 660, ft: 'square',   fd: 0.10, bk: 'speed', dur: BUFF_SPEED_DUR },
+  regen:    { col: 0x00d7c7, txt: 'REGEN UP!',   tc: '#00d7c7', f: 550, ft: 'triangle', fd: 0.14, bk: 'regen', dur: BUFF_REGEN_DUR },
+  guard:    { col: 0xffd56a, txt: 'SHIELD UP!',  tc: '#ffe08d', f: 490, ft: 'square',   fd: 0.15, bk: 'guard', dur: BUFF_GUARD_DUR },
 };
 const BASE_KB_X = 240, BASE_KB_Y = 155;
 const DEATH_X = 80, DEATH_Y = 680;
@@ -20,9 +21,9 @@ const C = {
 };
 
 const CHARS = [
-  { id: 'pulse', name: 'PULSE', color: 0x00e5ff, accent: 0xffffff, line: 'Shockwave / area push', head: 0, sp: 2200, sd: 12 },
-  { id: 'volt', name: 'VOLT', color: 0xffdd00, accent: 0xff7a00, line: 'Uppercut / anti-air', head: 1, sp: 2000, sd: 14 },
-  { id: 'crush', name: 'CRUSH', color: 0xff3cac, accent: 0xff5a36, line: 'Ground Slam / landing burst', head: 0, sp: 2400, sd: 15 },
+  { id: 'pulse', name: 'PULSE', color: 0x00e5ff, accent: 0xffffff, line: 'Karateka / shockwave', head: 0, sp: 2200, sd: 12 },
+  { id: 'volt', name: 'VOLT', color: 0xffdd00, accent: 0xff7a00, line: 'Boxer / uppercut', head: 1, sp: 2000, sd: 14 },
+  { id: 'crush', name: 'CRUSH', color: 0xff3cac, accent: 0xff5a36, line: 'Sumo / ground slam', head: 0, sp: 2400, sd: 15 },
 ];
 
 const SPAWNS = [{ x: 320, y: 300 }, { x: 480, y: 300 }];
@@ -104,29 +105,27 @@ function drawBg(scene, title) {
 function buildFighter(scene, x, y, ch, s) {
   const c = scene.add.container(x, y).setScale(s);
   const P = {
+    // CHARACTER REDESIGN
     pulse: [
-      [ 2,-15,10, 9,0x002233],[ 2,  2,12,17,0x002233],
-      [ 0,-17,10, 9,0x0088aa],[ 0,-18,10, 2,0xffffff],[ 4,-18, 3, 2,0x00e5ff],
-      [ 0,  0,12,17,0x006688],[-1, -1, 5,15,0x00aacc],[ 0,  1, 5, 5,0x00ccee],[ 0,  1, 3, 3,0xffffff],
-      [-9, -8, 8, 4,0x00e5ff],[ 9, -8, 8, 4,0x00e5ff],
-      [-12,  0, 5,10,0x004455],[ 12,  0, 5,10,0x004455],[-12,  7, 6, 4,0x00e5ff],[ 12,  7, 6, 4,0x00e5ff],
-      [-4, 13, 6,12,0x002233],[ 4, 13, 6,12,0x002233],[-4, 22, 8, 4,0x0088aa],[ 4, 22, 8, 4,0x0088aa],
+      [ 0,-19,12,11,0xf0c49a],[ 0,-24,12, 2,0x111111],[ 0,-16, 4, 2,0x4b2417],
+      [ 0, -5,16,20,0xffffff],[ 0, -2,10,14,0xfaf6eb],[ 0, 10,18, 4,0x1a1a1a],
+      [-10,-7, 5,14,0xf0c49a],[ 10,-7, 5,14,0xf0c49a],[-14,-2, 8, 4,0x00e5ff],[ 14,-2, 8, 4,0x00e5ff],
+      [-5, 14, 7,13,0xffffff],[ 5, 14, 7,13,0xffffff],[-5, 24, 8, 4,0x0086b2],[ 5, 24, 8, 4,0x0086b2],
+      [ 0, -9, 6, 5,0x111111],[ 0,  4,14, 3,0x00e5ff],
     ],
     volt: [
-      [ 2,-15,14,10,0x331100],[ 2,  2,18,16,0x331100],
-      [ 0, -1,18,16,0xddaa00],[ 0, -4, 4,10,0xffee44],[ 0, 12,18, 3,0x332200],
-      [-13, -2, 8, 6,0xcc9900],[ 13, -2, 8, 6,0xcc9900],[-13,  5, 9, 8,0x886600],[ 13,  5, 9, 8,0x886600],
-      [-12, -8,12, 6,0xff7a00],[ 12, -8,12, 6,0xff7a00],
-      [ 0,-18,14,10,0xcc9900],[ 0,-22,10, 5,0xff7a00],[ 0,-18, 9, 2,0x221100],
-      [-5, 16, 8, 9,0x553300],[ 5, 16, 8, 9,0x553300],[-5, 26,10, 5,0xffdd00],[ 5, 26,10, 5,0xffdd00],
+      [ 0,-19,12,11,0xc98d68],[ 0,-24,12, 2,0x161616],[ 0,-16, 4, 2,0x3f2015],
+      [ 0, -4,16,20,0xc81a24],[ 0, -3,10,14,0xdf4c49],[ 0, 11,18, 4,0xffffff],
+      [-10,-5, 6,12,0xc98d68],[ 10,-5, 6,12,0xc98d68],[-15,-5, 9, 8,0xffdd00],[ 15,-5, 9, 8,0xffdd00],
+      [-5, 15, 7,13,0x212f47],[ 5, 15, 7,13,0x212f47],[-5, 24, 8, 4,0xffdd00],[ 5, 24, 8, 4,0xffdd00],
+      [ 0, -9, 6, 5,0x161616],[ 0,  1,16, 4,0xff7a00],
     ],
     crush: [
-      [ 2,-13,18,12,0x220010],[ 2,  2,24,20,0x220010],
-      [ 0,-15,18,12,0xcc1a7a],[ 0,-15,12, 3,0xff5a36],
-      [ 0,  0,24,20,0x880a40],[ 0, -2,16,10,0xff3cac],
-      [-13, -1,12, 8,0xaa1855],[ 13, -1,12, 8,0xaa1855],[-14,  8,13, 8,0x440020],[ 14,  8,13, 8,0x440020],
-      [-14, 14, 4, 3,0xff5a36],[ 14, 14, 4, 3,0xff5a36],
-      [ 0, 16,24, 4,0x220010],[-6, 18,10,12,0x550030],[ 6, 18,10,12,0x550030],[-6, 28,12, 5,0xff5a36],[ 6, 28,12, 5,0xff5a36],
+      [ 0,-19,12,11,0xf3c89e],[ 0,-24,10, 2,0x131313],[ 0,-17, 4, 2,0x4a2a18],
+      [ 0, -1,24,24,0xf6efe3],[ 0,  6,26,12,0x8d4427],[ 0,-10,18, 5,0xff3cac],
+      [-14,-3, 7,14,0xf3c89e],[ 14,-3, 7,14,0xf3c89e],[-18, 4,10, 5,0xc46e39],[ 18, 4,10, 5,0xc46e39],
+      [-7, 18, 9,12,0x4e2515],[ 7, 18, 9,12,0x4e2515],[-7, 28,10, 4,0xeac89c],[ 7, 28,10, 4,0xeac89c],
+      [ 0, -9, 6, 5,0x171717],[ 0, 10,22, 3,0x1b120e],
     ],
   };
   for (const [px,py,pw,ph,pc] of (P[ch.id]||P.pulse))
@@ -191,58 +190,120 @@ function burst(scene, x, y, color, n) {
 }
 
 function createDesertBackground(scene) {
+  // BACKGROUND REDESIGN
   const sk = scene.add.graphics();
-  sk.fillStyle(0xff9035, 1); sk.fillRect(0, 0, W, H);
-  sk.fillStyle(0xff7020, 0.60); sk.fillRect(0, 140, W, H - 140);
-  sk.fillStyle(0xe85808, 0.50); sk.fillRect(0, 320, W, H - 320);
-  sk.fillStyle(0xd84005, 0.45); sk.fillRect(0, 440, W, H - 440);
-  sk.fillStyle(0xffd27a, 0.18); sk.fillCircle(148, 108, 92);
-  sk.fillStyle(0xffd27a, 0.40); sk.fillCircle(148, 108, 62);
-  sk.fillStyle(0xffe890, 0.75); sk.fillCircle(148, 108, 38);
-  sk.fillStyle(0xfff0b0, 1.00); sk.fillCircle(148, 108, 18);
-  sk.fillStyle(0xffffff, 1.00); sk.fillCircle(148, 108,  8);
+  [
+    [0x44536a, 0, 180],[0x657087, 180, 82],[0xe3a363, 262, 72],
+    [0xc2774b, 334, 82],[0x704839, 416, 88],[0x35253a, 504, 96],
+  ].forEach(([col, y, h]) => { sk.fillStyle(col, 1); sk.fillRect(0, y, W, h); });
+  sk.fillStyle(0xf3d1a0, 0.24); sk.fillCircle(152, 98, 96);
+  sk.fillStyle(0xf3d1a0, 0.46); sk.fillCircle(152, 98, 62);
+  sk.fillStyle(0xfff1cb, 0.9);  sk.fillCircle(152, 98, 24);
+  scene.bgClouds = scene.add.container(0, 0);
+  const cg = scene.add.graphics(); scene.bgClouds.add(cg);
+  [0, W].forEach(ox => {
+    [[92,110,190,34],[250,148,180,28],[540,112,220,30],[690,160,130,22]].forEach(([x,y,w,h]) => {
+      cg.fillStyle(0xe7d7c0, 0.09); cg.fillRoundedRect(ox + x - w / 2, y, w, h, 14);
+      cg.fillStyle(0x846f72, 0.08); cg.fillRoundedRect(ox + x - w / 2 + 24, y + 12, w * 0.66, h * 0.65, 12);
+    });
+  });
   scene.bgFar = scene.add.container(0, 0);
   const fg = scene.add.graphics(); scene.bgFar.add(fg);
-  [[40,42,165],[108,28,128],[178,50,195],[262,34,112],[360,46,175],
-   [460,26,108],[544,52,185],[640,36,138],[718,44,162],[790,28,118]].forEach(([bx,bw,bh]) =>
-    [0,W].forEach(ox => { fg.fillStyle(0x5c2808,1); fg.fillRect(ox+bx-bw/2,H-bh,bw,bh); })
-  );
-  scene.bgMid = scene.add.container(0, 0);
-  const mg = scene.add.graphics(); scene.bgMid.add(mg);
-  const dune = (y, a, f, col) => {
-    mg.fillStyle(col, 1);
-    [0, W].forEach(ox => {
-      mg.beginPath(); mg.moveTo(ox-20, y+a*Math.sin((ox-20)*f));
-      for (let x=ox-14; x<=ox+W+20; x+=6) mg.lineTo(x, y+a*Math.sin(x*f));
-      mg.lineTo(ox+W+20, H); mg.lineTo(ox-20, H); mg.closePath(); mg.fillPath();
+  const drawSil = ox => {
+    [[48,42,108],[96,26,86],[144,58,132],[246,44,96],[326,30,78],[384,70,148],[522,36,90],[594,54,128],[668,28,80],[736,64,154]].forEach(([bx,bw,bh]) => {
+      fg.fillStyle(0x3f485e, 1); fg.fillRect(ox + bx - bw / 2, H - 252 - bh, bw, bh);
+      fg.fillStyle(0x586277, 0.4); fg.fillRect(ox + bx - bw / 2 + 4, H - 252 - bh + 10, bw - 8, 10);
     });
   };
-  dune(442, 20, 8*Math.PI/W, 0xd89a4c);
-  dune(458, 14, 10*Math.PI/W, 0xc8823c);
-  dune(472, 10, 12*Math.PI/W, 0xb87030);
+  drawSil(0); drawSil(W);
+  scene.bgMid = scene.add.container(0, 0);
+  const mg = scene.add.graphics(); scene.bgMid.add(mg);
+  const ruins = ox => {
+    mg.fillStyle(0x63504d, 1); mg.fillRect(ox + 104, 302, 114, 126);
+    mg.fillStyle(0x413541, 1); mg.fillRect(ox + 132, 244, 34, 58);
+    mg.fillStyle(0x3f3a44, 1); mg.fillRect(ox + 174, 264, 20, 38);
+    mg.fillStyle(0x90766d, 0.45); mg.fillRect(ox + 118, 318, 84, 10);
+    mg.fillStyle(0x4f3a31, 1); mg.fillRect(ox + 416, 324, 138, 92);
+    mg.fillStyle(0x88614d, 0.4); mg.fillRect(ox + 430, 338, 92, 10);
+    mg.fillStyle(0x453428, 1); mg.fillRect(ox + 588, 286, 26, 148);
+    mg.fillStyle(0x453428, 1); mg.fillRect(ox + 646, 272, 26, 162);
+    mg.fillStyle(0x6d5240, 1); mg.fillRect(ox + 584, 272, 92, 20);
+    mg.fillStyle(0x36281f, 1); mg.fillRect(ox + 602, 356, 14, 78);
+    mg.fillStyle(0x36281f, 1); mg.fillRect(ox + 642, 344, 14, 90);
+    [[245,386,58,26],[288,396,72,30],[528,400,54,24],[676,402,70,28]].forEach(([x,y,w,h]) => {
+      mg.fillStyle(0x8a6c4e, 1); mg.fillTriangle(ox + x, y, ox + x + w / 2, y - h, ox + x + w, y);
+    });
+  };
+  ruins(0); ruins(W);
+  const dune = (y, a, f, col, al) => {
+    mg.fillStyle(col, al);
+    [0, W].forEach(ox => {
+      mg.beginPath(); mg.moveTo(ox - 20, y + a * Math.sin((ox - 20) * f));
+      for (let x = ox - 14; x <= ox + W + 20; x += 6) mg.lineTo(x, y + a * Math.sin(x * f));
+      mg.lineTo(ox + W + 20, H); mg.lineTo(ox - 20, H); mg.closePath(); mg.fillPath();
+    });
+  };
+  dune(418, 18, 8 * Math.PI / W, 0xae8a62, 0.82);
+  dune(452, 22, 6 * Math.PI / W, 0xc39a67, 1);
+  dune(484, 11, 10 * Math.PI / W, 0x76584b, 0.9);
   scene.bgParticles = scene.add.container(0, 0);
   scene.dustParticles = []; scene.windStreaks = [];
-  for (let i = 0; i < 22; i++) {
-    const r = scene.add.rectangle(Phaser.Math.Between(0,W), Phaser.Math.Between(200,H-60), Phaser.Math.Between(2,5), 1, 0xe8a050, Phaser.Math.FloatBetween(0.15,0.45));
-    scene.bgParticles.add(r); scene.dustParticles.push({ r, spd: Phaser.Math.FloatBetween(18,55) });
+  for (let i = 0; i < 26; i++) {
+    const r = scene.add.rectangle(Phaser.Math.Between(0, W), Phaser.Math.Between(170, H - 56), Phaser.Math.Between(2, 4), Phaser.Math.Between(1, 3), 0xe7c08d, Phaser.Math.FloatBetween(0.12, 0.38));
+    scene.bgParticles.add(r); scene.dustParticles.push({ r, spd: Phaser.Math.FloatBetween(14, 44), drift: Phaser.Math.FloatBetween(-4, 4) });
   }
-  for (let i = 0; i < 10; i++) {
-    const len = Phaser.Math.Between(28,72);
-    const r = scene.add.rectangle(Phaser.Math.Between(-W,W), Phaser.Math.Between(100,H-80), len, 1, 0xf0b060, Phaser.Math.FloatBetween(0.08,0.25));
-    scene.bgParticles.add(r); scene.windStreaks.push({ r, spd: Phaser.Math.FloatBetween(70,160) });
+  for (let i = 0; i < 12; i++) {
+    const len = Phaser.Math.Between(28, 66);
+    const r = scene.add.rectangle(Phaser.Math.Between(-W, W), Phaser.Math.Between(120, H - 84), len, 1, 0xf3d3a1, Phaser.Math.FloatBetween(0.08, 0.22));
+    scene.bgParticles.add(r); scene.windStreaks.push({ r, spd: Phaser.Math.FloatBetween(78, 168), drift: Phaser.Math.FloatBetween(-8, 8) });
   }
 }
 
 function updateBackground(scene, delta) {
   if (!scene.bgFar) return;
   const s = delta / 1000;
+  scene.bgClouds.x -= 8 * s; if (scene.bgClouds.x <= -W) scene.bgClouds.x += W;
   scene.bgFar.x -= 18 * s; if (scene.bgFar.x <= -W) scene.bgFar.x += W;
   scene.bgMid.x -= 42 * s; if (scene.bgMid.x <= -W) scene.bgMid.x += W;
-  for (const d of scene.dustParticles) { d.r.x += d.spd * s; if (d.r.x > W + 5) d.r.x = -5; }
-  for (const w of scene.windStreaks) {
-    w.r.x += w.spd * s;
-    if (w.r.x > W + w.r.width / 2) w.r.x = -w.r.width / 2;
+  for (const d of scene.dustParticles) {
+    d.r.x += d.spd * s; d.r.y += d.drift * s;
+    if (d.r.x > W + 5) d.r.x = -5;
+    if (d.r.y < 150) d.r.y = H - 64;
+    if (d.r.y > H - 46) d.r.y = 170;
   }
+  for (const w of scene.windStreaks) {
+    w.r.x += w.spd * s; w.r.y += w.drift * s;
+    if (w.r.x > W + w.r.width / 2) w.r.x = -w.r.width / 2;
+    if (w.r.y < 110) w.r.y = H - 90;
+    if (w.r.y > H - 70) w.r.y = 120;
+  }
+}
+
+// PICKUP ICON REDESIGN
+function drawPickupIcon(scene, type, col) {
+  const c = scene.add.container(0, 0), g = scene.add.graphics();
+  c.add(g);
+  const px = (x, y, w, h, cc) => g.fillStyle(cc, 1).fillRect(x * 2, y * 2, w * 2, h * 2);
+  const sh = 0x1b1412;
+  if (type === 'recovery') {
+    [[-3,-3,3,2],[-1,-4,2,1],[1,-3,3,2],[-4,-1,8,4],[-3,3,6,2],[-2,5,4,2]].forEach(v => px(...v, sh));
+    [[-2,-3,2,2],[1,-3,2,2],[-3,-1,8,4],[-2,3,6,2],[-1,5,4,2]].forEach(v => px(...v, col));
+  } else if (type === 'power') {
+    [[-4,-2,6,4],[-2,2,5,3],[1,0,4,6],[4,-1,2,3]].forEach(v => px(...v, sh));
+    [[-3,-2,5,4],[-1,2,4,3],[1,0,3,6],[4,-1,1,3]].forEach(v => px(...v, col));
+  } else if (type === 'speed') {
+    [[-4,-2,4,3],[-1,1,4,2],[0,-4,3,4],[2,-1,3,2]].forEach(v => px(...v, sh));
+    [[-3,-2,3,3],[-1,1,3,2],[0,-3,2,4],[2,-1,2,2]].forEach(v => px(...v, col));
+  } else if (type === 'regen') {
+    [[-2,-5,4,2],[-3,-3,6,7],[-1,-7,2,2],[3,-1,1,4]].forEach(v => px(...v, sh));
+    [[-1,-5,2,2],[-2,-3,4,7],[0,-7,1,2],[2,-1,1,4]].forEach(v => px(...v, col));
+  } else {
+    [[-3,-5,6,2],[-4,-3,8,6],[-3,3,6,3],[-2,-1,4,4]].forEach(v => px(...v, sh));
+    [[-2,-5,4,2],[-3,-3,6,6],[-2,3,4,3],[-1,-1,2,4]].forEach(v => px(...v, col));
+  }
+  [-10, 10].forEach(x => c.add(scene.add.rectangle(x, -10, 2, 2, 0xffffff, 0.6)));
+  c.add(scene.add.rectangle(0, 14, 22, 3, 0x2a1811, 0.35));
+  return c;
 }
 
 function buildPlatShip(scene, w, h, type) {
@@ -441,6 +502,7 @@ class CreditsScene extends Phaser.Scene {
   }
 }
 
+// REDESIGN AUDIT
 class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
   init(data) { this.picks = data.picks || ['pulse', 'volt']; }
@@ -515,11 +577,11 @@ class GameScene extends Phaser.Scene {
     return {
       idx, char: ch, body, visual, overlay, aura,
       lives: LIVES, alive: 1, face, jumps: 2,
-      stamina: 100, staminaMax: 100, invuln: 0, fatigue: 0, stun: 0,
+      stamina: 100, staminaMax: 100, percent: 0, invuln: 0, fatigue: 0, stun: 0,
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
-      lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0 }, _auraType: null, recovering: false,
+      lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0, guard: 0 }, _auraType: null, recovering: false,
       canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0,
-      _hud: { seg: 10, sp: -1, bk: 0, fat: false }, _lastAlpha: -1, _lastOvAlpha: -1, _lastOvColor: -1, _lastSx: 0,
+      _hud: { seg: 10, sp: -1, bk: 0, fat: false, pct: 0 }, _lastAlpha: -1, _lastOvAlpha: -1, _lastOvColor: -1, _lastSx: 0,
     };
   }
 
@@ -562,11 +624,11 @@ class GameScene extends Phaser.Scene {
     this.checkSlam(p, foe);
     this.checkPickup(p);
     this.animatePlayer(p, now);
-    const auraType = p.buffs.power > 0 ? 'power' : p.buffs.speed > 0 ? 'speed' : p.buffs.regen > 0 ? 'regen' : null;
+    const auraType = p.buffs.guard > 0 ? 'guard' : p.buffs.power > 0 ? 'power' : p.buffs.speed > 0 ? 'speed' : p.buffs.regen > 0 ? 'regen' : null;
     if (auraType !== p._auraType) {
       p._auraType = auraType;
       if (auraType) {
-        const ac = auraType === 'power' ? 0x44ff44 : auraType === 'speed' ? 0x4488ff : 0x00ffcc;
+        const ac = auraType === 'guard' ? 0xffd56a : auraType === 'power' ? 0x67ff5c : auraType === 'speed' ? 0x63b8ff : 0x00d7c7;
         p.aura.setFillStyle(ac).setVisible(true);
       } else {
         p.aura.setVisible(false);
@@ -608,6 +670,7 @@ class GameScene extends Phaser.Scene {
     if (p.buffs.power > 0) p.buffs.power = Math.max(0, p.buffs.power - dt);
     if (p.buffs.speed > 0) p.buffs.speed = Math.max(0, p.buffs.speed - dt);
     if (p.buffs.regen > 0) p.buffs.regen = Math.max(0, p.buffs.regen - dt);
+    if (p.buffs.guard > 0) p.buffs.guard = Math.max(0, p.buffs.guard - dt);
     if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
     if (p.comboT > 0) { p.comboT -= dt; if (p.comboT <= 0) p.comboHits = 0; }
     const wasExh = p.fatigue > 0;
@@ -626,10 +689,11 @@ class GameScene extends Phaser.Scene {
     }
     const ns = Math.ceil(p.stamina / p.staminaMax * 10);
     const nsp = p.spCd > 0 ? Math.ceil(p.spCd / 1000) : -1;
-    const nbk = (p.buffs.power > 0 ? 4 : 0) | (p.buffs.speed > 0 ? 2 : 0) | (p.buffs.regen > 0 ? 1 : 0);
+    const nbk = (p.buffs.power > 0 ? 8 : 0) | (p.buffs.speed > 0 ? 4 : 0) | (p.buffs.regen > 0 ? 2 : 0) | (p.buffs.guard > 0 ? 1 : 0);
     const nf  = p.fatigue > 0;
-    if (ns !== p._hud.seg || nsp !== p._hud.sp || nbk !== p._hud.bk || nf !== p._hud.fat) {
-      p._hud.seg = ns; p._hud.sp = nsp; p._hud.bk = nbk; p._hud.fat = nf;
+    const np = Math.round(p.percent);
+    if (ns !== p._hud.seg || nsp !== p._hud.sp || nbk !== p._hud.bk || nf !== p._hud.fat || np !== p._hud.pct) {
+      p._hud.seg = ns; p._hud.sp = nsp; p._hud.bk = nbk; p._hud.fat = nf; p._hud.pct = np;
       this.hudDirty = true;
     }
   }
@@ -754,14 +818,16 @@ class GameScene extends Phaser.Scene {
   }
 
   hitPlayer(t, p, a) {
+    // DAMAGE PERCENT SYSTEM
     const b = t.body.body;
     const ratio = t.stamina / t.staminaMax;
-    const mul  = 1 + (1 - ratio) * 0.8;
+    const pct  = 1 + t.percent / 115;
+    const mul  = (1 + (1 - ratio) * 0.8) * pct;
     const pwr  = p.buffs.power > 0 ? 1.40 : 1;
     const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
       ? 1 + (1 - p.stamina / p.staminaMax) * 0.30 : 1;
     const sweet = a._sweet || 1.0;
-    const shld  = t.shielding ? 0.30 : 1;
+    const shld  = t.shielding ? 0.30 : t.buffs.guard > 0 ? 0.76 : 1;
     const dir  = p.body.x <= t.body.x ? 1 : -1;
     let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * shld;
     let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * shld;
@@ -770,6 +836,7 @@ class GameScene extends Phaser.Scene {
     if (this.ctrl.held[t.idx ? 'P2_R' : 'P1_R']) vx += 80;
     if (this.ctrl.held[t.idx ? 'P2_U' : 'P1_U']) vy -= 35;
     t.lastHitTime = this.time.now;
+    t.percent = Math.min(999, t.percent + a.dmg * 1.45 * sweet * (pwr > 1 ? 1.12 : 1));
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
     t.comboHits++; t.comboT = 1800;
@@ -799,7 +866,7 @@ class GameScene extends Phaser.Scene {
     p.lives--;
     p.atk = null;
     p.slam = 0;
-    p.buffs.power = p.buffs.speed = p.buffs.regen = 0;
+    p.buffs.power = p.buffs.speed = p.buffs.regen = p.buffs.guard = 0;
     p._auraType = null; p.shielding = false;
     p.aura.setVisible(false);
     burst(this, p.body.x, p.body.y, p.char.color, 10);
@@ -826,13 +893,14 @@ class GameScene extends Phaser.Scene {
     p.alive = 1;
     p.jumps = 2;
     p.stamina = p.staminaMax;
+    p.percent = 0;
     p.invuln = INVULN_MS;
     p.fatigue = 0;
     p.stun = 0;
     p.atk = null;
     p.slam = 0;
     p.lastHitTime = 0;
-    p.buffs.power = p.buffs.speed = p.buffs.regen = 0;
+    p.buffs.power = p.buffs.speed = p.buffs.regen = p.buffs.guard = 0;
     p._auraType = null; p.shielding = false; p.canAirDodge = true; p.canEdgeSnap = true; p.comboHits = 0; p.comboT = 0;
     p.aura.setVisible(false).setAngle(0);
     p.recovering = false;
@@ -912,8 +980,10 @@ class GameScene extends Phaser.Scene {
     if (this.over) return;
     this.over = 1;
     const [p1,p2] = this.players;
+    // REGRESSION FIXES
     const w = p1.lives>p2.lives?p1 : p2.lives>p1.lives?p2 :
-              p1.stamina>p2.stamina?p1 : p2.stamina>p1.stamina?p2 : null;
+              p1.stamina>p2.stamina?p1 : p2.stamina>p1.stamina?p2 :
+              p1.percent<p2.percent?p1 : p2.percent<p1.percent?p2 : null;
     this.add.text(W/2, H/2, w?'TIME!':'DRAW!', {
       fontFamily:'monospace', fontSize:'62px', fontStyle:'bold', color:w?(w.idx?C.p2:C.p1):'#fff0aa'
     }).setOrigin(0.5).setDepth(20);
@@ -990,22 +1060,11 @@ class GameScene extends Phaser.Scene {
     const pl = this.platData[Phaser.Math.Between(0, this.platData.length - 1)];
     const offX = Phaser.Math.Between(-30, 30);
     const rnd = Math.random();
-    const type = rnd<0.40?'recovery':rnd<0.60?'power':rnd<0.80?'speed':'regen';
+    const type = rnd<0.30?'recovery':rnd<0.50?'power':rnd<0.70?'speed':rnd<0.88?'regen':'guard';
     const cfg = PICKUP_CFG[type];
     const ox = pl.hitbox.x + offX, oy = pl.hitbox.y - 22;
     const orb = this.add.container(ox, oy);
-    const g = this.add.graphics(); orb.add(g);
-    g.fillStyle(cfg.col, 0.22); g.fillCircle(0, 0, 11);
-    g.fillStyle(cfg.col, 0.95);
-    if (type === 'recovery') {
-      [[-1,-2],[0,-3],[1,-2],[2,-1],[2,0],[1,1],[0,2],[-1,1],[-2,0],[-2,-1]].forEach(([x,y])=>g.fillRect(x*1.5,y*1.5,1.8,1.8));
-    } else if (type === 'power') {
-      g.fillRect(-3,-5,7,3); g.fillRect(-2,-2,8,3); g.fillRect(-2,1,6,3);
-    } else if (type === 'speed') {
-      g.fillRect(1,-5,3,5); g.fillRect(-3,0,3,5); g.fillRect(-3,0,6,2);
-    } else {
-      g.fillRect(-2,-1,5,6); g.fillRect(-1,-4,3,3); g.fillRect(0,-5,2,1);
-    }
+    orb.add(drawPickupIcon(this, type, cfg.col));
     this.tweens.add({ targets: orb, scaleX: 1.3, scaleY: 1.3, alpha: 0.8, duration: 380, yoyo: true, repeat: -1 });
     this.pickup = { orb, type, x: ox, y: oy, plat: pl, offX, life: 5500 };
   }
@@ -1041,12 +1100,12 @@ class GameScene extends Phaser.Scene {
   refreshHud() {
     const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
     const cool = p => p.spCd > 0 ? ' SP '+Math.ceil(p.spCd/1000) : ' SP RDY';
-    const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('P'); if(p.buffs.speed>0)b.push('S'); if(p.buffs.regen>0)b.push('R'); return b.length?' ['+b.join('')+']':''; };
+    const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('P'); if(p.buffs.speed>0)b.push('S'); if(p.buffs.regen>0)b.push('R'); if(p.buffs.guard>0)b.push('G'); return b.length?' ['+b.join('')+']':''; };
     const p1 = this.players[0], p2 = this.players[1];
     const dB=(g,p,x)=>{g.clear();const c=p._hud.seg>=7?0x00e5ff:p._hud.seg>=4?0xffdd00:0xff3344;for(let i=0;i<10;i++){g.fillStyle(i<p._hud.seg?c:0x1a2a3a,i<p._hud.seg?1:.3);g.fillRect(x+i*13,34,11,7);}};
     dB(this.hudBar1,p1,14); dB(this.hudBar2,p2,W-144);
-    this.hudP1.setText('P1 ' + p1.char.name + ' ' + dots(p1.lives));
-    this.hudP2.setText(dots(p2.lives) + ' ' + p2.char.name + ' P2');
+    this.hudP1.setText('P1 ' + p1.char.name + ' ' + dots(p1.lives) + '  ' + p1._hud.pct + '%');
+    this.hudP2.setText(p2._hud.pct + '%  ' + dots(p2.lives) + ' ' + p2.char.name + ' P2');
     this.hudS1.setText(bufStr(p1) + (p1.fatigue > 0 ? ' EXH' : '') + cool(p1));
     this.hudS2.setText((p2.fatigue > 0 ? 'EXH ' : '') + bufStr(p2) + cool(p2));
   }
@@ -1064,11 +1123,19 @@ class EndScene extends Phaser.Scene {
     const col = this.winner === 1 ? C.p1 : C.p2;
     const ch = this.char;
     if (ch) {
-      const fig = buildFighter(this, W / 2, 316, ch, 1.3);
-      this.tweens.add({targets:fig, y:240, duration:420, ease:'Power2.easeOut',
-        onComplete:()=>this.tweens.add({targets:fig,y:316,duration:360,ease:'Bounce.easeOut',
-          onComplete:()=>this.tweens.add({targets:fig,y:298,duration:280,ease:'Sine.easeInOut',yoyo:true,repeat:-1})})});
-      addLabel(this, W / 2, 170, ch.name + ' WINS', 52, col, 'center').setOrigin(0.5);
+      // VICTORY CELEBRATION REDESIGN
+      const fig = buildFighter(this, W / 2, 344, ch, 1.45);
+      fig.setDepth(5);
+      const ttl = addLabel(this, W / 2, 168, ch.name + ' WINS', 52, col, 'center').setOrigin(0.5).setAlpha(0);
+      const sub = addLabel(this, W / 2, 214, 'DOMINATES THE DUNES', 15, C.dim, 'center').setOrigin(0.5).setAlpha(0);
+      this.tweens.add({ targets: fig, y: 214, duration: 320, ease: 'Cubic.easeOut',
+        onComplete: () => this.tweens.add({ targets: fig, angle: fig.scaleX < 0 ? -360 : 360, y: 282, duration: 430, ease: 'Cubic.easeIn',
+          onComplete: () => this.tweens.add({ targets: fig, y: 334, angle: 0, duration: 220, ease: 'Bounce.easeOut',
+            onComplete: () => this.tweens.add({ targets: fig, y: 320, duration: 260, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 }) }) }) });
+      this.time.delayedCall(780, () => {
+        this.tweens.add({ targets: [ttl, sub], alpha: 1, duration: 220 });
+        this.cameras.main.shake(120, 0.005);
+      });
     } else {
       addLabel(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
     }
