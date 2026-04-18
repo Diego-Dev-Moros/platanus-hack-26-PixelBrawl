@@ -983,7 +983,8 @@ class GameScene extends Phaser.Scene {
     const txt = this.add.text(W / 2, H / 2 - 30, '', {
       fontFamily: 'monospace', fontSize: '90px', fontStyle: 'bold', color: '#ffffff',
     }).setOrigin(0.5).setDepth(20);
-    [['3','#ff6040',330],['2','#ff9020',440],['1','#ffe060',550],['BRAWL!','#ffffff',880]].forEach(([s,c,f],i)=>{
+    const steps = [['3','#ff6040',330],['2','#ff9020',440],['1','#ffe060',550],['BRAWL!','#ffffff',880]];
+    steps.forEach(([s,c,f],i)=>{
       this.time.delayedCall(i * 900, () => {
         txt.setText(s).setColor(c).setScale(1.8).setAlpha(1);
         this.tweens.add({ targets: txt, scaleX: 1, scaleY: 1, duration: 500, ease: 'Power2.easeOut' });
