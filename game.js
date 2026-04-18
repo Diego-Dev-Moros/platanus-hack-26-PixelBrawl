@@ -606,8 +606,6 @@ class GameScene extends Phaser.Scene {
   makeStage() {
     this.plats = this.physics.add.staticGroup();
     this.platData = [];
-    // [x, y, w, h, type, speed(0=static), range, phase]
-    // Same hitbox positions/sizes as original STAGE for gameplay parity
     const PDEFS = [
       { x: 400, y: 470, w: 420, h: 28, type: 'main', speed: 0,   range: 0,  phase: 0 },
       { x: 240, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: 0 },
@@ -639,6 +637,7 @@ class GameScene extends Phaser.Scene {
     const body = this.add.rectangle(s.x, s.y, 26, 40, 0x000000, 0);
     this.physics.add.existing(body);
     body.body.setCollideWorldBounds(false).setMaxVelocity(700, 1000);
+    body.body.allowGravity = false;
     this.physics.add.collider(body, this.plats);
     // Aura (created before visual so it renders behind the fighter)
     const aura = this.add.circle(s.x, s.y, 26, 0x44ff44).setVisible(false);
@@ -709,7 +708,7 @@ class GameScene extends Phaser.Scene {
     const na = p.invuln > 0 && (Math.floor(now / 80) % 2) ? 0.3 :
                lowStam && (Math.floor(now / 600) % 2) ? 0.65 : 1;
     if (na !== p._lastAlpha) { p.visual.setAlpha(na); p._lastAlpha = na; }
-    if (p.canEdgeSnap && !p.body.body.blocked.down && p.body.body.velocity.y > 80)
+    if (this.ready && p.canEdgeSnap && !p.body.body.blocked.down && p.body.body.velocity.y > 80)
       for (const pd of this.platData) {
         const ed = Math.abs(p.body.x - pd.hitbox.x) - pd.hitbox.width / 2;
         const yd = p.body.y - (pd.hitbox.y - 10);
@@ -1047,6 +1046,7 @@ class GameScene extends Phaser.Scene {
           this.time.delayedCall(600, () => {
             this.tweens.add({ targets: txt, alpha: 0, duration: 280, onComplete: () => txt.destroy() });
             this.ready = true;
+            this.players.forEach(p => { p.body.body.allowGravity = true; p.body.body.setVelocity(0, 0); });
           });
         }
       });
