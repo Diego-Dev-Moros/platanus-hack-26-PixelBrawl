@@ -13,6 +13,7 @@ const PICKUP_CFG = {
   guard:    { col: 0xffd56a, txt: 'SHIELD UP!',  tc: '#ffe08d', f: 490, ft: 'square',   fd: 0.15, bk: 'guard', dur: BUFF_GUARD_DUR },
 };
 const BASE_KB_X = 240, BASE_KB_Y = 155;
+const KB_PERCENT_CAP = 220, KB_PERCENT_DIV = 145, KB_PERCENT_GAIN = 0.58;
 const DEATH_X = 80, DEATH_Y = 680;
 
 const C = {
@@ -107,25 +108,25 @@ function buildFighter(scene, x, y, ch, s) {
   const P = {
     // CHARACTER REDESIGN
     pulse: [
-      [ 0,-19,12,11,0xf0c49a],[ 0,-24,12, 2,0x111111],[ 0,-16, 4, 2,0x4b2417],
-      [ 0, -5,16,20,0xffffff],[ 0, -2,10,14,0xfaf6eb],[ 0, 10,18, 4,0x1a1a1a],
-      [-10,-7, 5,14,0xf0c49a],[ 10,-7, 5,14,0xf0c49a],[-14,-2, 8, 4,0x00e5ff],[ 14,-2, 8, 4,0x00e5ff],
-      [-5, 14, 7,13,0xffffff],[ 5, 14, 7,13,0xffffff],[-5, 24, 8, 4,0x0086b2],[ 5, 24, 8, 4,0x0086b2],
-      [ 0, -9, 6, 5,0x111111],[ 0,  4,14, 3,0x00e5ff],
+      [ 0,-19,12,11,0xf0c49a],[ 0,-24,12, 2,0x111111],[ 0,-16, 5, 2,0x4b2417],
+      [ 0, -5,17,21,0xffffff],[ 0, -2,11,14,0xfaf6eb],[ 0,  7,16, 2,0x00c3df],[ 0, 10,18, 3,0x1a1a1a],
+      [-10,-8, 5,13,0xf0c49a],[ 10,-8, 5,13,0xf0c49a],[-15,-3, 9, 3,0x00e5ff],[ 15,-3, 9, 3,0x00e5ff],
+      [-4, 14, 7,13,0xffffff],[ 4, 14, 7,13,0xffffff],[-4, 24, 8, 4,0x0086b2],[ 4, 24, 8, 4,0x0086b2],
+      [ 0, -9, 6, 4,0x111111],[ 0,  4,14, 3,0x00e5ff],
     ],
     volt: [
       [ 0,-19,12,11,0xc98d68],[ 0,-24,12, 2,0x161616],[ 0,-16, 4, 2,0x3f2015],
-      [ 0, -4,16,20,0xc81a24],[ 0, -3,10,14,0xdf4c49],[ 0, 11,18, 4,0xffffff],
-      [-10,-5, 6,12,0xc98d68],[ 10,-5, 6,12,0xc98d68],[-15,-5, 9, 8,0xffdd00],[ 15,-5, 9, 8,0xffdd00],
+      [ 0, -4,16,20,0xc81a24],[ 0, -3,10,14,0xdf4c49],[ 0, 10,18, 4,0xffffff],
+      [-9,-8, 6,12,0xc98d68],[ 9,-8, 6,12,0xc98d68],[-16,-6,10, 8,0xffdd00],[ 16,-6,10, 8,0xffdd00],
       [-5, 15, 7,13,0x212f47],[ 5, 15, 7,13,0x212f47],[-5, 24, 8, 4,0xffdd00],[ 5, 24, 8, 4,0xffdd00],
-      [ 0, -9, 6, 5,0x161616],[ 0,  1,16, 4,0xff7a00],
+      [ 0, -9, 6, 4,0x161616],[ 0,  1,16, 3,0xff7a00],[ 0, -1,18, 2,0x8d0f18],
     ],
     crush: [
       [ 0,-19,12,11,0xf3c89e],[ 0,-24,10, 2,0x131313],[ 0,-17, 4, 2,0x4a2a18],
-      [ 0, -1,24,24,0xf6efe3],[ 0,  6,26,12,0x8d4427],[ 0,-10,18, 5,0xff3cac],
-      [-14,-3, 7,14,0xf3c89e],[ 14,-3, 7,14,0xf3c89e],[-18, 4,10, 5,0xc46e39],[ 18, 4,10, 5,0xc46e39],
-      [-7, 18, 9,12,0x4e2515],[ 7, 18, 9,12,0x4e2515],[-7, 28,10, 4,0xeac89c],[ 7, 28,10, 4,0xeac89c],
-      [ 0, -9, 6, 5,0x171717],[ 0, 10,22, 3,0x1b120e],
+      [ 0, -1,24,24,0xf6efe3],[ 0,  7,26,12,0x8d4427],[ 0,-10,18, 5,0xff3cac],[ 0, 11,20, 2,0x5b2d1b],
+      [-14,-4, 7,14,0xf3c89e],[ 14,-4, 7,14,0xf3c89e],[-18, 4,10, 6,0xc46e39],[ 18, 4,10, 6,0xc46e39],
+      [-7, 18,10,12,0x4e2515],[ 7, 18,10,12,0x4e2515],[-7, 28,11, 4,0xeac89c],[ 7, 28,11, 4,0xeac89c],
+      [ 0, -9, 6, 4,0x171717],[ 0, 12,10, 4,0x26140e],
     ],
   };
   for (const [px,py,pw,ph,pc] of (P[ch.id]||P.pulse))
@@ -233,6 +234,12 @@ function createDesertBackground(scene) {
     [[245,386,58,26],[288,396,72,30],[528,400,54,24],[676,402,70,28]].forEach(([x,y,w,h]) => {
       mg.fillStyle(0x8a6c4e, 1); mg.fillTriangle(ox + x, y, ox + x + w / 2, y - h, ox + x + w, y);
     });
+    mg.fillStyle(0x544541, 1); mg.fillRect(ox + 318, 258, 164, 118);
+    mg.fillStyle(0x312a34, 1); mg.fillRect(ox + 344, 230, 110, 28);
+    mg.fillStyle(0x312a34, 1); mg.fillRect(ox + 332, 286, 18, 76);
+    mg.fillStyle(0x312a34, 1); mg.fillRect(ox + 448, 286, 18, 76);
+    mg.fillStyle(0x8d765f, 0.42); mg.fillRect(ox + 340, 300, 108, 10);
+    mg.fillStyle(0xb99662, 0.82); mg.fillTriangle(ox + 302, 408, ox + 400, 346, ox + 498, 408);
   };
   ruins(0); ruins(W);
   const dune = (y, a, f, col, al) => {
@@ -246,6 +253,8 @@ function createDesertBackground(scene) {
   dune(418, 18, 8 * Math.PI / W, 0xae8a62, 0.82);
   dune(452, 22, 6 * Math.PI / W, 0xc39a67, 1);
   dune(484, 11, 10 * Math.PI / W, 0x76584b, 0.9);
+  mg.fillStyle(0xe2bf8b, 0.32); mg.fillEllipse(404, 394, 156, 56);
+  mg.fillStyle(0x6f584b, 0.38); mg.fillEllipse(404, 402, 132, 40);
   scene.bgParticles = scene.add.container(0, 0);
   scene.dustParticles = []; scene.windStreaks = [];
   for (let i = 0; i < 26; i++) {
@@ -286,23 +295,23 @@ function drawPickupIcon(scene, type, col) {
   const px = (x, y, w, h, cc) => g.fillStyle(cc, 1).fillRect(x * 2, y * 2, w * 2, h * 2);
   const sh = 0x1b1412;
   if (type === 'recovery') {
-    [[-3,-3,3,2],[-1,-4,2,1],[1,-3,3,2],[-4,-1,8,4],[-3,3,6,2],[-2,5,4,2]].forEach(v => px(...v, sh));
-    [[-2,-3,2,2],[1,-3,2,2],[-3,-1,8,4],[-2,3,6,2],[-1,5,4,2]].forEach(v => px(...v, col));
+    [[-4,-3,3,2],[1,-3,3,2],[-2,-4,4,2],[-5,-1,10,4],[-4,3,8,3],[-2,6,4,2]].forEach(v => px(...v, sh));
+    [[-3,-3,2,2],[1,-3,2,2],[-1,-4,2,2],[-4,-1,8,4],[-3,3,6,3],[-1,6,2,2]].forEach(v => px(...v, col));
   } else if (type === 'power') {
-    [[-4,-2,6,4],[-2,2,5,3],[1,0,4,6],[4,-1,2,3]].forEach(v => px(...v, sh));
-    [[-3,-2,5,4],[-1,2,4,3],[1,0,3,6],[4,-1,1,3]].forEach(v => px(...v, col));
+    [[-5,-2,6,4],[-2,2,5,3],[1,0,4,6],[4,-1,3,4],[-1,-4,3,2]].forEach(v => px(...v, sh));
+    [[-4,-2,5,4],[-1,2,4,3],[1,0,3,6],[4,-1,2,4],[0,-4,2,2]].forEach(v => px(...v, col));
   } else if (type === 'speed') {
-    [[-4,-2,4,3],[-1,1,4,2],[0,-4,3,4],[2,-1,3,2]].forEach(v => px(...v, sh));
-    [[-3,-2,3,3],[-1,1,3,2],[0,-3,2,4],[2,-1,2,2]].forEach(v => px(...v, col));
+    [[-5,-1,6,3],[-1,2,6,3],[1,-4,4,4],[3,-1,4,3]].forEach(v => px(...v, sh));
+    [[-4,-1,5,3],[-1,2,5,3],[1,-3,3,4],[3,-1,3,2]].forEach(v => px(...v, col));
   } else if (type === 'regen') {
-    [[-2,-5,4,2],[-3,-3,6,7],[-1,-7,2,2],[3,-1,1,4]].forEach(v => px(...v, sh));
-    [[-1,-5,2,2],[-2,-3,4,7],[0,-7,1,2],[2,-1,1,4]].forEach(v => px(...v, col));
+    [[-3,-6,6,2],[-4,-4,8,9],[-1,-8,2,2],[4,-1,2,4]].forEach(v => px(...v, sh));
+    [[-2,-6,4,2],[-3,-4,6,9],[0,-8,1,2],[3,-1,1,4]].forEach(v => px(...v, col));
   } else {
-    [[-3,-5,6,2],[-4,-3,8,6],[-3,3,6,3],[-2,-1,4,4]].forEach(v => px(...v, sh));
-    [[-2,-5,4,2],[-3,-3,6,6],[-2,3,4,3],[-1,-1,2,4]].forEach(v => px(...v, col));
+    [[-4,-6,8,2],[-5,-4,10,8],[-4,4,8,3],[-2,-1,4,5]].forEach(v => px(...v, sh));
+    [[-3,-6,6,2],[-4,-4,8,8],[-3,4,6,3],[-1,-1,2,5]].forEach(v => px(...v, col));
   }
-  [-10, 10].forEach(x => c.add(scene.add.rectangle(x, -10, 2, 2, 0xffffff, 0.6)));
-  c.add(scene.add.rectangle(0, 14, 22, 3, 0x2a1811, 0.35));
+  [-10, 10].forEach(x => c.add(scene.add.rectangle(x, -10, 2, 2, 0xffffff, 0.5)));
+  c.add(scene.add.rectangle(0, 14, 24, 3, 0x2a1811, 0.3));
   return c;
 }
 
@@ -553,13 +562,17 @@ class GameScene extends Phaser.Scene {
   }
 
   makeHud() {
-    this.hudTimer = addLabel(this, W / 2, 10, '3:00', 14, C.text, 'center').setOrigin(0.5, 0);
-    this.hudP1 = addLabel(this, 14, 12, '', 14, C.p1);
-    this.hudS1 = addLabel(this, 150, 34, '', 11, C.dim);
-    this.hudP2 = addLabel(this, W - 14, 12, '', 14, C.p2).setOrigin(1, 0);
-    this.hudS2 = addLabel(this, W - 150, 34, '', 11, C.dim).setOrigin(1, 0);
+    this.hudFrame = this.add.graphics().setDepth(10);
+    this.hudTimer = addLabel(this, W / 2, 16, '3:00', 22, C.text, 'center').setOrigin(0.5, 0).setDepth(11);
+    this.hudP1 = addLabel(this, 24, 16, '', 11, C.p1).setDepth(11);
+    this.hudPct1 = addLabel(this, 24, 34, '', 28, C.p1).setDepth(11);
+    this.hudS1 = addLabel(this, 24, 72, '', 11, C.dim).setDepth(11);
+    this.hudP2 = addLabel(this, W - 24, 16, '', 11, C.p2, 'right').setOrigin(1, 0).setDepth(11);
+    this.hudPct2 = addLabel(this, W - 24, 34, '', 28, C.p2, 'right').setOrigin(1, 0).setDepth(11);
+    this.hudS2 = addLabel(this, W - 24, 72, '', 11, C.dim, 'right').setOrigin(1, 0).setDepth(11);
     this.hudBar1 = this.add.graphics();
     this.hudBar2 = this.add.graphics();
+    this.hudBar1.setDepth(11); this.hudBar2.setDepth(11);
   }
 
   makePlayer(idx, id) {
@@ -821,8 +834,8 @@ class GameScene extends Phaser.Scene {
     // DAMAGE PERCENT SYSTEM
     const b = t.body.body;
     const ratio = t.stamina / t.staminaMax;
-    const pct  = 1 + t.percent / 115;
-    const mul  = (1 + (1 - ratio) * 0.8) * pct;
+    const pct  = 1 + Math.pow(Math.min(KB_PERCENT_CAP, t.percent) / KB_PERCENT_DIV, 1.18) * KB_PERCENT_GAIN;
+    const mul  = (1 + (1 - ratio) * 0.72) * pct;
     const pwr  = p.buffs.power > 0 ? 1.40 : 1;
     const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
       ? 1 + (1 - p.stamina / p.staminaMax) * 0.30 : 1;
@@ -836,7 +849,8 @@ class GameScene extends Phaser.Scene {
     if (this.ctrl.held[t.idx ? 'P2_R' : 'P1_R']) vx += 80;
     if (this.ctrl.held[t.idx ? 'P2_U' : 'P1_U']) vy -= 35;
     t.lastHitTime = this.time.now;
-    t.percent = Math.min(999, t.percent + a.dmg * 1.45 * sweet * (pwr > 1 ? 1.12 : 1));
+    const pg = a.kind === 'basic' ? 1.12 : a.kind === 'dash' ? 1.25 : 1.36;
+    t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
     t.comboHits++; t.comboT = 1800;
@@ -848,16 +862,19 @@ class GameScene extends Phaser.Scene {
     // VOLT bonus vs airborne targets
     if (p.char.id === 'volt' && !t.body.body.blocked.down && !t.body.body.touching.down) { vx *= 1.22; vy *= 1.22; }
     b.setVelocity(vx, vy);
-    const heavy = a.kind !== 'basic';
-    if (heavy) { this.spark(t.body.x, t.body.y, 0xff3300, 5); this.bloodImpact(t.body.x, t.body.y - 6); }
-    if (sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, 5);
-    this.spark(t.body.x, t.body.y - 8, p.char.accent, heavy ? 7 : 4);
-    this.flash(t.body.x, t.body.y - 6, heavy ? 38 : 24, 24, p.char.accent, 90);
-    const [shkDur, shkAmt] = a.kind === 'basic' ? [35, 0.003] : a.kind === 'dash' ? [85, 0.007] : [120, 0.013];
+    const impact = mul * sweet * (a.kind === 'basic' ? 1 : a.kind === 'dash' ? 1.18 : 1.35);
+    const heavy = impact > 2.1 || a.kind === 'crush' || a.kind === 'volt';
+    const killish = heavy && (t.percent > 140 || Math.abs(vx) > 520 || Math.abs(vy) > 350);
+    if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
+    if (heavy || sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : 6);
+    else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
+    if (heavy) this.bloodImpact(t.body.x, t.body.y - 6, killish ? 8 : 5, killish ? 34 : 22);
+    this.flash(t.body.x, t.body.y - 6, killish ? 48 : heavy ? 38 : 24, 24, p.char.accent, killish ? 120 : 90);
+    const [shkDur, shkAmt] = killish ? [150, 0.016] : heavy ? [110, 0.010] : [35, 0.003];
     this.cameras.main.shake(shkDur, shkAmt);
-    if (heavy) this.hitFreeze(a.kind === 'dash' ? 45 : 72);
-    tone(this, a.kind === 'dash' ? 200 : a.kind === 'basic' ? 280 : 150,
-         a.kind === 'dash' ? 'sawtooth' : 'square', 0.08, 0.09);
+    if (heavy) this.hitFreeze(killish ? 78 : a.kind === 'dash' ? 48 : 62);
+    tone(this, killish ? 120 : a.kind === 'dash' ? 200 : a.kind === 'basic' ? 280 : 150,
+         killish ? 'sawtooth' : a.kind === 'dash' ? 'sawtooth' : 'square', killish ? 0.12 : heavy ? 0.09 : 0.06, killish ? 0.14 : 0.09);
   }
 
   killPlayer(p) {
@@ -993,7 +1010,7 @@ class GameScene extends Phaser.Scene {
       : this.scene.start('Menu'));
   }
 
-  bloodImpact(x,y){for(let i=0;i<5;i++){const a=-Math.PI/2+(Math.random()-.5)*Math.PI,r=this.add.rectangle(x,y,3,3,0xcc0000);this.tweens.add({targets:r,x:x+Math.cos(a)*20,y:y+Math.sin(a)*20+14,alpha:0,duration:270,onComplete:()=>r.destroy()});}}
+  bloodImpact(x,y,n,s){for(let i=0;i<n;i++){const a=-Math.PI/2+(Math.random()-.5)*Math.PI,r=this.add.rectangle(x,y,Phaser.Math.Between(2,3),Phaser.Math.Between(2,4),0xcc0000);this.tweens.add({targets:r,x:x+Math.cos(a)*Phaser.Math.Between(10,s),y:y+Math.sin(a)*Phaser.Math.Between(10,s)+14,alpha:0,duration:250+Math.random()*90,onComplete:()=>r.destroy()});}}
 
   hitFreeze(ms) {
     this.physics.pause();
@@ -1098,16 +1115,45 @@ class GameScene extends Phaser.Scene {
   }
 
   refreshHud() {
-    const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
-    const cool = p => p.spCd > 0 ? ' SP '+Math.ceil(p.spCd/1000) : ' SP RDY';
-    const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('P'); if(p.buffs.speed>0)b.push('S'); if(p.buffs.regen>0)b.push('R'); if(p.buffs.guard>0)b.push('G'); return b.length?' ['+b.join('')+']':''; };
+    const dots = n => 'X'.repeat(n) + '-'.repeat(LIVES - n);
+    const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP READY';
+    const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('POW'); if(p.buffs.speed>0)b.push('SPD'); if(p.buffs.regen>0)b.push('REG'); if(p.buffs.guard>0)b.push('GRD'); return b.length ? b.join(' ') : 'NO BUFF'; };
     const p1 = this.players[0], p2 = this.players[1];
-    const dB=(g,p,x)=>{g.clear();const c=p._hud.seg>=7?0x00e5ff:p._hud.seg>=4?0xffdd00:0xff3344;for(let i=0;i<10;i++){g.fillStyle(i<p._hud.seg?c:0x1a2a3a,i<p._hud.seg?1:.3);g.fillRect(x+i*13,34,11,7);}};
-    dB(this.hudBar1,p1,14); dB(this.hudBar2,p2,W-144);
-    this.hudP1.setText('P1 ' + p1.char.name + ' ' + dots(p1.lives) + '  ' + p1._hud.pct + '%');
-    this.hudP2.setText(p2._hud.pct + '%  ' + dots(p2.lives) + ' ' + p2.char.name + ' P2');
-    this.hudS1.setText(bufStr(p1) + (p1.fatigue > 0 ? ' EXH' : '') + cool(p1));
-    this.hudS2.setText((p2.fatigue > 0 ? 'EXH ' : '') + bufStr(p2) + cool(p2));
+    const frame = this.hudFrame;
+    frame.clear();
+    frame.fillStyle(0x07121c, 0.78);
+    frame.fillRoundedRect(12, 10, 248, 78, 14);
+    frame.fillRoundedRect(W - 260, 10, 248, 78, 14);
+    frame.fillRoundedRect(W / 2 - 92, 10, 184, 42, 12);
+    frame.lineStyle(2, 0x295374, 0.92);
+    frame.strokeRoundedRect(12, 10, 248, 78, 14);
+    frame.strokeRoundedRect(W - 260, 10, 248, 78, 14);
+    frame.strokeRoundedRect(W / 2 - 92, 10, 184, 42, 12);
+    frame.fillStyle(0x0e2230, 0.85);
+    frame.fillRoundedRect(20, 54, 110, 12, 6);
+    frame.fillRoundedRect(W - 130, 54, 110, 12, 6);
+    frame.fillStyle(0x122434, 0.9);
+    frame.fillRoundedRect(136, 54, 116, 12, 6);
+    frame.fillRoundedRect(W - 252, 54, 116, 12, 6);
+    frame.fillStyle(this.finalPhase ? 0x803030 : 0x0d2131, 0.85);
+    frame.fillRect(W / 2 - 38, 52, 76, 26);
+    frame.lineStyle(1, this.finalPhase ? 0xff6666 : 0x4fb6da, 0.9);
+    frame.strokeRect(W / 2 - 38, 52, 76, 26);
+    const dB = (g, p, x) => {
+      g.clear();
+      const c = p._hud.seg >= 7 ? 0x3de8ff : p._hud.seg >= 4 ? 0xffcf45 : 0xff5261;
+      for (let i = 0; i < 10; i++) {
+        g.fillStyle(i < p._hud.seg ? c : 0x1a2a3a, i < p._hud.seg ? 1 : .35);
+        g.fillRect(x + i * 10, 56, 8, 8);
+      }
+    };
+    dB(this.hudBar1, p1, 22); dB(this.hudBar2, p2, W - 122);
+    this.hudP1.setText('P1  ' + p1.char.name + '  ' + dots(p1.lives));
+    this.hudP2.setText('P2  ' + p2.char.name + '  ' + dots(p2.lives));
+    this.hudPct1.setText(p1._hud.pct + '%').setColor(p1._hud.pct >= 150 ? '#ff6d78' : p1._hud.pct >= 80 ? '#ffd25a' : C.p1);
+    this.hudPct2.setText(p2._hud.pct + '%').setColor(p2._hud.pct >= 150 ? '#ff6d78' : p2._hud.pct >= 80 ? '#ffd25a' : C.p2);
+    this.hudS1.setText('STM  ' + p1._hud.seg + '/10   ' + cool(p1) + (p1.fatigue > 0 ? '   EXH' : '') + '   ' + bufStr(p1));
+    this.hudS2.setText('STM  ' + p2._hud.seg + '/10   ' + cool(p2) + (p2.fatigue > 0 ? '   EXH' : '') + '   ' + bufStr(p2));
   }
 }
 
@@ -1128,13 +1174,14 @@ class EndScene extends Phaser.Scene {
       fig.setDepth(5);
       const ttl = addLabel(this, W / 2, 168, ch.name + ' WINS', 52, col, 'center').setOrigin(0.5).setAlpha(0);
       const sub = addLabel(this, W / 2, 214, 'DOMINATES THE DUNES', 15, C.dim, 'center').setOrigin(0.5).setAlpha(0);
-      this.tweens.add({ targets: fig, y: 214, duration: 320, ease: 'Cubic.easeOut',
-        onComplete: () => this.tweens.add({ targets: fig, angle: fig.scaleX < 0 ? -360 : 360, y: 282, duration: 430, ease: 'Cubic.easeIn',
-          onComplete: () => this.tweens.add({ targets: fig, y: 334, angle: 0, duration: 220, ease: 'Bounce.easeOut',
-            onComplete: () => this.tweens.add({ targets: fig, y: 320, duration: 260, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 }) }) }) });
-      this.time.delayedCall(780, () => {
+      this.tweens.add({ targets: fig, y: 196, duration: 280, ease: 'Cubic.easeOut',
+        onComplete: () => this.tweens.add({ targets: fig, angle: fig.scaleX < 0 ? -420 : 420, y: 292, duration: 460, ease: 'Cubic.easeIn',
+          onComplete: () => this.tweens.add({ targets: fig, y: 336, scaleX: fig.scaleX * 1.08, scaleY: 1.34, angle: 0, duration: 120,
+            onComplete: () => this.tweens.add({ targets: fig, y: 320, scaleX: fig.scaleX, scaleY: 1.45, duration: 210, ease: 'Bounce.easeOut',
+              onComplete: () => this.tweens.add({ targets: fig, y: 314, duration: 240, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 }) }) }) }) });
+      this.time.delayedCall(840, () => {
         this.tweens.add({ targets: [ttl, sub], alpha: 1, duration: 220 });
-        this.cameras.main.shake(120, 0.005);
+        this.cameras.main.shake(150, 0.006);
       });
     } else {
       addLabel(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
