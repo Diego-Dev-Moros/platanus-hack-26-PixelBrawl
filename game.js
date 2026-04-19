@@ -921,14 +921,26 @@ class GameScene extends Phaser.Scene {
     if (heavy || sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : 6);
     else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
     if (bloodLv && !t.shielding) this.bloodImpact(t.body.x, t.body.y - 8, bloodLv, killish, dir);
-    this.flash(t.body.x, t.body.y - 6, killish ? 48 : heavy ? 38 : 24, 24, p.char.accent, killish ? 120 : 90);
+    this.flash(t.body.x, t.body.y - 6, killish ? 56 : heavy ? 42 : 24, killish ? 34 : 24, p.char.accent, killish ? 135 : 90);
+    if (!t.shielding) {
+      if (p.char.id === 'pulse') {
+        this.flash(t.body.x - dir * 10, t.body.y - 10, killish ? 56 : 42, 5, 0xffffff, 100);
+        this.flash(t.body.x + dir * 8, t.body.y - 2, killish ? 46 : 34, 4, 0x8befff, 92);
+      } else if (p.char.id === 'volt') {
+        this.flash(t.body.x + dir * 6, t.body.y - 8, killish ? 34 : 24, killish ? 34 : 26, 0xffdd00, 95);
+        this.spark(t.body.x + dir * 8, t.body.y - 10, 0xff8a00, killish ? 7 : 4);
+      } else if (heavy) {
+        this.spark(t.body.x, t.body.y + 14, 0xd3a16d, killish ? 8 : 5);
+        this.ring(t.body.x, t.body.y + 16, 10, killish ? 3.8 : 2.8, 0xc59a63, 150);
+      }
+    }
     // Progressive shake — scales with impact score, dampened by shield
     const shkMul = t.shielding ? 0.3 : 1;
-    const shkAmt = (killish ? 0.026 : heavy ? Math.min(0.016, 0.005 + impact * 0.004) : 0.002 + impact * 0.001) * shkMul;
+    const shkAmt = (killish ? 0.030 : heavy ? Math.min(0.018, 0.005 + impact * 0.0045) : 0.002 + impact * 0.001) * shkMul;
     const shkDur = killish ? 185 : heavy ? Math.min(130, 55 + impact * 22) : 44;
     this.cameras.main.shake(shkDur, shkAmt);
     // Hit freeze — every hit type gets a freeze, strength-scaled, anti-stacking handled by hitFreeze()
-    this.hitFreeze(killish ? 98 : heavy ? (a.kind === 'dash' ? 50 : 68) : 28);
+    this.hitFreeze(killish ? 112 : heavy ? (a.kind === 'dash' ? 56 : 76) : 28);
     // Distinct sound per hit type + blocked VFX
     if (t.shielding) {
       this.flash(t.body.x, t.body.y - 8, 58, 58, 0xdff7ff, 110);
@@ -960,11 +972,13 @@ class GameScene extends Phaser.Scene {
     p._auraType = null; p.shielding = false; p._recoilT = 0;
     p.aura.setVisible(false);
     const kox = p.body.x, koy = p.body.y;
-    burst(this, kox, koy, p.char.color, 16);
-    this.cameras.main.shake(500, 0.030);
+    burst(this, kox, koy, p.char.color, 24);
+    burst(this, kox, koy, 0xffffff, 10);
+    this.cameras.main.shake(560, 0.036);
     this.tweens.add({ targets: this.cameras.main, zoom: 1.16, duration: 130, yoyo: true });
-    this.hitFreeze(115);
-    const kt = this.add.text(kox, koy - 28, 'KO!', {
+    this.hitFreeze(145);
+    this.flash(W / 2, H / 2, W, H, 0xffffff, 85);
+    const kt = this.add.text(kox, koy - 28, 'RING OUT!', {
       fontFamily:'monospace', fontSize:'36px', fontStyle:'bold', color:'#ff2233'
     }).setOrigin(0.5).setDepth(20);
     this.tweens.add({ targets: kt, y: koy - 85, alpha: 0, duration: 860, onComplete: () => kt.destroy() });
@@ -973,7 +987,8 @@ class GameScene extends Phaser.Scene {
     p.visual.setVisible(false);
     p.overlay.setVisible(false);
     tone(this, 90, 'sawtooth', 0.22, 0.5);
-    this.time.delayedCall(70, () => tone(this, 52, 'sawtooth', 0.12, 0.45));
+    this.time.delayedCall(46, () => tone(this, 46, 'sawtooth', 0.16, 0.55));
+    this.time.delayedCall(88, () => tone(this, 70, 'triangle', 0.08, 0.28));
     this.hudDirty = true;
     if (p.lives <= 0) {
       this.over = 1;
@@ -1098,12 +1113,12 @@ class GameScene extends Phaser.Scene {
   }
 
   bloodImpact(x,y,l,h,dir=1){
-    const n=l===2?(h?12:9):(h?7:5), s=l===2?(h?46:36):(h?32:22);
+    const n=l===2?(h?10:8):(h?7:6), s=l===2?(h?46:36):(h?32:22);
     for(let i=0;i<n;i++){
       const bias=dir*(0.28+Math.random()*0.22);
       const a=-Math.PI/2+(Math.random()-.5)*Math.PI*.9+bias;
-      const col=i%3===0?0xff5252:i%3===1?0xff1a1a:0xff3030;
-      const r=this.add.rectangle(x,y,Phaser.Math.Between(3,6),Phaser.Math.Between(3,6),col).setDepth(8);
+      const col=i%3===0?0xff6b6b:i%3===1?0xff2020:0xff4747;
+      const r=this.add.rectangle(x,y,Phaser.Math.Between(3,6),Phaser.Math.Between(3,6),col).setDepth(18);
       this.tweens.add({targets:r,
         x:x+Math.cos(a)*Phaser.Math.Between(14,s),
         y:y+Math.sin(a)*Phaser.Math.Between(10,s)+12,
