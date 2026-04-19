@@ -593,7 +593,7 @@ class GameScene extends Phaser.Scene {
       stamina: 100, staminaMax: 100, percent: 0, invuln: 0, fatigue: 0, stun: 0,
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0, guard: 0 }, _auraType: null, recovering: false,
-      canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0,
+      canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0, _recoilT: 0,
       _hud: { seg: 10, sp: -1, bk: 0, fat: false, pct: 0 }, _lastAlpha: -1, _lastOvAlpha: -1, _lastOvColor: -1, _lastSx: 0,
     };
   }
@@ -686,6 +686,7 @@ class GameScene extends Phaser.Scene {
     if (p.buffs.guard > 0) p.buffs.guard = Math.max(0, p.buffs.guard - dt);
     if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
     if (p.comboT > 0) { p.comboT -= dt; if (p.comboT <= 0) p.comboHits = 0; }
+    if (p._recoilT > 0) p._recoilT -= dt;
     const wasExh = p.fatigue > 0;
     if (p.fatigue > 0) p.fatigue -= dt;
     if (wasExh && p.fatigue <= 0) {
@@ -757,7 +758,8 @@ class GameScene extends Phaser.Scene {
     p.atk = gr
       ? { kind:'basic', t:85, hit:0, w:40, h:26, ox:p.face*30, oy:-4,  dmg:8, fx:0.95, fy:0.72 }
       : { kind:'basic', t:90, hit:0, w:34, h:34, ox:p.face*20, oy:14,  dmg:9, fx:0.80, fy:0.98 };
-    this.flash(p.body.x+p.face*22, p.body.y+(gr?-4:14), 30, 20, p.char.accent, 85);
+    const fc = p.char.id==='volt' ? 0xffdd00 : p.char.id==='crush' ? 0xff8844 : p.char.accent;
+    this.flash(p.body.x+p.face*22, p.body.y+(gr?-4:14), 30, 20, fc, 85);
     tone(this, p.idx?300:260, 'square', 0.07, 0.06);
   }
 
@@ -788,10 +790,12 @@ class GameScene extends Phaser.Scene {
     if (p.char.id === 'pulse') {
       p.atk = { kind: 'pulse', t: 110, hit: 0, w: 116, h: 116, ox: 0, oy: 0, dmg: p.char.sd, fx: 1.02, fy: 0.7 };
       this.ring(p.body.x, p.body.y, 16, 4, p.char.color, 140);
+      this.spark(p.body.x, p.body.y, 0xffffff, 7);  // PULSE: white slash burst
       tone(this, 260, 'triangle', 0.06, 0.14);
     } else if (p.char.id === 'volt') {
       p.atk = { kind: 'volt', t: 110, hit: 0, w: 34, h: 68, ox: p.face * 16, oy: -40, dmg: p.char.sd, fx: 0.55, fy: 1.28 };
       this.flash(p.body.x + p.face * 10, p.body.y - 38, 24, 64, p.char.accent, 120);
+      this.spark(p.body.x + p.face * 10, p.body.y - 24, 0xffdd00, 6);  // VOLT: yellow uppercut sparks
       tone(this, 360, 'square', 0.06, 0.12);
     } else {
       p.slam = 1;
@@ -862,6 +866,7 @@ class GameScene extends Phaser.Scene {
     // VOLT bonus vs airborne targets
     if (p.char.id === 'volt' && !t.body.body.blocked.down && !t.body.body.touching.down) { vx *= 1.22; vy *= 1.22; }
     b.setVelocity(vx, vy);
+    p._recoilT = killish ? 145 : heavy ? 95 : 58;  // attacker follow-through
     const impact = mul * sweet * (a.kind === 'basic' ? 1 : a.kind === 'dash' ? 1.15 : 1.30);
     const bloodLv = impact > 2.25 || a.kind === 'crush' ? 2 : impact > 1.45 || a.kind === 'dash' || sweet > 1.15 ? 1 : 0;
     const heavy = impact > 1.95 || a.kind === 'crush' || a.kind === 'volt';
@@ -869,7 +874,7 @@ class GameScene extends Phaser.Scene {
     if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
     if (heavy || sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : 6);
     else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
-    if (bloodLv) this.bloodImpact(t.body.x, t.body.y - 6, bloodLv, killish);
+    if (bloodLv && !t.shielding) this.bloodImpact(t.body.x, t.body.y - 8, bloodLv, killish, dir);
     this.flash(t.body.x, t.body.y - 6, killish ? 48 : heavy ? 38 : 24, 24, p.char.accent, killish ? 120 : 90);
     // Progressive shake — scales with impact score, dampened by shield
     const shkMul = t.shielding ? 0.3 : 1;
@@ -878,8 +883,10 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.shake(shkDur, shkAmt);
     // Hit freeze — every hit type gets a freeze, strength-scaled, anti-stacking handled by hitFreeze()
     this.hitFreeze(killish ? 98 : heavy ? (a.kind === 'dash' ? 50 : 68) : 28);
-    // Distinct sound per hit type
+    // Distinct sound per hit type + blocked VFX
     if (t.shielding) {
+      this.flash(t.body.x, t.body.y - 8, 52, 52, 0x55ccff, 95);
+      this.spark(t.body.x, t.body.y - 8, 0xaaddff, 5);
       tone(this, 370, 'triangle', 0.05, 0.07);
     } else if (killish) {
       tone(this, 88, 'sawtooth', 0.13, 0.16);
@@ -901,11 +908,17 @@ class GameScene extends Phaser.Scene {
     p.atk = null;
     p.slam = 0;
     p.buffs.power = p.buffs.speed = p.buffs.regen = p.buffs.guard = 0;
-    p._auraType = null; p.shielding = false;
+    p._auraType = null; p.shielding = false; p._recoilT = 0;
     p.aura.setVisible(false);
-    burst(this, p.body.x, p.body.y, p.char.color, 10);
-    this.cameras.main.shake(420, 0.024);
-    this.tweens.add({ targets: this.cameras.main, zoom: 1.13, duration: 110, yoyo: true });
+    const kox = p.body.x, koy = p.body.y;
+    burst(this, kox, koy, p.char.color, 16);
+    this.cameras.main.shake(500, 0.030);
+    this.tweens.add({ targets: this.cameras.main, zoom: 1.16, duration: 130, yoyo: true });
+    this.hitFreeze(115);
+    const kt = this.add.text(kox, koy - 28, 'KO!', {
+      fontFamily:'monospace', fontSize:'36px', fontStyle:'bold', color:'#ff2233'
+    }).setOrigin(0.5).setDepth(20);
+    this.tweens.add({ targets: kt, y: koy - 85, alpha: 0, duration: 860, onComplete: () => kt.destroy() });
     p.body.body.enable = false;
     p.body.setPosition(-500, -500);
     p.visual.setVisible(false);
@@ -936,7 +949,7 @@ class GameScene extends Phaser.Scene {
     p.slam = 0;
     p.lastHitTime = 0;
     p.buffs.power = p.buffs.speed = p.buffs.regen = p.buffs.guard = 0;
-    p._auraType = null; p.shielding = false; p.canAirDodge = true; p.canEdgeSnap = true; p.comboHits = 0; p.comboT = 0;
+    p._auraType = null; p.shielding = false; p.canAirDodge = true; p.canEdgeSnap = true; p.comboHits = 0; p.comboT = 0; p._recoilT = 0;
     p.aura.setVisible(false).setAngle(0);
     p.recovering = false;
     p._lastAlpha = -1; p._lastOvAlpha = -1; p._lastOvColor = -1;
@@ -978,7 +991,12 @@ class GameScene extends Phaser.Scene {
     const bF = p.char.id === 'volt' ? 0.0048 : p.char.id === 'crush' ? 0.0020 : 0.0034;
     const bA = p.char.id === 'crush' ? 2.2 : 1.4;
     let yOff = 0, ang = 0;
-    if (p.stun > 0) {
+    if (p._recoilT > 0 && p.stun <= 0 && p.fatigue <= 0) {
+      // Attacker follow-through lean — decays as _recoilT drops
+      const rf = Math.max(0, Math.min(1, p._recoilT / 65));
+      ang = (p.char.id === 'crush' ? 5 : p.char.id === 'volt' ? 11 : 8) * rf;
+      yOff = Math.sin(now * bF) * bA * 0.5;
+    } else if (p.stun > 0) {
       yOff = Math.sin(now * 0.08) * 2;
     } else if (vx > 20 && b.blocked.down) {
       yOff = Math.sin(now * bF * 4) * bA;
@@ -1028,7 +1046,19 @@ class GameScene extends Phaser.Scene {
       : this.scene.start('Menu'));
   }
 
-  bloodImpact(x,y,l,h){const n=l===2?(h?10:8):(h?6:4),s=l===2?(h?38:30):(h?26:18),c=l===2?0xe01414:0xd93a3a;for(let i=0;i<n;i++){const a=-Math.PI/2+(Math.random()-.5)*Math.PI*.95,r=this.add.rectangle(x,y,Phaser.Math.Between(2,4),Phaser.Math.Between(2,4),c);this.tweens.add({targets:r,x:x+Math.cos(a)*Phaser.Math.Between(10,s),y:y+Math.sin(a)*Phaser.Math.Between(8,s)+16,alpha:0,duration:290+Math.random()*120,onComplete:()=>r.destroy()});}}
+  bloodImpact(x,y,l,h,dir=1){
+    const n=l===2?(h?12:9):(h?7:5), s=l===2?(h?46:36):(h?32:22);
+    for(let i=0;i<n;i++){
+      const bias=dir*(0.28+Math.random()*0.22);
+      const a=-Math.PI/2+(Math.random()-.5)*Math.PI*.9+bias;
+      const col=i%3===0?0xff5252:i%3===1?0xff1a1a:0xff3030;
+      const r=this.add.rectangle(x,y,Phaser.Math.Between(3,6),Phaser.Math.Between(3,6),col).setDepth(8);
+      this.tweens.add({targets:r,
+        x:x+Math.cos(a)*Phaser.Math.Between(14,s),
+        y:y+Math.sin(a)*Phaser.Math.Between(10,s)+12,
+        alpha:0,duration:330+Math.random()*130,onComplete:()=>r.destroy()});
+    }
+  }
 
   hitFreeze(ms) {
     const end = this.time.now + ms;
@@ -1143,7 +1173,7 @@ class GameScene extends Phaser.Scene {
   }
 
   refreshHud() {
-    const dots = n => 'X'.repeat(n) + '-'.repeat(LIVES - n);
+    const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
     const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP OK';
     const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('POW'); if(p.buffs.speed>0)b.push('SPD'); if(p.buffs.regen>0)b.push('REG'); if(p.buffs.guard>0)b.push('GRD'); return b.join(' '); };
     const p1 = this.players[0], p2 = this.players[1];
@@ -1173,8 +1203,8 @@ class GameScene extends Phaser.Scene {
     this.hudP2.setText('P2 ' + p2.char.name + '  ' + dots(p2.lives));
     this.hudPct1.setText(p1._hud.pct + '%').setColor(p1._hud.pct >= 150 ? '#ff6d78' : p1._hud.pct >= 80 ? '#ffd25a' : C.p1);
     this.hudPct2.setText(p2._hud.pct + '%').setColor(p2._hud.pct >= 150 ? '#ff6d78' : p2._hud.pct >= 80 ? '#ffd25a' : C.p2);
-    this.hudS1.setText('STM ' + p1._hud.seg + '/10  ' + cool(p1) + (p1.fatigue > 0 ? '  EXH' : '') + (bufStr(p1) ? '  ' + bufStr(p1) : ''));
-    this.hudS2.setText('STM ' + p2._hud.seg + '/10  ' + cool(p2) + (p2.fatigue > 0 ? '  EXH' : '') + (bufStr(p2) ? '  ' + bufStr(p2) : ''));
+    this.hudS1.setText(cool(p1) + (p1.fatigue > 0 ? '  EXH' : '') + (bufStr(p1) ? '  ' + bufStr(p1) : ''));
+    this.hudS2.setText(cool(p2) + (p2.fatigue > 0 ? '  EXH' : '') + (bufStr(p2) ? '  ' + bufStr(p2) : ''));
   }
 }
 
