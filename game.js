@@ -956,17 +956,17 @@ class GameScene extends Phaser.Scene {
     // Progressive shake — scales with impact score, dampened by shield
     const shkMul = t.shielding ? 0.3 : 1;
     const medium = kind === 'dash' || (kind === 'basic' && sweet > 1.1);
-    const shkAmt = (killish ? 0.0088
-      : heavy ? Math.min(0.0080, 0.0058 + impact * 0.0009)
-      : medium ? Math.min(0.0048, 0.0028 + impact * 0.0007)
-      : Math.min(0.0019, 0.0010 + impact * 0.00045)) * shkMul;
-    const shkDur = killish ? 88
-      : heavy ? Math.min(82, 58 + impact * 8)
-      : medium ? Math.min(64, 38 + impact * 10)
-      : Math.min(28, 20 + impact * 8);
+    const shkAmt = (killish ? 0.0100
+      : heavy ? Math.min(0.0090, 0.0062 + impact * 0.0010)
+      : medium ? Math.min(0.0054, 0.0031 + impact * 0.0008)
+      : Math.min(0.0022, 0.00115 + impact * 0.0005)) * shkMul;
+    const shkDur = killish ? 96
+      : heavy ? Math.min(88, 62 + impact * 9)
+      : medium ? Math.min(68, 42 + impact * 10)
+      : Math.min(31, 22 + impact * 8);
     this.cameras.main.shake(shkDur, shkAmt);
     // Hit freeze — every hit type gets a freeze, strength-scaled, anti-stacking handled by hitFreeze()
-    this.hitFreeze(killish ? 55 : heavy ? 50 : kind === 'dash' ? 38 : 20);
+    this.hitFreeze(killish ? 58 : heavy ? 52 : kind === 'dash' ? 39 : 20);
     // Distinct sound per hit type + blocked VFX
     if (t.shielding) {
       this.flash(t.body.x, t.body.y - 8, 58, 58, 0xdff7ff, 110);
@@ -1000,9 +1000,9 @@ class GameScene extends Phaser.Scene {
     const kox = p.body.x, koy = p.body.y;
     burst(this, kox, koy, p.char.color, 24);
     burst(this, kox, koy, 0xffffff, 10);
-    this.cameras.main.shake(190, 0.011);
-    this.tweens.add({ targets: this.cameras.main, zoom: 1.07, duration: 95, yoyo: true });
-    this.hitFreeze(82);
+    this.cameras.main.shake(210, 0.0118);
+    this.tweens.add({ targets: this.cameras.main, zoom: 1.08, duration: 100, yoyo: true });
+    this.hitFreeze(84);
     this.flash(W / 2, H / 2, W, H, 0xffffff, 85);
     const kt = this.add.text(kox, koy - 28, 'RING OUT!', {
       fontFamily:'monospace', fontSize:'36px', fontStyle:'bold', color:'#ff2233'
@@ -1118,7 +1118,7 @@ class GameScene extends Phaser.Scene {
       fontFamily:'monospace', fontSize:'46px', fontStyle:'bold', color:'#ff4444'
     }).setOrigin(0.5).setDepth(20);
     this.tweens.add({ targets:txt, alpha:0, y:H/2-80, duration:2000, onComplete:()=>txt.destroy() });
-    this.cameras.main.shake(120, 0.007);
+    this.cameras.main.shake(132, 0.0078);
     tone(this, 880, 'square', 0.12, 0.28);
     this.time.delayedCall(300, ()=>tone(this, 660, 'square', 0.10, 0.28));
     const mp = this.platData[0];
