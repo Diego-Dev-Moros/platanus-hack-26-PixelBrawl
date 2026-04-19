@@ -871,11 +871,27 @@ class GameScene extends Phaser.Scene {
     else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
     if (bloodLv) this.bloodImpact(t.body.x, t.body.y - 6, bloodLv, killish);
     this.flash(t.body.x, t.body.y - 6, killish ? 48 : heavy ? 38 : 24, 24, p.char.accent, killish ? 120 : 90);
-    const [shkDur, shkAmt] = killish ? [150, 0.016] : heavy ? [110, 0.010] : [35, 0.003];
+    // Progressive shake — scales with impact score, dampened by shield
+    const shkMul = t.shielding ? 0.3 : 1;
+    const shkAmt = (killish ? 0.026 : heavy ? Math.min(0.016, 0.005 + impact * 0.004) : 0.002 + impact * 0.001) * shkMul;
+    const shkDur = killish ? 185 : heavy ? Math.min(130, 55 + impact * 22) : 44;
     this.cameras.main.shake(shkDur, shkAmt);
-    if (heavy) this.hitFreeze(killish ? 78 : a.kind === 'dash' ? 48 : 62);
-    tone(this, killish ? 120 : a.kind === 'dash' ? 200 : a.kind === 'basic' ? 280 : 150,
-         killish ? 'sawtooth' : a.kind === 'dash' ? 'sawtooth' : 'square', killish ? 0.12 : heavy ? 0.09 : 0.06, killish ? 0.14 : 0.09);
+    // Hit freeze — every hit type gets a freeze, strength-scaled, anti-stacking handled by hitFreeze()
+    this.hitFreeze(killish ? 98 : heavy ? (a.kind === 'dash' ? 50 : 68) : 28);
+    // Distinct sound per hit type
+    if (t.shielding) {
+      tone(this, 370, 'triangle', 0.05, 0.07);
+    } else if (killish) {
+      tone(this, 88, 'sawtooth', 0.13, 0.16);
+      this.time.delayedCall(32, () => tone(this, 196, 'square', 0.07, 0.10));
+    } else if (a.kind === 'crush' || a.kind === 'volt') {
+      tone(this, 128, 'square', 0.10, 0.13);
+      this.time.delayedCall(22, () => tone(this, 256, 'triangle', 0.05, 0.08));
+    } else if (a.kind === 'dash') {
+      tone(this, 182, 'sawtooth', 0.09, 0.10);
+    } else {
+      tone(this, sweet > 1.1 ? 320 : 276, 'square', 0.07, 0.07);
+    }
   }
 
   killPlayer(p) {
@@ -895,6 +911,7 @@ class GameScene extends Phaser.Scene {
     p.visual.setVisible(false);
     p.overlay.setVisible(false);
     tone(this, 90, 'sawtooth', 0.22, 0.5);
+    this.time.delayedCall(70, () => tone(this, 52, 'sawtooth', 0.12, 0.45));
     this.hudDirty = true;
     if (p.lives <= 0) {
       this.over = 1;
@@ -1014,8 +1031,18 @@ class GameScene extends Phaser.Scene {
   bloodImpact(x,y,l,h){const n=l===2?(h?10:8):(h?6:4),s=l===2?(h?38:30):(h?26:18),c=l===2?0xe01414:0xd93a3a;for(let i=0;i<n;i++){const a=-Math.PI/2+(Math.random()-.5)*Math.PI*.95,r=this.add.rectangle(x,y,Phaser.Math.Between(2,4),Phaser.Math.Between(2,4),c);this.tweens.add({targets:r,x:x+Math.cos(a)*Phaser.Math.Between(10,s),y:y+Math.sin(a)*Phaser.Math.Between(8,s)+16,alpha:0,duration:290+Math.random()*120,onComplete:()=>r.destroy()});}}
 
   hitFreeze(ms) {
-    this.physics.pause();
-    this.time.delayedCall(ms, () => { if (!this.over) this.physics.resume(); });
+    const end = this.time.now + ms;
+    if ((this._fzEnd || 0) >= this.time.now) {
+      // Already frozen — extend end if this freeze is longer, skip re-pause
+      if (end > this._fzEnd) this._fzEnd = end;
+    } else {
+      this._fzEnd = end;
+      this.physics.pause();
+    }
+    // Only the last scheduled callback actually resumes (prevents early resume from stacking)
+    this.time.delayedCall(ms, () => {
+      if (!this.over && this.time.now + 6 >= (this._fzEnd || 0)) this.physics.resume();
+    });
   }
 
   spark(x, y, color, n) {
