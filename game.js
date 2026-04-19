@@ -907,12 +907,14 @@ class GameScene extends Phaser.Scene {
     if (this.finalPhase) { vx *= 1.18; vy *= 1.18; }
     // VOLT bonus vs airborne targets
     if (p.char.id === 'volt' && !t.body.body.blocked.down && !t.body.body.touching.down) { vx *= 1.22; vy *= 1.22; }
-    b.setVelocity(vx, vy);
-    p._recoilT = killish ? 145 : heavy ? 95 : 58;  // attacker follow-through
     const impact = mul * sweet * (a.kind === 'basic' ? 1 : a.kind === 'dash' ? 1.15 : 1.30);
     const bloodLv = impact > 2.25 || a.kind === 'crush' ? 2 : impact > 1.45 || a.kind === 'dash' || sweet > 1.15 ? 1 : 0;
     const heavy = impact > 1.95 || a.kind === 'crush' || a.kind === 'volt';
     const killish = heavy && (t.percent > 160 || Math.abs(vx) > 560 || Math.abs(vy) > 380);
+    if (t.shielding) { vx *= 0.88; vy *= 0.84; }
+    b.setVelocity(vx, vy);
+    p._recoilT = t.shielding ? 48 : killish ? 145 : heavy ? 95 : 58;  // attacker follow-through
+    if (t.shielding) p.body.body.velocity.x -= dir * (a.kind === 'dash' ? 92 : 58);
     if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
     if (heavy || sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : 6);
     else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
@@ -927,9 +929,12 @@ class GameScene extends Phaser.Scene {
     this.hitFreeze(killish ? 98 : heavy ? (a.kind === 'dash' ? 50 : 68) : 28);
     // Distinct sound per hit type + blocked VFX
     if (t.shielding) {
-      this.flash(t.body.x, t.body.y - 8, 52, 52, 0x55ccff, 95);
-      this.spark(t.body.x, t.body.y - 8, 0xaaddff, 5);
-      tone(this, 370, 'triangle', 0.05, 0.07);
+      this.flash(t.body.x, t.body.y - 8, 58, 58, 0xdff7ff, 110);
+      this.flash(t.body.x, t.body.y - 8, 42, 42, 0x4ebcff, 90);
+      this.ring(t.body.x, t.body.y - 6, 12, 3.8, 0xaee6ff, 150);
+      this.spark(t.body.x, t.body.y - 8, 0xcfefff, 2);
+      tone(this, 408, 'triangle', 0.045, 0.08);
+      this.time.delayedCall(18, () => tone(this, 286, 'triangle', 0.03, 0.06));
     } else if (killish) {
       tone(this, 88, 'sawtooth', 0.13, 0.16);
       this.time.delayedCall(32, () => tone(this, 196, 'square', 0.07, 0.10));
