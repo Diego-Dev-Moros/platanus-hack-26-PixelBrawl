@@ -290,39 +290,40 @@ function updateBackground(scene, delta) {
 
 function drawPickupIcon(scene, type, col) {
   const c = scene.add.container(0, 0), g = scene.add.graphics();
-  const fill = (cc, parts) => { g.fillStyle(cc, 1); for (const p of parts) g.fillRect(p[0], p[1], p[2], p[3]); };
-  let sh = 0x4c1730, hi = 0xffd8de, glow = 16, shadow, base, light, accent;
+  const fill = (cc, parts, a) => { g.fillStyle(cc, a == null ? 1 : a); for (const p of parts) g.fillRect(p[0], p[1], p[2], p[3]); };
+  const off = (parts, ox, oy) => parts.map(p => [p[0] + ox, p[1] + oy, p[2], p[3]]);
+  let sh = 0x4c1730, hi = 0xffd8de, base, light, accent;
 
   if (type === 'recovery') {
     sh = 0x8f2139; hi = 0xffd7de;
-    base = [[-5,-4,4,3],[1,-4,4,3],[-4,-1,8,4],[-2,3,4,4]];
-    shadow = [[2,3,1,4]];
-    light = [[-4,-3,2,1]];
+    base = [[-7,-5,5,4],[2,-5,5,4],[-6,-2,12,5],[-4,3,8,4],[-2,7,4,3]];
+    light = [[-6,-4,2,1],[-5,-2,1,1]];
   } else if (type === 'power') {
     sh = 0xa33718; hi = 0xffd39e;
-    base = [[-4,-5,6,2],[-5,-3,8,5],[2,-1,3,3],[-2,2,4,4]];
-    shadow = [[4,-1,1,5]];
-    light = [[-3,-4,2,1]];
+    base = [[-6,-5,8,3],[-7,-2,10,6],[2,0,4,4],[-3,4,6,4]];
+    light = [[-5,-4,3,1],[-5,-1,1,1]];
   } else if (type === 'speed') {
     sh = 0x9d6712; hi = 0xfff0af;
-    base = [[-5,1,5,2],[-1,-2,5,3],[2,-5,4,3]];
-    shadow = [[5,-5,1,6],[-1,2,4,1]];
-    light = [[-4,1,2,1]];
+    base = [[-7,2,6,3],[-2,-1,6,4],[3,-4,4,6],[7,-1,2,2]];
+    light = [[-6,3,2,1],[-1,0,2,1]];
   } else if (type === 'regen') {
     sh = 0x0d6d72; hi = 0xbefcf7;
-    base = [[-2,-5,4,4],[-4,-1,8,7]];
-    shadow = [[3,-1,1,7],[-3,5,6,1]];
-    light = [[-3,-4,1,4]];
-    accent = [[-2,1,4,3]];
+    base = [[-3,-7,6,4],[-6,-3,12,10]];
+    light = [[-4,-6,2,2],[-4,-2,1,4]];
+    accent = [[-4,1,8,3]];
   } else {
     sh = 0x1f6aa0; hi = 0xdaf8ff;
-    base = [[-5,-5,10,3],[-4,-2,8,4],[-2,2,4,5]];
-    shadow = [[4,-2,1,6],[-1,6,2,1]];
-    light = [[-4,-4,3,1]];
+    base = [[-7,-6,14,4],[-6,-2,12,5],[-4,3,8,4],[-2,7,4,3]];
+    light = [[-6,-5,3,1],[-5,-2,1,3]];
   }
-  c.add(scene.add.rectangle(0, 0, glow, glow, col, 0.14)); c.add(g);
-  fill(sh, shadow); fill(col, base); fill(hi, light);
+  const shadow = off(base, 1, 1);
+  c.add(scene.add.rectangle(0, 0, 24, 24, col, 0.18)); c.add(g);
+  fill(0x07111a, [[-8,-10,16,20],[-10,-8,20,16]], 0.78);
+  fill(col, [[-7,-9,14,2]], 0.12);
+  fill(sh, shadow);
+  fill(col, base);
   if (accent) fill(hi, accent);
+  fill(hi, light);
   return c;
 }
 
