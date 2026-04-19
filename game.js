@@ -753,22 +753,50 @@ class GameScene extends Phaser.Scene {
   }
 
   basicAttack(p) {
-    p.atkCd = ATK_CD;
     const gr = p.body.body.blocked.down || p.body.body.touching.down;
-    p.atk = gr
-      ? { kind:'basic', t:85, hit:0, w:40, h:26, ox:p.face*30, oy:-4,  dmg:8, fx:0.95, fy:0.72 }
-      : { kind:'basic', t:90, hit:0, w:34, h:34, ox:p.face*20, oy:14,  dmg:9, fx:0.80, fy:0.98 };
-    const fc = p.char.id==='volt' ? 0xffdd00 : p.char.id==='crush' ? 0xff8844 : p.char.accent;
-    this.flash(p.body.x+p.face*22, p.body.y+(gr?-4:14), 30, 20, fc, 85);
+    const id = p.char.id;
+    // Per-character attack cooldown
+    p.atkCd = id === 'pulse' ? 240 : id === 'volt' ? 252 : 330;
+    if (id === 'pulse') {
+      // Karateka: long thin kick, fast snap, moderate upward launch
+      p.atk = gr
+        ? { kind:'basic', t:78,  hit:0, w:48, h:22, ox:p.face*26, oy:-6,  dmg:7,  fx:0.90, fy:0.84 }
+        : { kind:'basic', t:84,  hit:0, w:36, h:36, ox:p.face*22, oy:16,  dmg:9,  fx:0.82, fy:1.05 };
+    } else if (id === 'volt') {
+      // Boxer: compact fast jab, strong horizontal push, minimal vertical
+      p.atk = gr
+        ? { kind:'basic', t:72,  hit:0, w:34, h:24, ox:p.face*22, oy:-2,  dmg:8,  fx:1.06, fy:0.56 }
+        : { kind:'basic', t:80,  hit:0, w:28, h:28, ox:p.face*18, oy:12,  dmg:7,  fx:0.78, fy:0.88 };
+    } else {
+      // Sumo: wide palm push, heavy startup, pure horizontal knockback
+      p.atk = gr
+        ? { kind:'basic', t:106, hit:0, w:50, h:32, ox:p.face*20, oy:2,   dmg:10, fx:1.20, fy:0.40 }
+        : { kind:'basic', t:98,  hit:0, w:40, h:36, ox:p.face*16, oy:16,  dmg:8,  fx:0.92, fy:0.78 };
+    }
+    const fc = id==='volt' ? 0xffdd00 : id==='crush' ? 0xff8844 : p.char.accent;
+    const fOx = id==='pulse' ? 28 : id==='volt' ? 20 : 18;
+    const fOy = gr ? (id==='pulse' ? -6 : id==='volt' ? -2 : 2) : 14;
+    this.flash(p.body.x + p.face*fOx, p.body.y + fOy, 30, 20, fc, 85);
     tone(this, p.idx?300:260, 'square', 0.07, 0.06);
   }
 
   doDash(p) {
     const b = p.body.body;
     const dir = p.face || (p.idx ? -1 : 1);
-    p.dashCd = DASH_CD;
-    p.dashT = 95;
-    p.atk = { kind: 'dash', t: 95, hit: 0, w: 32, h: 34, ox: dir * 18, oy: 0, dmg: 10, fx: 0.9, fy: 0.5 };
+    const id = p.char.id;
+    // Per-character dash cooldown
+    p.dashCd = id === 'pulse' ? 780 : id === 'volt' ? 840 : 1000;
+    p.dashT   = id === 'crush' ? 108 : 95;
+    if (id === 'pulse') {
+      // Flying kick: long forward reach, moderate launch, upward angle
+      p.atk = { kind:'dash', t:95,  hit:0, w:36, h:28, ox:dir*24, oy:-8, dmg:9,  fx:0.88, fy:0.82 };
+    } else if (id === 'volt') {
+      // Cross punch: tight, high horizontal force, minimal vertical — ground pressure
+      p.atk = { kind:'dash', t:90,  hit:0, w:28, h:32, ox:dir*18, oy:-2, dmg:11, fx:1.08, fy:0.40 };
+    } else {
+      // Charging body press: widest hitbox, highest damage, pure horizontal push
+      p.atk = { kind:'dash', t:108, hit:0, w:48, h:40, ox:dir*12, oy:4,  dmg:13, fx:1.24, fy:0.30 };
+    }
     b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500) * (this.finalPhase ? 1.15 : 1));
     this.flash(p.body.x, p.body.y, 44, 20, p.char.color, 110);
     tone(this, 90, 'sawtooth', 0.06, 0.14);
@@ -995,7 +1023,9 @@ class GameScene extends Phaser.Scene {
       // Attacker follow-through lean — decays as _recoilT drops
       const rf = Math.max(0, Math.min(1, p._recoilT / 65));
       ang = (p.char.id === 'crush' ? 5 : p.char.id === 'volt' ? 11 : 8) * rf;
-      yOff = Math.sin(now * bF) * bA * 0.5;
+      // Character-specific vertical pose: PULSE lifts (kick extend), CRUSH sinks (commit weight), VOLT neutral
+      const yShift = p.char.id === 'pulse' ? -bA * 0.45 * rf : p.char.id === 'crush' ? bA * 0.55 * rf : 0;
+      yOff = Math.sin(now * bF) * bA * 0.4 + yShift;
     } else if (p.stun > 0) {
       yOff = Math.sin(now * 0.08) * 2;
     } else if (vx > 20 && b.blocked.down) {
