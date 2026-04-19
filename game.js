@@ -28,6 +28,7 @@ const CHARS = [
 ];
 
 const SPAWNS = [{ x: 320, y: 300 }, { x: 480, y: 300 }];
+const BUFF_KEYS = ['power', 'speed', 'regen', 'guard'];
 
 const NOTES = { A2:110.0, C3:130.8, G3:196.0, C5:523.3, D5:587.3, E5:659.3, G5:784.0, A5:880.0 };
 const MELODY = ['E5',null,'G5','A5','E5','D5','E5',null,'C5',null,'E5','G5','A5',null,'E5',null];
@@ -136,6 +137,26 @@ function buildFighter(scene, x, y, ch, s) {
 
 function hitRect(a, b) {
   return Math.abs(a.x - b.x) * 2 < a.w + b.w && Math.abs(a.y - b.y) * 2 < a.h + b.h;
+}
+
+function down(v, dt) {
+  return v > 0 ? Math.max(0, v - dt) : 0;
+}
+
+function grounded(b) {
+  return b.blocked.down || b.touching.down;
+}
+
+function clearBuffs(buffs) {
+  for (const k of BUFF_KEYS) buffs[k] = 0;
+}
+
+function buffMask(buffs) {
+  return (buffs.power > 0 ? 8 : 0) | (buffs.speed > 0 ? 4 : 0) | (buffs.regen > 0 ? 2 : 0) | (buffs.guard > 0 ? 1 : 0);
+}
+
+function auraTypeOf(buffs) {
+  return buffs.guard > 0 ? 'guard' : buffs.power > 0 ? 'power' : buffs.speed > 0 ? 'speed' : buffs.regen > 0 ? 'regen' : null;
 }
 
 function playNote(ctx, freq, type, startTime, dur, vol) {
@@ -623,6 +644,10 @@ class GameScene extends Phaser.Scene {
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0, guard: 0 }, _auraType: null, recovering: false,
       canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0, _recoilT: 0, _atkPoseT: 0,
+      keys: {
+        left: idx ? 'P2_L' : 'P1_L', right: idx ? 'P2_R' : 'P1_R', up: idx ? 'P2_U' : 'P1_U',
+        attack: idx ? 'P1_5' : 'P2_4', alt: idx ? 'P1_6' : 'P2_5', shield: idx ? 'P2_6' : 'P1_4',
+      },
       _hud: { seg: 10, sp: -1, bk: 0, fat: false, pct: 0 }, _lastAlpha: -1, _lastOvAlpha: -1, _lastOvColor: -1, _lastSx: 0,
     };
   }
@@ -639,34 +664,46 @@ class GameScene extends Phaser.Scene {
     this.tickPlayer(p1, p2, dt);
     this.tickPlayer(p2, p1, dt);
     if (this.hudDirty) { this.refreshHud(); this.hudDirty = false; }
-    if (!this.over && this.ready) {
-      this.matchTime -= dt;
-      if (!this.finalPhase && this.matchTime <= 60000) this.triggerFinalPhase();
-      if (this.matchTime <= 0) this.endMatch();
-      const s = Math.max(0, Math.ceil(this.matchTime / 1000));
-      this.hudTimer.setText(~~(s/60)+':'+String(s%60).padStart(2,'0')).setColor(this.finalPhase?'#ff4444':C.text);
-    }
+    this.updateMatchTimer(dt);
     flush(this);
+  }
+
+  updateMatchTimer(dt) {
+    if (this.over || !this.ready) return;
+    this.matchTime -= dt;
+    if (!this.finalPhase && this.matchTime <= 60000) this.triggerFinalPhase();
+    if (this.matchTime <= 0) { this.endMatch(); return; }
+    const s = Math.max(0, Math.ceil(this.matchTime / 1000));
+    this.hudTimer.setText(~~(s / 60) + ':' + String(s % 60).padStart(2, '0')).setColor(this.finalPhase ? '#ff4444' : C.text);
   }
 
   tickPlayer(p, foe, dt) {
     if (!p.alive) return;
-    const now = this.time.now;
-    this.tickTimers(p, dt);
-    const shldCode = p.idx ? 'P2_6' : 'P1_4';
-    p.shielding = p.fatigue <= 0 && p.stun <= 0 && p.stamina > 0 && !!this.ctrl.held[shldCode];
-    if (p.shielding) {
-      p.stamina = Math.max(0, p.stamina - dt * 0.025);
-      if (p.stamina <= 0) { p.fatigue = FATIGUE_MS * 0.6; p.shielding = false; }
-    }
+    const now = this.time.now, b = p.body.body;
+    this.tickTimers(p, dt, now);
+    this.updateShield(p, dt);
     if (this.ready && (p.body.x < -DEATH_X || p.body.x > W + DEATH_X || p.body.y > DEATH_Y)) { this.killPlayer(p); return; }
-    this.movePlayer(p);
-    this.handleActions(p);
+    this.movePlayer(p, b);
+    this.handleActions(p, b);
     this.updateAttack(p, foe);
     this.checkSlam(p, foe);
     this.checkPickup(p);
-    this.animatePlayer(p, now);
-    const auraType = p.buffs.guard > 0 ? 'guard' : p.buffs.power > 0 ? 'power' : p.buffs.speed > 0 ? 'speed' : p.buffs.regen > 0 ? 'regen' : null;
+    this.animatePlayer(p, b, now);
+    this.updateAura(p, now);
+    this.updatePlayerAlpha(p, now);
+    this.tryEdgeSnap(p, b);
+    this.updateOverlay(p);
+  }
+
+  updateShield(p, dt) {
+    p.shielding = p.fatigue <= 0 && p.stun <= 0 && p.stamina > 0 && !!this.ctrl.held[p.keys.shield];
+    if (!p.shielding) return;
+    p.stamina = Math.max(0, p.stamina - dt * 0.025);
+    if (p.stamina <= 0) { p.fatigue = FATIGUE_MS * 0.6; p.shielding = false; }
+  }
+
+  updateAura(p, now) {
+    const auraType = auraTypeOf(p.buffs);
     if (auraType !== p._auraType) {
       p._auraType = auraType;
       if (auraType) {
@@ -680,20 +717,29 @@ class GameScene extends Phaser.Scene {
       p.aura.setPosition(p.body.x, p.body.y);
       p.aura.setAlpha(0.22 + 0.12 * Math.sin(now * 0.005));
     }
+  }
+
+  updatePlayerAlpha(p, now) {
     const lowStam = p.stamina > 0 && p.stamina < p.staminaMax * 0.35 && p.fatigue <= 0;
-    const na = p.invuln > 0 && (Math.floor(now / 80) % 2) ? 0.3 :
-               lowStam && (Math.floor(now / 600) % 2) ? 0.65 : 1;
+    const na = p.invuln > 0 && (((now / 80) | 0) & 1) ? 0.3 :
+               lowStam && (((now / 600) | 0) & 1) ? 0.65 : 1;
     if (na !== p._lastAlpha) { p.visual.setAlpha(na); p._lastAlpha = na; }
-    if (this.ready && p.canEdgeSnap && !p.body.body.blocked.down && p.body.body.velocity.y > 80)
-      for (const pd of this.platData) {
-        const ed = Math.abs(p.body.x - pd.hitbox.x) - pd.hitbox.width / 2;
-        const yd = p.body.y - (pd.hitbox.y - 10);
-        if (ed > 0 && ed < 24 && yd > 0 && yd < 50) {
-          p.canEdgeSnap = false;
-          p.body.body.velocity.x += (p.body.x < pd.hitbox.x ? 1 : -1) * 80;
-          break;
-        }
+  }
+
+  tryEdgeSnap(p, b) {
+    if (!this.ready || !p.canEdgeSnap || b.blocked.down || b.velocity.y <= 80) return;
+    for (const pd of this.platData) {
+      const ed = Math.abs(p.body.x - pd.hitbox.x) - pd.hitbox.width / 2;
+      const yd = p.body.y - (pd.hitbox.y - 10);
+      if (ed > 0 && ed < 24 && yd > 0 && yd < 50) {
+        p.canEdgeSnap = false;
+        b.velocity.x += (p.body.x < pd.hitbox.x ? 1 : -1) * 80;
+        break;
       }
+    }
+  }
+
+  updateOverlay(p) {
     const no = p.shielding ? 0.45 : p.fatigue > 0 ? 0.5 : 0;
     const nc = p.shielding ? 0x4488ff : 0xff4400;
     if (no !== p._lastOvAlpha || nc !== p._lastOvColor) {
@@ -702,88 +748,84 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  tickTimers(p, dt) {
-    if (p.invuln > 0) p.invuln -= dt;
-    if (p.stun > 0)   p.stun   -= dt;
-    if (p.atkCd > 0)  p.atkCd  -= dt;
-    if (p.dashCd > 0) p.dashCd -= dt;
-    if (p.spCd > 0)   p.spCd   -= dt;
-    if (p.dashT > 0)  p.dashT  -= dt;
-    if (p.buffs.power > 0) p.buffs.power = Math.max(0, p.buffs.power - dt);
-    if (p.buffs.speed > 0) p.buffs.speed = Math.max(0, p.buffs.speed - dt);
-    if (p.buffs.regen > 0) p.buffs.regen = Math.max(0, p.buffs.regen - dt);
-    if (p.buffs.guard > 0) p.buffs.guard = Math.max(0, p.buffs.guard - dt);
-    if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
-    if (p.comboT > 0) { p.comboT -= dt; if (p.comboT <= 0) p.comboHits = 0; }
-    if (p._recoilT > 0) p._recoilT -= dt;
-    if (p._atkPoseT > 0) p._atkPoseT -= dt;
+  tickTimers(p, dt, now) {
     const wasExh = p.fatigue > 0;
-    if (p.fatigue > 0) p.fatigue -= dt;
-    if (wasExh && p.fatigue <= 0) {
-      p.stamina = Math.min(p.staminaMax, p.stamina + EXHAUST_RECOVER);
-      p.recovering = true;
-      this.time.delayedCall(220, () => { p.recovering = false; });
-      tone(this, 500, 'triangle', 0.06, 0.18);
-    }
+    p.invuln = down(p.invuln, dt);
+    p.stun = down(p.stun, dt);
+    p.atkCd = down(p.atkCd, dt);
+    p.dashCd = down(p.dashCd, dt);
+    p.spCd = down(p.spCd, dt);
+    p.dashT = down(p.dashT, dt);
+    for (const k of BUFF_KEYS) p.buffs[k] = down(p.buffs[k], dt);
+    if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
+    if (p.comboT > 0) { p.comboT = down(p.comboT, dt); if (!p.comboT) p.comboHits = 0; }
+    p._recoilT = down(p._recoilT, dt);
+    p._atkPoseT = down(p._atkPoseT, dt);
+    p.fatigue = down(p.fatigue, dt);
+    if (wasExh && !p.fatigue) this.finishFatigue(p);
     if (p.fatigue <= 0 && p.stamina < p.staminaMax) {
       if (p.buffs.regen > 0)
         p.stamina = Math.min(p.staminaMax, p.stamina + dt * 0.022);
-      else if (this.time.now - p.lastHitTime > 2000)
+      else if (now - p.lastHitTime > 2000)
         p.stamina = Math.min(p.staminaMax, p.stamina + dt * 0.008);
     }
+    this.updateHudState(p);
+  }
+
+  finishFatigue(p) {
+    p.stamina = Math.min(p.staminaMax, p.stamina + EXHAUST_RECOVER);
+    p.recovering = true;
+    this.time.delayedCall(220, () => { p.recovering = false; });
+    tone(this, 500, 'triangle', 0.06, 0.18);
+  }
+
+  updateHudState(p) {
+    const hud = p._hud;
     const ns = Math.ceil(p.stamina / p.staminaMax * 10);
     const nsp = p.spCd > 0 ? Math.ceil(p.spCd / 1000) : -1;
-    const nbk = (p.buffs.power > 0 ? 8 : 0) | (p.buffs.speed > 0 ? 4 : 0) | (p.buffs.regen > 0 ? 2 : 0) | (p.buffs.guard > 0 ? 1 : 0);
+    const nbk = buffMask(p.buffs);
     const nf  = p.fatigue > 0;
     const np = Math.round(p.percent);
-    if (ns !== p._hud.seg || nsp !== p._hud.sp || nbk !== p._hud.bk || nf !== p._hud.fat || np !== p._hud.pct) {
-      p._hud.seg = ns; p._hud.sp = nsp; p._hud.bk = nbk; p._hud.fat = nf; p._hud.pct = np;
+    if (ns !== hud.seg || nsp !== hud.sp || nbk !== hud.bk || nf !== hud.fat || np !== hud.pct) {
+      hud.seg = ns; hud.sp = nsp; hud.bk = nbk; hud.fat = nf; hud.pct = np;
       this.hudDirty = true;
     }
   }
 
-  movePlayer(p) {
+  movePlayer(p, b) {
     if (!this.ready) return;
-    const b = p.body.body;
-    const L = p.idx ? 'P2_L' : 'P1_L';
-    const R = p.idx ? 'P2_R' : 'P1_R';
-    const U = p.idx ? 'P2_U' : 'P1_U';
-    if (b.blocked.down || b.touching.down) { p.jumps = 2; p.canAirDodge = true; p.canEdgeSnap = true; }
-    if (p.stun > 0) return;
-    if (p.dashT > 0) return;
+    const k = p.keys;
+    if (grounded(b)) { p.jumps = 2; p.canAirDodge = true; p.canEdgeSnap = true; }
+    if (p.stun > 0 || p.dashT > 0) return;
     if (p.shielding) { b.setVelocityX(0); return; }
     const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * (this.finalPhase ? 1.18 : 1);
     let vx = 0;
-    if (this.ctrl.held[L]) { vx = -spd; p.face = -1; }
-    if (this.ctrl.held[R]) { vx = spd; p.face = 1; }
+    if (this.ctrl.held[k.left]) { vx = -spd; p.face = -1; }
+    if (this.ctrl.held[k.right]) { vx = spd; p.face = 1; }
     b.setVelocityX(vx);
-    if (this.ctrl.pressed[U] && p.jumps > 0) {
+    if (this.ctrl.pressed[k.up] && p.jumps > 0) {
       b.setVelocityY(JUMP);
       p.jumps--;
       tone(this, p.idx ? 390 : 330, 'square', 0.05, 0.07);
     }
   }
 
-  handleActions(p) {
-    if (!this.ready) return;
-    const atkCode = p.idx ? 'P1_5' : 'P2_4';
-    const altCode = p.idx ? 'P1_6' : 'P2_5';
-    const L = p.idx ? 'P2_L' : 'P1_L', R = p.idx ? 'P2_R' : 'P1_R';
-    const moving = this.ctrl.held[L] || this.ctrl.held[R];
-    if (p.stun > 0 || p.fatigue > 0 || p.shielding) return;
-    if (this.ctrl.pressed[atkCode] && p.atkCd <= 0) this.basicAttack(p);
-    if (this.ctrl.pressed[altCode]) {
-      const onGround = p.body.body.blocked.down || p.body.body.touching.down;
-      if (!onGround && p.canAirDodge && (this.ctrl.held[L] || this.ctrl.held[R]))
-        this.doAirDodge(p);
+  handleActions(p, b) {
+    if (!this.ready || p.stun > 0 || p.fatigue > 0 || p.shielding) return;
+    const k = p.keys;
+    const moving = this.ctrl.held[k.left] || this.ctrl.held[k.right];
+    if (this.ctrl.pressed[k.attack] && p.atkCd <= 0) this.basicAttack(p, b);
+    if (this.ctrl.pressed[k.alt]) {
+      if (!grounded(b) && p.canAirDodge && moving)
+        this.doAirDodge(p, b);
       else if (moving && p.dashCd <= 0) this.doDash(p);
       else if (p.spCd <= 0) this.doSpecial(p);
       else if (p.dashCd <= 0) this.doDash(p);
     }
   }
 
-  basicAttack(p) {
-    const gr = p.body.body.blocked.down || p.body.body.touching.down;
+  basicAttack(p, b) {
+    const gr = grounded(b);
     const id = p.char.id;
     // Per-character attack cooldown
     p.atkCd = id === 'pulse' ? 240 : id === 'volt' ? 252 : 330;
@@ -834,13 +876,12 @@ class GameScene extends Phaser.Scene {
     tone(this, 90, 'sawtooth', 0.06, 0.14);
   }
 
-  doAirDodge(p) {
-    const L = p.idx ? 'P2_L' : 'P1_L';
-    const dir = this.ctrl.held[L] ? -1 : 1;
+  doAirDodge(p, b) {
+    const dir = this.ctrl.held[p.keys.left] ? -1 : 1;
     p.canAirDodge = false;
     p.invuln = Math.max(p.invuln, 160);
     p.dashCd = DASH_CD * 0.7;
-    p.body.body.setVelocity(dir * 370, -60);
+    b.setVelocity(dir * 370, -60);
     this.flash(p.body.x, p.body.y, 34, 34, p.char.color, 130);
     tone(this, 480, 'triangle', 0.04, 0.10);
   }
@@ -872,7 +913,7 @@ class GameScene extends Phaser.Scene {
   checkSlam(p, foe) {
     if (!p.slam) return;
     const b = p.body.body;
-    if (b.blocked.down || b.touching.down) {
+    if (grounded(b)) {
       p.slam = 0;
       p.atk = { kind: 'crush', t: 90, hit: 0, w: 130, h: 60, ox: 0, oy: 6, dmg: p.char.sd, fx: 1.08, fy: 0.78 };
       this.ring(p.body.x, p.body.y + 12, 12, 5.5, p.char.accent, 140);
@@ -916,9 +957,9 @@ class GameScene extends Phaser.Scene {
     let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * shld;
     let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * shld;
     if (kind === 'dash') vy = -95 * mul * pwr * sweet * rage * shld;
-    if (this.ctrl.held[t.idx ? 'P2_L' : 'P1_L']) vx -= 80;
-    if (this.ctrl.held[t.idx ? 'P2_R' : 'P1_R']) vx += 80;
-    if (this.ctrl.held[t.idx ? 'P2_U' : 'P1_U']) vy -= 35;
+    if (this.ctrl.held[t.keys.left]) vx -= 80;
+    if (this.ctrl.held[t.keys.right]) vx += 80;
+    if (this.ctrl.held[t.keys.up]) vy -= 35;
     t.lastHitTime = this.time.now;
     const pg = kind === 'basic' ? 0.98 : kind === 'dash' ? 1.10 : 1.22;
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
@@ -931,7 +972,7 @@ class GameScene extends Phaser.Scene {
       * Math.max(0.60, 1 - (t.comboHits - 1) * 0.10);
     if (this.finalPhase) { vx *= 1.18; vy *= 1.18; }
     // VOLT bonus vs airborne targets
-    if (p.char.id === 'volt' && !t.body.body.blocked.down && !t.body.body.touching.down) { vx *= 1.22; vy *= 1.22; }
+    if (p.char.id === 'volt' && !grounded(t.body.body)) { vx *= 1.22; vy *= 1.22; }
     const impact = Math.max(0.65, mul * sweet * (kind === 'basic' ? 1 : kind === 'dash' ? 1.15 : 1.30));
     const heavy = impact > 1.95 || kind === 'crush' || kind === 'volt';
     const killish = heavy && (t.percent > 160 || Math.abs(vx) > 560 || Math.abs(vy) > 380);
@@ -1001,7 +1042,7 @@ class GameScene extends Phaser.Scene {
     p.lives--;
     p.atk = null;
     p.slam = 0;
-    p.buffs.power = p.buffs.speed = p.buffs.regen = p.buffs.guard = 0;
+    clearBuffs(p.buffs);
     p._auraType = null; p.shielding = false; p._recoilT = 0; p._atkPoseT = 0;
     p.aura.setVisible(false);
     const kox = p.body.x, koy = p.body.y;
@@ -1049,7 +1090,7 @@ class GameScene extends Phaser.Scene {
     p.atk = null;
     p.slam = 0;
     p.lastHitTime = 0;
-    p.buffs.power = p.buffs.speed = p.buffs.regen = p.buffs.guard = 0;
+    clearBuffs(p.buffs);
     p._auraType = null; p.shielding = false; p.canAirDodge = true; p.canEdgeSnap = true; p.comboHits = 0; p.comboT = 0; p._recoilT = 0; p._atkPoseT = 0;
     p.aura.setVisible(false).setAngle(0);
     p.recovering = false;
@@ -1072,8 +1113,7 @@ class GameScene extends Phaser.Scene {
     p.overlay.setPosition(p.body.x, p.body.y);
   }
 
-  animatePlayer(p, now) {
-    const b = p.body.body;
+  animatePlayer(p, b, now) {
     const sx = p.face < 0 ? -1 : 1;
     if (sx !== p._lastSx) { p.visual.setScale(sx, 1); p._lastSx = sx; }
     if (p.fatigue > 0) {
@@ -1390,7 +1430,7 @@ class GameScene extends Phaser.Scene {
     // Placeholder for dedicated pickup collection SFX.
   }
 
-  refreshHud() {
+  refreshHudLegacy() {
     const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
     const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP OK';
     const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('POW'); if(p.buffs.speed>0)b.push('SPD'); if(p.buffs.regen>0)b.push('REG'); if(p.buffs.guard>0)b.push('GRD'); return b.join(' '); };
