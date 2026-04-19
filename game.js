@@ -204,20 +204,40 @@ function showPickupText(scene, x, y, text, color) {
   const t = scene.add.text(x, y - 24, text, {
     fontFamily: 'monospace', fontSize: '15px', fontStyle: 'bold', color,
   }).setOrigin(0.5).setDepth(15);
-  scene.tweens.add({ targets: t, y: y - 62, alpha: 0, duration: 950, onComplete: () => t.destroy() });
+  fxGone(scene, t, { y: y - 62, alpha: 0, duration: 950 });
+}
+
+function fxTween(scene, cfg, fail) {
+  try { return scene.tweens.add(cfg); } catch (_) { if (fail) fail(); }
+  return null;
+}
+
+function fxGone(scene, node, cfg, fail) {
+  const done = cfg.onComplete, out = { ...cfg, targets: node, onComplete: () => { if (done) done(); node.destroy(); } };
+  return fxTween(scene, out, fail || (() => node.destroy()));
+}
+
+function emitRects(scene, x, y, n, o) {
+  for (let i = 0; i < n; i++) {
+    const a = o.ang ? o.ang(i, n) : Math.random() * Math.PI * 2;
+    const w = Phaser.Math.Between(o.w0, o.w1), h = Phaser.Math.Between(o.h0 == null ? o.w0 : o.h0, o.h1 == null ? (o.h0 == null ? o.w1 : o.h0) : o.h1);
+    const r = scene.add.rectangle(x, y, w, h, o.col(i), o.alpha == null ? 0.95 : o.alpha);
+    if (o.depth != null) r.setDepth(o.depth);
+    const d = Phaser.Math.Between(o.d0, o.d1);
+    const tw = { x: x + Math.cos(a) * (o.dx ? o.dx(i, d) : d), y: y + Math.sin(a) * (o.dy ? o.dy(i, d) : d) + (o.yb || 0), alpha: 0, duration: o.t0 + Math.random() * ((o.t1 == null ? o.t0 : o.t1) - o.t0) };
+    if (o.spin) tw.angle = Phaser.Math.Between(o.spin[0], o.spin[1]);
+    if (o.sx != null) tw.scaleX = o.sx;
+    if (o.sy != null) tw.scaleY = o.sy;
+    if (o.ease) tw.ease = o.ease;
+    fxGone(scene, r, tw);
+  }
 }
 
 function burst(scene, x, y, color, n) {
-  for (let i = 0; i < n; i++) {
-    const ang = (Math.PI * 2 * i) / n + Math.random() * 0.4;
-    const dist = Phaser.Math.Between(38, 100);
-    const r = scene.add.rectangle(x, y, 5, 5, color, 1);
-    scene.tweens.add({
-      targets: r, x: x + Math.cos(ang) * dist, y: y + Math.sin(ang) * dist,
-      alpha: 0, scaleX: 0.2, scaleY: 0.2, duration: 350 + Math.random() * 80,
-      onComplete: () => r.destroy(),
-    });
-  }
+  emitRects(scene, x, y, n, {
+    ang: i => (Math.PI * 2 * i) / n + Math.random() * 0.4,
+    col: () => color, alpha: 1, w0: 5, w1: 5, h0: 5, h1: 5, d0: 38, d1: 100, t0: 350, t1: 430, sx: 0.2, sy: 0.2,
+  });
 }
 
 function drawRects(g, ox, parts) {
@@ -1198,16 +1218,11 @@ class GameScene extends Phaser.Scene {
 
   bloodImpact(x,y,l,h,dir=1){
     const n=l===2?(h?10:8):(h?7:6), s=l===2?(h?46:36):(h?32:22);
-    for(let i=0;i<n;i++){
-      const bias=dir*(0.28+Math.random()*0.22);
-      const a=-Math.PI/2+(Math.random()-.5)*Math.PI*.9+bias;
-      const col=i%3===0?0xff6b6b:i%3===1?0xff2020:0xff4747;
-      const r=this.add.rectangle(x,y,Phaser.Math.Between(3,6),Phaser.Math.Between(3,6),col).setDepth(18);
-      this.tweens.add({targets:r,
-        x:x+Math.cos(a)*Phaser.Math.Between(14,s),
-        y:y+Math.sin(a)*Phaser.Math.Between(10,s)+12,
-        alpha:0,duration:330+Math.random()*130,onComplete:()=>r.destroy()});
-    }
+    emitRects(this, x, y, n, {
+      ang: () => -Math.PI/2 + (Math.random() - .5) * Math.PI * .9 + dir * (0.28 + Math.random() * 0.22),
+      col: i => i % 3 === 0 ? 0xff6b6b : i % 3 === 1 ? 0xff2020 : 0xff4747,
+      depth: 18, w0: 3, w1: 6, h0: 3, h1: 6, d0: 14, d1: s, dy: () => Phaser.Math.Between(10, s), yb: 12, t0: 330, t1: 460,
+    });
   }
 
   hitFreeze(ms) {
@@ -1230,17 +1245,10 @@ class GameScene extends Phaser.Scene {
   }
 
   spark(x, y, color, n) {
-    for (let i = 0; i < n; i++) {
-      const ang = (Math.PI * 2 * i) / n + Math.random() * 0.6;
-      const r = this.add.rectangle(x, y, Phaser.Math.Between(2, 5), 2, color);
-      this.tweens.add({
-        targets: r,
-        x: x + Math.cos(ang) * Phaser.Math.Between(10, 30),
-        y: y + Math.sin(ang) * Phaser.Math.Between(10, 30),
-        alpha: 0, duration: Phaser.Math.Between(60, 140),
-        onComplete: () => r.destroy(),
-      });
-    }
+    emitRects(this, x, y, n, {
+      ang: i => (Math.PI * 2 * i) / n + Math.random() * 0.6,
+      col: () => color, w0: 2, w1: 5, h0: 2, h1: 2, d0: 10, d1: 30, t0: 60, t1: 140,
+    });
   }
 
   startCountdown() {
@@ -1341,9 +1349,8 @@ class GameScene extends Phaser.Scene {
     this.pickup = pickup;
     this.startPickupSpawnTween(pickup, peak, popDur);
     const pop = this.add.circle(ox, oy, 10, cfg.col, 0.18).setStrokeStyle(2, 0xffffff, 0.75).setDepth(7);
-    this.pickupTween({ targets: pop, scaleX: type === 'power' ? 1.95 : 1.7, scaleY: type === 'power' ? 1.95 : 1.7, alpha: 0,
-      duration: type === 'power' ? 230 : 190, onComplete: () => pop.destroy() }, () => pop.destroy());
-    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 6 : Phaser.Math.Between(4, 5), 10, type === 'power' ? 26 : 22, 180, 8);
+    fxGone(this, pop, { scaleX: type === 'power' ? 1.95 : 1.7, scaleY: type === 'power' ? 1.95 : 1.7, alpha: 0, duration: type === 'power' ? 230 : 190 });
+    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 5 : 4, 10, type === 'power' ? 26 : 22, 180, 8);
   }
 
   checkPickup(p) {
@@ -1358,8 +1365,8 @@ class GameScene extends Phaser.Scene {
     this.scheduleNextPickup();
     const cfg = PICKUP_CFG[type];
     if (orb && orb.active)
-      this.pickupTween({ targets: orb, scaleX: 1.14, scaleY: 1.14, alpha: 0, duration: 95, ease: 'Quad.easeOut', onComplete: () => orb.destroy() }, () => orb.destroy());
-    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 10 : type === 'speed' ? 9 : 8, 18, type === 'power' ? 56 : 46, 250, 8);
+      fxGone(this, orb, { scaleX: 1.14, scaleY: 1.14, alpha: 0, duration: 95, ease: 'Quad.easeOut' });
+    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 8 : type === 'speed' ? 7 : 6, 18, type === 'power' ? 56 : 46, 250, 8);
     this.pickupFlash(ox, oy, cfg.col);
     showPickupText(this, ox, oy, cfg.txt, cfg.tc);
     this.pickupSoundHook(type, ox, oy);
@@ -1372,17 +1379,16 @@ class GameScene extends Phaser.Scene {
 
   flash(x, y, w, h, c, dur) {
     const r = this.add.rectangle(x, y, w, h, c, 0.8);
-    this.tweens.add({ targets: r, alpha: 0, scaleX: 1.3, scaleY: 1.3, duration: dur, onComplete: () => r.destroy() });
+    fxGone(this, r, { alpha: 0, scaleX: 1.3, scaleY: 1.3, duration: dur });
   }
 
   ring(x, y, r, endScale, c, dur) {
     const circ = this.add.circle(x, y, r, c, 0.15).setStrokeStyle(3, c);
-    this.tweens.add({ targets: circ, scaleX: endScale, scaleY: endScale, alpha: 0, duration: dur, onComplete: () => circ.destroy() });
+    fxGone(this, circ, { scaleX: endScale, scaleY: endScale, alpha: 0, duration: dur });
   }
 
   pickupTween(cfg, fail) {
-    try { return this.tweens.add(cfg); } catch (_) { if (fail) fail(); }
-    return null;
+    return fxTween(this, cfg, fail);
   }
 
   stopPickupTweens(p) {
@@ -1408,22 +1414,17 @@ class GameScene extends Phaser.Scene {
   }
 
   pickupBits(x, y, col, n, minDist, maxDist, dur, depth) {
-    for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2, d = Phaser.Math.Between(minDist, maxDist), s = Phaser.Math.Between(3, 5);
-      const r = this.add.rectangle(x, y, s, s, i % 3 ? col : 0xffffff, 0.95).setDepth(depth);
-      this.pickupTween({
-        targets: r, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, angle: Phaser.Math.Between(-80, 80),
-        alpha: 0, scaleX: 0.25, scaleY: 0.25, duration: dur + Math.random() * 60, ease: 'Quad.easeOut',
-        onComplete: () => r.destroy(),
-      }, () => r.destroy());
-    }
+    emitRects(this, x, y, n, {
+      col: i => i % 3 ? col : 0xffffff, alpha: 0.95, depth, w0: 3, w1: 5, h0: 3, h1: 5, d0: minDist, d1: maxDist,
+      t0: dur, t1: dur + 60, sx: 0.25, sy: 0.25, ease: 'Quad.easeOut', spin: [-80, 80],
+    });
   }
 
   pickupFlash(x, y, col) {
     const tint = this.add.circle(x, y, 16, col, 0.26).setDepth(7);
     const core = this.add.rectangle(x, y, 28, 28, 0xffffff, 0.86).setAngle(45).setDepth(8);
-    this.pickupTween({ targets: tint, scaleX: 1.9, scaleY: 1.9, alpha: 0, duration: 130, onComplete: () => tint.destroy() }, () => tint.destroy());
-    this.pickupTween({ targets: core, scaleX: 1.45, scaleY: 1.45, alpha: 0, duration: 95, onComplete: () => core.destroy() }, () => core.destroy());
+    fxGone(this, tint, { scaleX: 1.9, scaleY: 1.9, alpha: 0, duration: 130 });
+    fxGone(this, core, { scaleX: 1.45, scaleY: 1.45, alpha: 0, duration: 95 });
   }
 
   pickupSoundHook(type, x, y) {
