@@ -7,10 +7,10 @@ const BUFF_POWER_DUR = 10000, BUFF_SPEED_DUR = 10000, BUFF_REGEN_DUR = 8000, BUF
 
 const PICKUP_CFG = {
   recovery: { col: 0xff5f77, txt: 'STAMINA +35', tc: '#ff8094', f: 660, ft: 'triangle', fd: 0.18 },
-  power:    { col: 0x67ff5c, txt: 'POWER UP!',   tc: '#67ff5c', f: 880, ft: 'square',   fd: 0.12, bk: 'power', dur: BUFF_POWER_DUR },
-  speed:    { col: 0x63b8ff, txt: 'SPEED UP!',   tc: '#63b8ff', f: 660, ft: 'square',   fd: 0.10, bk: 'speed', dur: BUFF_SPEED_DUR },
+  power:    { col: 0xff7a45, txt: 'POWER UP!',   tc: '#ff9f75', f: 880, ft: 'square',   fd: 0.12, bk: 'power', dur: BUFF_POWER_DUR },
+  speed:    { col: 0xffd54a, txt: 'SPEED UP!',   tc: '#ffe37b', f: 660, ft: 'square',   fd: 0.10, bk: 'speed', dur: BUFF_SPEED_DUR },
   regen:    { col: 0x00d7c7, txt: 'REGEN UP!',   tc: '#00d7c7', f: 550, ft: 'triangle', fd: 0.14, bk: 'regen', dur: BUFF_REGEN_DUR },
-  guard:    { col: 0xffd56a, txt: 'SHIELD UP!',  tc: '#ffe08d', f: 490, ft: 'square',   fd: 0.15, bk: 'guard', dur: BUFF_GUARD_DUR },
+  guard:    { col: 0x57c9ff, txt: 'SHIELD UP!',  tc: '#9ce5ff', f: 490, ft: 'square',   fd: 0.15, bk: 'guard', dur: BUFF_GUARD_DUR },
 };
 const BASE_KB_X = 240, BASE_KB_Y = 155;
 const KB_PERCENT_CAP = 190, KB_PERCENT_DIV = 172, KB_PERCENT_GAIN = 0.46;
@@ -290,43 +290,37 @@ function updateBackground(scene, delta) {
 
 function drawPickupIcon(scene, type, col) {
   const c = scene.add.container(0, 0), g = scene.add.graphics();
-  const px = (x, y, w, h, cc) => g.fillStyle(cc, 1).fillRect(x * 2, y * 2, w * 2, h * 2);
-  const sh = 0x1b1412, hi = 0xffffff;
-  // glow behind icon (added first = renders below g)
-  const glow = scene.add.rectangle(0, 0, 26, 26, col, 0.18);
-  c.add(glow); c.add(g);
+  const fill = (cc, parts) => { g.fillStyle(cc, 1); for (const p of parts) g.fillRect(p[0], p[1], p[2], p[3]); };
+  let sh = 0x4c1730, hi = 0xffd8de, glow = 18, shadow, base, light;
 
   if (type === 'recovery') {
-    // HEART: two separate top lobes, explicit V-notch, tapered bottom point
-    [[-5,-6,4,2],[1,-6,4,2],[-6,-4,12,9],[-4,5,8,3],[-2,8,4,2],[-1,10,3,2]].forEach(v=>px(...v,sh));
-    [[-4,-6,3,6],[1,-6,3,6],[-5,-4,10,9],[-3,5,6,3],[-1,8,2,2],[0,10,1,1]].forEach(v=>px(...v,col));
-    px(-1,-6,2,6,sh); // dark V-notch drawn after fill to split the two lobes
-    [[-3,-5,1,3],[2,-5,1,2],[-4,-1,2,4]].forEach(v=>px(...v,hi));
-
+    sh = 0x8f2139; hi = 0xffd7de;
+    shadow = [[-5,-4,3,3],[2,-4,3,3],[-6,-1,12,4],[-4,3,8,2],[-2,5,4,2],[-1,7,2,1]];
+    base = [[-4,-4,2,3],[2,-4,2,3],[-5,-1,10,4],[-3,3,6,2],[-1,5,2,2]];
+    light = [[-3,-3,1,2],[2,-3,1,2],[-4,0,2,2]];
   } else if (type === 'power') {
-    // BICEP: oversized upper-arm bulge (top-left) + bent elbow + forearm (lower-right)
-    [[-5,-8,7,7],[-3,-1,5,5],[-1,3,8,5]].forEach(v=>px(...v,sh));
-    [[-4,-8,6,7],[-2,-1,4,5],[0,3,7,5]].forEach(v=>px(...v,col));
-    [[-3,-7,1,5],[-1,0,1,3],[1,4,2,2]].forEach(v=>px(...v,hi));
-
+    sh = 0xa33718; hi = 0xffd39e;
+    shadow = [[-2,-6,4,2],[-5,-3,10,3],[-6,0,4,3],[2,0,4,3],[-3,2,6,3],[-1,5,2,2]];
+    base = [[-1,-5,2,2],[-4,-2,8,3],[-5,0,2,2],[3,0,2,2],[-2,2,4,3],[-1,5,2,1]];
+    light = [[-1,-4,1,2],[-3,-1,2,1],[1,0,1,2]];
   } else if (type === 'speed') {
-    // BOOT: vertical ankle shaft + rightward foot + wide flat sole
-    [[-3,-7,5,9],[0,-2,8,5],[-4,2,13,3]].forEach(v=>px(...v,sh));
-    [[-2,-7,4,9],[0,-1,7,5],[-3,2,11,3]].forEach(v=>px(...v,col));
-    [[-1,-6,1,5],[1,0,1,3],[-2,3,3,1]].forEach(v=>px(...v,hi));
-
+    sh = 0x9d6712; hi = 0xfff0af; glow = 17;
+    shadow = [[-6,-1,7,2],[-3,-4,7,2],[0,-7,6,2],[1,2,5,2],[-2,5,5,2]];
+    base = [[-5,-1,6,2],[-2,-4,6,2],[1,-7,5,2],[1,2,4,2],[-1,5,4,2]];
+    light = [[-4,-1,1,1],[-1,-4,1,1],[2,-7,1,1],[2,2,1,1]];
   } else if (type === 'regen') {
-    // POTION BOTTLE: small cap + narrow neck + wide body
-    [[-1,-9,2,2],[-2,-7,4,2],[-5,-5,10,13]].forEach(v=>px(...v,sh));
-    [[0,-9,1,2],[-1,-7,2,2],[-4,-5,8,13]].forEach(v=>px(...v,col));
-    [[-2,-3,1,7],[0,-2,1,5]].forEach(v=>px(...v,hi));
-
+    sh = 0x0d6d72; hi = 0xbefcf7;
+    shadow = [[-2,-7,4,2],[-3,-5,6,2],[-5,-3,10,8],[-3,5,6,2]];
+    base = [[-1,-7,2,2],[-2,-5,4,2],[-4,-3,8,8],[-2,5,4,1]];
+    light = [[-3,1,6,3],[-2,-2,1,4]];
   } else {
-    // SHIELD: wide flat top, stepped sides, pronounced bottom point
-    [[-6,-6,12,2],[-7,-4,14,8],[-6,4,12,3],[-4,7,8,2],[-2,9,4,2],[-1,11,3,2]].forEach(v=>px(...v,sh));
-    [[-5,-6,10,2],[-6,-4,12,8],[-5,4,10,3],[-3,7,6,2],[-1,9,2,2],[0,11,1,1]].forEach(v=>px(...v,col));
-    [[-2,-4,1,6],[0,-5,1,7],[2,-4,1,5]].forEach(v=>px(...v,hi));
+    sh = 0x1f6aa0; hi = 0xdaf8ff;
+    shadow = [[-6,-5,12,2],[-7,-3,14,5],[-6,2,12,2],[-4,4,8,2],[-2,6,4,2],[-1,8,2,1]];
+    base = [[-5,-5,10,2],[-6,-3,12,5],[-5,2,10,2],[-3,4,6,2],[-1,6,2,2]];
+    light = [[-3,-3,2,5],[0,-4,1,7],[2,-3,1,4]];
   }
+  c.add(scene.add.rectangle(0, 0, glow, glow, col, 0.14)); c.add(g);
+  fill(sh, shadow); fill(col, base); fill(hi, light);
   return c;
 }
 
@@ -663,7 +657,7 @@ class GameScene extends Phaser.Scene {
     if (auraType !== p._auraType) {
       p._auraType = auraType;
       if (auraType) {
-        const ac = auraType === 'guard' ? 0xffd56a : auraType === 'power' ? 0x67ff5c : auraType === 'speed' ? 0x63b8ff : 0x00d7c7;
+        const ac = PICKUP_CFG[auraType].col;
         p.aura.setFillStyle(ac).setVisible(true);
       } else {
         p.aura.setVisible(false);
@@ -1247,7 +1241,7 @@ class GameScene extends Phaser.Scene {
     const ox = pl.hitbox.x + offX, oy = pl.hitbox.y - 22;
     const orb = this.add.container(ox, oy);
     orb.add(drawPickupIcon(this, type, cfg.col));
-    this.tweens.add({ targets: orb, scaleX: 1.3, scaleY: 1.3, alpha: 0.8, duration: 380, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: orb, scaleX: 1.06, scaleY: 1.06, alpha: 0.88, duration: 520, yoyo: true, repeat: -1 });
     this.pickup = { orb, type, x: ox, y: oy, plat: pl, offX, life: 5500 };
   }
 
@@ -1347,10 +1341,10 @@ class GameScene extends Phaser.Scene {
     const drawBuffs = (g, p, x, y, dir) => {
       g.clear();
       const buffs = [
-        p.buffs.power > 0 ? ['power', 0x67ff5c] : null,
-        p.buffs.speed > 0 ? ['speed', 0x63b8ff] : null,
-        p.buffs.regen > 0 ? ['regen', 0x00d7c7] : null,
-        p.buffs.guard > 0 ? ['guard', 0xffd56a] : null,
+        p.buffs.power > 0 ? ['power', PICKUP_CFG.power.col] : null,
+        p.buffs.speed > 0 ? ['speed', PICKUP_CFG.speed.col] : null,
+        p.buffs.regen > 0 ? ['regen', PICKUP_CFG.regen.col] : null,
+        p.buffs.guard > 0 ? ['guard', PICKUP_CFG.guard.col] : null,
       ].filter(Boolean);
       buffs.forEach((it, i) => {
         const bx = x + dir * i * 16, by = y, col = it[1];
