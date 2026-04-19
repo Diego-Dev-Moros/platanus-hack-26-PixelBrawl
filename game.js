@@ -1233,7 +1233,15 @@ class GameScene extends Phaser.Scene {
       if ((this.pickupTimer -= dt) <= 0) this.spawnPickup();
       return;
     }
-    const p = this.pickup, nx = p.plat.hitbox.x + p.offX, ny = p.plat.hitbox.y - 22;
+    const p = this.pickup;
+    if (!p.plat || !p.plat.hitbox || !p.orb || !p.orb.active) {
+      this.stopPickupTweens(p);
+      if (p.orb && p.orb.active) p.orb.destroy();
+      this.pickup = null;
+      this.scheduleNextPickup();
+      return;
+    }
+    const nx = p.plat.hitbox.x + p.offX, ny = p.plat.hitbox.y - 22;
     const now = this.time.now, bob = Math.sin(now * p.floatSpd + p.seed) * p.floatAmp;
     const drift = p.jitterAmp ? Math.sin(now * p.jitterSpd + p.seed * 2.1) * p.jitterAmp : 0;
     const pulse = 1 + Math.sin(now * p.pulseSpd + p.seed * 1.4) * p.pulseAmp;
@@ -1241,14 +1249,13 @@ class GameScene extends Phaser.Scene {
     const ringBeat = Math.sin(now * p.ringSpd + p.seed + 1.2);
     p.orb.setPosition(nx + drift, ny + bob);
     p.x = nx; p.y = ny; p.vx = drift; p.vy = bob;
-    p.body.setScale(pulse).setRotation(p.rotAmp ? Math.sin(now * p.rotSpd + p.seed) * p.rotAmp : 0);
-    p.glow.setAlpha(p.glowBase + glowBeat * p.glowAmp).setScale(1.02 + glowBeat * 0.08);
-    p.halo.setAlpha(p.haloBase + glowBeat * p.haloAmp).setScale(1.08 + glowBeat * 0.12);
-    p.ring.setAlpha(p.ringBase + ringBeat * p.ringAmp).setScale(0.98 + ringBeat * 0.06);
+    if (p.body && p.body.active) p.body.setScale(pulse).setRotation(p.rotAmp ? Math.sin(now * p.rotSpd + p.seed) * p.rotAmp : 0);
+    if (p.glow && p.glow.active) p.glow.setAlpha(p.glowBase + glowBeat * p.glowAmp).setScale(1.02 + glowBeat * 0.08);
+    if (p.halo && p.halo.active) p.halo.setAlpha(p.haloBase + glowBeat * p.haloAmp).setScale(1.08 + glowBeat * 0.12);
+    if (p.ring && p.ring.active) p.ring.setAlpha(p.ringBase + ringBeat * p.ringAmp).setScale(0.98 + ringBeat * 0.06);
     if ((p.life -= dt) <= 0) {
-      this.tweens.killTweensOf(p.orb); this.tweens.killTweensOf(p.shell);
-      this.tweens.killTweensOf(p.glow); this.tweens.killTweensOf(p.halo); this.tweens.killTweensOf(p.ring);
-      p.orb.destroy();
+      this.stopPickupTweens(p);
+      if (p.orb && p.orb.active) p.orb.destroy();
       this.pickup = null;
       this.scheduleNextPickup();
     }
@@ -1286,22 +1293,17 @@ class GameScene extends Phaser.Scene {
       floatAmp = 1.7; floatSpd = 0.0041; pulseAmp = 0.024; pulseSpd = 0.0048; glowBase = 0.16; glowAmp = 0.04;
       haloBase = 0.06; haloAmp = 0.02; ringBase = 0.14; ringAmp = 0.02;
     }
-    this.tweens.timeline({
-      targets: shell,
-      tweens: [
-        { scaleX: peak, scaleY: peak, alpha: 1, duration: popDur, ease: 'Back.Out' },
-        { scaleX: 1, scaleY: 1, duration: 95, ease: 'Quad.easeOut' },
-      ],
-    });
-    const pop = this.add.circle(ox, oy, 10, cfg.col, 0.18).setStrokeStyle(2, 0xffffff, 0.75).setDepth(7);
-    this.tweens.add({ targets: pop, scaleX: type === 'power' ? 1.95 : 1.7, scaleY: type === 'power' ? 1.95 : 1.7, alpha: 0,
-      duration: type === 'power' ? 230 : 190, onComplete: () => pop.destroy() });
-    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 6 : Phaser.Math.Between(4, 5), 10, type === 'power' ? 26 : 22, 180, 8);
-    this.pickup = {
+    const pickup = {
       orb, shell, halo, glow, ring, body, type, x: ox, y: oy, vx: 0, vy: 0, plat: pl, offX, life: 5500,
       seed: Math.random() * Math.PI * 2, floatAmp, floatSpd, pulseAmp, pulseSpd, glowBase, glowAmp, haloBase, haloAmp,
       ringBase, ringAmp, ringSpd: pulseSpd * 0.8, jitterAmp, jitterSpd, rotAmp, rotSpd,
     };
+    this.pickup = pickup;
+    this.startPickupSpawnTween(pickup, peak, popDur);
+    const pop = this.add.circle(ox, oy, 10, cfg.col, 0.18).setStrokeStyle(2, 0xffffff, 0.75).setDepth(7);
+    this.pickupTween({ targets: pop, scaleX: type === 'power' ? 1.95 : 1.7, scaleY: type === 'power' ? 1.95 : 1.7, alpha: 0,
+      duration: type === 'power' ? 230 : 190, onComplete: () => pop.destroy() }, () => pop.destroy());
+    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 6 : Phaser.Math.Between(4, 5), 10, type === 'power' ? 26 : 22, 180, 8);
   }
 
   checkPickup(p) {
@@ -1310,13 +1312,13 @@ class GameScene extends Phaser.Scene {
     if (dx * dx + dy * dy > 24 * 24) return;
     const pk = this.pickup, { type, x, y, orb } = pk;
     const ox = x + pk.vx, oy = y + pk.vy;
-    this.tweens.killTweensOf(orb); this.tweens.killTweensOf(pk.shell);
-    this.tweens.killTweensOf(pk.glow); this.tweens.killTweensOf(pk.halo); this.tweens.killTweensOf(pk.ring);
-    orb.setPosition(ox, oy);
+    this.stopPickupTweens(pk);
+    if (orb && orb.active) orb.setPosition(ox, oy);
     this.pickup = null;
     this.scheduleNextPickup();
     const cfg = PICKUP_CFG[type];
-    this.tweens.add({ targets: orb, scaleX: 1.14, scaleY: 1.14, alpha: 0, duration: 95, ease: 'Quad.easeOut', onComplete: () => orb.destroy() });
+    if (orb && orb.active)
+      this.pickupTween({ targets: orb, scaleX: 1.14, scaleY: 1.14, alpha: 0, duration: 95, ease: 'Quad.easeOut', onComplete: () => orb.destroy() }, () => orb.destroy());
     this.pickupBits(ox, oy, cfg.col, type === 'power' ? 10 : type === 'speed' ? 9 : 8, 18, type === 'power' ? 56 : 46, 250, 8);
     this.pickupFlash(ox, oy, cfg.col);
     showPickupText(this, ox, oy, cfg.txt, cfg.tc);
@@ -1338,23 +1340,50 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: circ, scaleX: endScale, scaleY: endScale, alpha: 0, duration: dur, onComplete: () => circ.destroy() });
   }
 
+  pickupTween(cfg, fail) {
+    try { return this.tweens.add(cfg); } catch (_) { if (fail) fail(); }
+    return null;
+  }
+
+  stopPickupTweens(p) {
+    if (!p) return;
+    if (p.orb) this.tweens.killTweensOf(p.orb);
+    if (p.shell) this.tweens.killTweensOf(p.shell);
+    if (p.glow) this.tweens.killTweensOf(p.glow);
+    if (p.halo) this.tweens.killTweensOf(p.halo);
+    if (p.ring) this.tweens.killTweensOf(p.ring);
+  }
+
+  startPickupSpawnTween(p, peak, popDur) {
+    const sh = p && p.shell;
+    if (!sh || !sh.active) return;
+    sh.setScale(0.2).setAlpha(0);
+    this.pickupTween({
+      targets: sh, scaleX: peak, scaleY: peak, alpha: 1, duration: popDur, ease: 'Back.Out',
+      onComplete: () => {
+        if (this.pickup !== p || !sh.active) return;
+        this.pickupTween({ targets: sh, scaleX: 1, scaleY: 1, duration: 95, ease: 'Quad.easeOut' }, () => sh.active && sh.setScale(1));
+      },
+    }, () => sh.active && sh.setScale(1).setAlpha(1));
+  }
+
   pickupBits(x, y, col, n, minDist, maxDist, dur, depth) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, d = Phaser.Math.Between(minDist, maxDist), s = Phaser.Math.Between(3, 5);
       const r = this.add.rectangle(x, y, s, s, i % 3 ? col : 0xffffff, 0.95).setDepth(depth);
-      this.tweens.add({
+      this.pickupTween({
         targets: r, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, angle: Phaser.Math.Between(-80, 80),
         alpha: 0, scaleX: 0.25, scaleY: 0.25, duration: dur + Math.random() * 60, ease: 'Quad.easeOut',
         onComplete: () => r.destroy(),
-      });
+      }, () => r.destroy());
     }
   }
 
   pickupFlash(x, y, col) {
     const tint = this.add.circle(x, y, 16, col, 0.26).setDepth(7);
     const core = this.add.rectangle(x, y, 28, 28, 0xffffff, 0.86).setAngle(45).setDepth(8);
-    this.tweens.add({ targets: tint, scaleX: 1.9, scaleY: 1.9, alpha: 0, duration: 130, onComplete: () => tint.destroy() });
-    this.tweens.add({ targets: core, scaleX: 1.45, scaleY: 1.45, alpha: 0, duration: 95, onComplete: () => core.destroy() });
+    this.pickupTween({ targets: tint, scaleX: 1.9, scaleY: 1.9, alpha: 0, duration: 130, onComplete: () => tint.destroy() }, () => tint.destroy());
+    this.pickupTween({ targets: core, scaleX: 1.45, scaleY: 1.45, alpha: 0, duration: 95, onComplete: () => core.destroy() }, () => core.destroy());
   }
 
   pickupSoundHook(type, x, y) {
