@@ -32,6 +32,16 @@ const CHARS = [
 ];
 
 const SPAWNS = [{ x: 320, y: 300 }, { x: 480, y: 300 }];
+const STAGE_PLATS = [
+  { x: 400, y: 470, w: 420, h: 28, type: 'main', speed: 0,   range: 0,  phase: 0 },
+  { x: 240, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: 0,        vRange: 18, vSpeed: 0.7, vPhase: 0 },
+  { x: 560, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: Math.PI,  vRange: 18, vSpeed: 0.7, vPhase: Math.PI },
+  { x: 400, y: 270, w: 100, h: 18, type: 'top',  speed: 0.6, range: 28, phase: 0,        vRange: 14, vSpeed: 0.5, vPhase: 0 },
+];
+const FINAL_PLATS = [
+  { x: 280, y: 470, w: 180, h: 28, type: 'side', speed: 1.2, range: 90, phase: 0,       vRange: 16, vSpeed: 0.8, vPhase: 0 },
+  { x: 520, y: 470, w: 180, h: 28, type: 'side', speed: 1.2, range: 90, phase: Math.PI, vRange: 16, vSpeed: 0.8, vPhase: Math.PI },
+];
 const BUFF_BADGES = {
   power: [[-2, -1, 5, 3], [0, -4, 3, 3]],
   speed: [[-3, 0, 6, 2], [-1, -4, 3, 4]],
@@ -462,18 +472,36 @@ function buildPlatShip(scene, w, h, type) {
   return c;
 }
 
+function addStagePlatform(scene, d) {
+  const hitbox = scene.add.rectangle(d.x, d.y, d.w, d.h, 0x000000, 0);
+  scene.plats.add(hitbox);
+  const visual = buildPlatShip(scene, d.w, d.h, d.type);
+  visual.setPosition(d.x, d.y);
+  const p = {
+    hitbox, visual, baseX: d.x, baseY: d.y, speed: d.speed, range: d.range, phase: d.phase,
+    vRange: d.vRange, vSpeed: d.vSpeed, vPhase: d.vPhase, halfW: d.w / 2, snapTop: d.y - 10,
+  };
+  scene.platData.push(p);
+  if (d.speed || d.vRange) scene.movingPlats.push(p);
+  return p;
+}
+
+function setStagePlatformPos(p, x, y) {
+  p.hitbox.x = x; p.hitbox.y = y;
+  p.visual.x = x; p.visual.y = y;
+  p.snapTop = y - 10;
+}
+
 function updatePlatforms(scene) {
-  if (!scene.platData) return;
-  const t = scene.time.now * 0.001, sp = scene.finalPhase ? 1.6 : 1;
-  let moved = false;
-  for (const p of scene.platData) {
-    if (!p.speed || !p.hitbox) continue;
+  const plats = scene.movingPlats;
+  if (!plats || !plats.length) return;
+  const t = scene.time.now * 0.001, sp = scene.platSpeedMul || 1, fy = scene.finalPhase;
+  for (const p of plats) {
     const nx = p.baseX + Math.sin(t * p.speed * sp + p.phase) * p.range;
-    const ny = p.baseY + (scene.finalPhase && p.vRange ? Math.sin(t * p.vSpeed + p.vPhase) * p.vRange : 0);
-    p.hitbox.x = nx; p.hitbox.y = ny; p.visual.x = nx; p.visual.y = ny;
-    moved = true;
+    const ny = p.baseY + (fy && p.vRange ? Math.sin(t * p.vSpeed + p.vPhase) * p.vRange : 0);
+    setStagePlatformPos(p, nx, ny);
   }
-  if (moved) scene.plats.refresh();
+  scene.plats.refresh();
 }
 
 class BootScene extends Phaser.Scene {
@@ -638,6 +666,7 @@ class GameScene extends Phaser.Scene {
   create() {
     bindKeys(this);
     this.over = 0; this.matchTime = 180000; this.finalPhase = false;
+    this.platSpeedMul = 1; this.moveSpeedMul = 1;
     this.ready = false;
     this.hudDirty = false;
     this._fzEnd = 0; this._fzToken = 0;
@@ -669,19 +698,8 @@ class GameScene extends Phaser.Scene {
   makeStage() {
     this.plats = this.physics.add.staticGroup();
     this.platData = [];
-    const PDEFS = [
-      { x: 400, y: 470, w: 420, h: 28, type: 'main', speed: 0,   range: 0,  phase: 0 },
-      { x: 240, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: 0,        vRange: 18, vSpeed: 0.7, vPhase: 0 },
-      { x: 560, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: Math.PI,  vRange: 18, vSpeed: 0.7, vPhase: Math.PI },
-      { x: 400, y: 270, w: 100, h: 18, type: 'top',  speed: 0.6, range: 28, phase: 0,        vRange: 14, vSpeed: 0.5, vPhase: 0 },
-    ];
-    for (const d of PDEFS) {
-      const hitbox = this.add.rectangle(d.x, d.y, d.w, d.h, 0x000000, 0);
-      this.plats.add(hitbox);
-      const visual = buildPlatShip(this, d.w, d.h, d.type);
-      visual.setPosition(d.x, d.y);
-      this.platData.push({ hitbox, visual, baseX: d.x, baseY: d.y, speed: d.speed, range: d.range, phase: d.phase, vRange: d.vRange, vSpeed: d.vSpeed, vPhase: d.vPhase });
-    }
+    this.movingPlats = [];
+    for (const d of STAGE_PLATS) addStagePlatform(this, d);
     this.plats.refresh();
   }
 
@@ -804,12 +822,13 @@ class GameScene extends Phaser.Scene {
 
   tryEdgeSnap(p, b) {
     if (!this.ready || !p.canEdgeSnap || b.blocked.down || b.velocity.y <= 80) return;
+    const px = p.body.x, py = p.body.y;
     for (const pd of this.platData) {
-      const ed = Math.abs(p.body.x - pd.hitbox.x) - pd.hitbox.width / 2;
-      const yd = p.body.y - (pd.hitbox.y - 10);
+      const ed = Math.abs(px - pd.hitbox.x) - pd.halfW;
+      const yd = py - pd.snapTop;
       if (ed > 0 && ed < 24 && yd > 0 && yd < 50) {
         p.canEdgeSnap = false;
-        b.velocity.x += (p.body.x < pd.hitbox.x ? 1 : -1) * 80;
+        b.velocity.x += (px < pd.hitbox.x ? 1 : -1) * 80;
         break;
       }
     }
@@ -870,15 +889,15 @@ class GameScene extends Phaser.Scene {
 
   movePlayer(p, b) {
     if (!this.ready) return;
-    const k = p.keys;
+    const k = p.keys, held = this.ctrl.held;
     if (grounded(b)) { p.jumps = 2; p.canAirDodge = true; p.canEdgeSnap = true; }
     if (p.stun > 0 || p.dashT > 0) return;
     if (p.shielding) { b.setVelocityX(0); return; }
-    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * (this.finalPhase ? 1.18 : 1);
-    let vx = 0;
-    if (this.ctrl.held[k.left]) { vx = -spd; p.face = -1; }
-    if (this.ctrl.held[k.right]) { vx = spd; p.face = 1; }
-    b.setVelocityX(vx);
+    const left = held[k.left], right = held[k.right];
+    const dir = right ? 1 : left ? -1 : 0;
+    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * this.moveSpeedMul;
+    if (dir) p.face = dir;
+    b.setVelocityX(dir * spd);
     if (this.ctrl.pressed[k.up] && p.jumps > 0) {
       b.setVelocityY(JUMP);
       p.jumps--;
@@ -1218,6 +1237,7 @@ class GameScene extends Phaser.Scene {
 
   triggerFinalPhase() {
     this.finalPhase = true;
+    this.platSpeedMul = 1.6; this.moveSpeedMul = 1.18;
     const txt = this.add.text(W/2, H/2, 'FINAL MINUTE', {
       fontFamily:'monospace', fontSize:'46px', fontStyle:'bold', color:'#ff4444'
     }).setOrigin(0.5).setDepth(20);
@@ -1226,13 +1246,8 @@ class GameScene extends Phaser.Scene {
     tone(this, 880, 'square', 0.12, 0.28);
     this.time.delayedCall(300, ()=>tone(this, 660, 'square', 0.10, 0.28));
     const mp = this.platData[0];
-    mp.hitbox.setPosition(-2000, -2000); mp.visual.setVisible(false);
-    [[280,0],[520,Math.PI]].forEach(([bx,ph])=>{
-      const h = this.add.rectangle(bx, 470, 180, 28, 0x000000, 0);
-      this.plats.add(h);
-      const v = buildPlatShip(this, 180, 28, 'side'); v.setPosition(bx, 470);
-      this.platData.push({ hitbox:h, visual:v, baseX:bx, baseY:470, speed:1.2, range:90, phase:ph, vRange:16, vSpeed:0.8, vPhase:ph });
-    });
+    setStagePlatformPos(mp, -2000, -2000); mp.visual.setVisible(false);
+    for (const d of FINAL_PLATS) addStagePlatform(this, d);
     this.plats.refresh();
   }
 
