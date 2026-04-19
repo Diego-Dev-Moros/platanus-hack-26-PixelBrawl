@@ -577,16 +577,18 @@ class GameScene extends Phaser.Scene {
 
   makeHud() {
     this.hudFrame = this.add.graphics().setDepth(10);
-    this.hudTimer = addLabel(this, W / 2, 14, '3:00', 20, C.text, 'center').setOrigin(0.5, 0).setDepth(11);
-    this.hudP1 = addLabel(this, 24, 15, '', 10, C.p1).setDepth(11);
-    this.hudPct1 = addLabel(this, 24, 30, '', 30, C.p1).setDepth(11);
-    this.hudS1 = addLabel(this, 24, 69, '', 10, C.dim).setDepth(11);
-    this.hudP2 = addLabel(this, W - 24, 15, '', 10, C.p2, 'right').setOrigin(1, 0).setDepth(11);
-    this.hudPct2 = addLabel(this, W - 24, 30, '', 30, C.p2, 'right').setOrigin(1, 0).setDepth(11);
-    this.hudS2 = addLabel(this, W - 24, 69, '', 10, C.dim, 'right').setOrigin(1, 0).setDepth(11);
+    this.hudTimer = addLabel(this, W / 2, 16, '3:00', 20, C.text, 'center').setOrigin(0.5, 0).setDepth(11);
+    this.hudP1 = addLabel(this, 26, 16, '', 10, C.p1).setDepth(11);
+    this.hudPct1 = addLabel(this, 26, 28, '', 32, C.p1).setDepth(11);
+    this.hudS1 = addLabel(this, 26, 68, '', 9, C.dim).setDepth(11);
+    this.hudP2 = addLabel(this, W - 26, 16, '', 10, C.p2, 'right').setOrigin(1, 0).setDepth(11);
+    this.hudPct2 = addLabel(this, W - 26, 28, '', 32, C.p2, 'right').setOrigin(1, 0).setDepth(11);
+    this.hudS2 = addLabel(this, W - 26, 68, '', 9, C.dim, 'right').setOrigin(1, 0).setDepth(11);
     this.hudBar1 = this.add.graphics();
     this.hudBar2 = this.add.graphics();
-    this.hudBar1.setDepth(11); this.hudBar2.setDepth(11);
+    this.hudBuff1 = this.add.graphics();
+    this.hudBuff2 = this.add.graphics();
+    this.hudBar1.setDepth(11); this.hudBar2.setDepth(11); this.hudBuff1.setDepth(11); this.hudBuff2.setDepth(11);
   }
 
   makePlayer(idx, id) {
@@ -1254,6 +1256,66 @@ class GameScene extends Phaser.Scene {
     this.hudPct2.setText(p2._hud.pct + '%').setColor(p2._hud.pct >= 150 ? '#ff6d78' : p2._hud.pct >= 80 ? '#ffd25a' : C.p2);
     this.hudS1.setText(cool(p1) + (p1.fatigue > 0 ? '  EXH' : '') + (bufStr(p1) ? '  ' + bufStr(p1) : ''));
     this.hudS2.setText(cool(p2) + (p2.fatigue > 0 ? '  EXH' : '') + (bufStr(p2) ? '  ' + bufStr(p2) : ''));
+  }
+
+  refreshHud() {
+    const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
+    const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP OK';
+    const p1 = this.players[0], p2 = this.players[1];
+    const frame = this.hudFrame;
+    frame.clear();
+    frame.fillStyle(0x07121c, 0.56);
+    frame.fillRoundedRect(14, 10, 224, 76, 10);
+    frame.fillRoundedRect(W - 238, 10, 224, 76, 10);
+    frame.fillStyle(0x081722, 0.72);
+    frame.fillRoundedRect(W / 2 - 78, 10, 156, 36, 10);
+    frame.lineStyle(1, 0x295374, 0.70);
+    frame.strokeRoundedRect(14, 10, 224, 76, 10);
+    frame.strokeRoundedRect(W - 238, 10, 224, 76, 10);
+    frame.strokeRoundedRect(W / 2 - 78, 10, 156, 36, 10);
+    frame.lineStyle(2, 0x143245, 0.85);
+    frame.lineBetween(22, 60, 230, 60);
+    frame.lineBetween(W - 230, 60, W - 22, 60);
+    frame.fillStyle(this.finalPhase ? 0x742a2a : 0x11293b, 0.90);
+    frame.fillRoundedRect(W / 2 - 34, 53, 68, 22, 8);
+    frame.lineStyle(1, this.finalPhase ? 0xff6f6f : 0x5bc6f0, 0.90);
+    frame.strokeRoundedRect(W / 2 - 34, 53, 68, 22, 8);
+    const dB = (g, p, x) => {
+      g.clear();
+      const c = p._hud.seg >= 7 ? 0x32e3ff : p._hud.seg >= 4 ? 0xffcf45 : 0xff5668;
+      for (let i = 0; i < 10; i++) {
+        g.fillStyle(i < p._hud.seg ? c : 0x1a2a3a, i < p._hud.seg ? 1 : .25);
+        g.fillRect(x + i * 10, 63, 8, 6);
+      }
+    };
+    const drawBuffs = (g, p, x, y, dir) => {
+      g.clear();
+      const buffs = [
+        p.buffs.power > 0 ? ['power', 0x67ff5c] : null,
+        p.buffs.speed > 0 ? ['speed', 0x63b8ff] : null,
+        p.buffs.regen > 0 ? ['regen', 0x00d7c7] : null,
+        p.buffs.guard > 0 ? ['guard', 0xffd56a] : null,
+      ].filter(Boolean);
+      buffs.forEach((it, i) => {
+        const bx = x + dir * i * 16, by = y, col = it[1];
+        g.fillStyle(0x10202c, 0.95); g.fillRoundedRect(bx - 6, by - 6, 12, 12, 3);
+        g.lineStyle(1, col, 0.95); g.strokeRoundedRect(bx - 6, by - 6, 12, 12, 3);
+        g.fillStyle(col, 1);
+        if (it[0] === 'power') { g.fillRect(bx - 2, by - 1, 5, 3); g.fillRect(bx, by - 4, 3, 3); }
+        else if (it[0] === 'speed') { g.fillRect(bx - 3, by, 6, 2); g.fillRect(bx - 1, by - 4, 3, 4); }
+        else if (it[0] === 'regen') { g.fillRect(bx - 2, by - 4, 4, 7); g.fillRect(bx - 1, by - 6, 2, 2); }
+        else { g.fillRect(bx - 3, by - 4, 6, 2); g.fillRect(bx - 4, by - 2, 8, 4); g.fillRect(bx - 2, by + 2, 4, 2); }
+      });
+    };
+    dB(this.hudBar1, p1, 24); dB(this.hudBar2, p2, W - 122);
+    drawBuffs(this.hudBuff1, p1, 188, 74, 1);
+    drawBuffs(this.hudBuff2, p2, W - 188, 74, -1);
+    this.hudP1.setText('P1  ' + p1.char.name + '  ' + dots(p1.lives));
+    this.hudP2.setText('P2  ' + p2.char.name + '  ' + dots(p2.lives));
+    this.hudPct1.setText(p1._hud.pct + '%').setColor(p1._hud.pct >= 150 ? '#ff6d78' : p1._hud.pct >= 80 ? '#ffd25a' : C.p1);
+    this.hudPct2.setText(p2._hud.pct + '%').setColor(p2._hud.pct >= 150 ? '#ff6d78' : p2._hud.pct >= 80 ? '#ffd25a' : C.p2);
+    this.hudS1.setText(cool(p1) + (p1.fatigue > 0 ? '  EXH' : ''));
+    this.hudS2.setText(cool(p2) + (p2.fatigue > 0 ? '  EXH' : ''));
   }
 }
 
