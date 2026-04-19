@@ -292,38 +292,47 @@ function drawPickupIcon(scene, type, col) {
   const c = scene.add.container(0, 0), g = scene.add.graphics();
   const fill = (cc, parts, a) => { g.fillStyle(cc, a == null ? 1 : a); for (const p of parts) g.fillRect(p[0], p[1], p[2], p[3]); };
   const off = (parts, ox, oy) => parts.map(p => [p[0] + ox, p[1] + oy, p[2], p[3]]);
-  let sh = 0x4c1730, hi = 0xffd8de, base, light, accent;
+  const stroke = (parts, cc, a) => {
+    fill(cc, off(parts, -1, -1), a); fill(cc, off(parts, 0, -1), a); fill(cc, off(parts, 1, -1), a);
+    fill(cc, off(parts, -1, 0), a);                                   fill(cc, off(parts, 1, 0), a);
+    fill(cc, off(parts, -1, 1), a);  fill(cc, off(parts, 0, 1), a);  fill(cc, off(parts, 1, 1), a);
+  };
+  let hi = 0xffd8de, base, light;
 
   if (type === 'recovery') {
-    sh = 0x8f2139; hi = 0xffd7de;
-    base = [[-7,-5,5,4],[2,-5,5,4],[-6,-2,12,5],[-4,3,8,4],[-2,7,4,3]];
-    light = [[-6,-4,2,1],[-5,-2,1,1]];
+    hi = 0xffd7de;
+    base = [[-9,-8,7,7],[2,-8,7,7],[-12,-3,26,8],[-8,5,18,6],[-4,11,10,5]];
+    light = [[-8,-7,3,2],[-11,-2,6,2],[-7,6,3,2]];
   } else if (type === 'power') {
-    sh = 0xa33718; hi = 0xffd39e;
-    base = [[-3,-3,8,8],[-1,-8,4,4],[-8,-1,5,4],[5,-4,4,5],[3,5,5,4],[-1,5,3,4]];
-    light = [[-2,-2,3,1],[-1,-7,2,1]];
+    hi = 0xffd39e;
+    base = [[-3,-12,6,7],[-12,-3,7,6],[-5,-5,10,10],[5,-2,10,6],[-2,5,6,10],[7,-9,5,4]];
+    light = [[-2,-11,2,3],[-11,-2,3,2],[-4,-4,4,2]];
   } else if (type === 'speed') {
-    sh = 0x9d6712; hi = 0xfff0af;
-    base = [[-9,-6,5,4],[-5,-2,6,4],[-9,2,5,4],[-1,-4,5,3],[3,-1,6,3],[-1,3,5,3]];
-    light = [[-8,-5,2,1],[-1,-3,2,1]];
+    hi = 0xfff0af;
+    base = [[-13,-10,8,5],[-7,-3,8,5],[-13,4,8,5],[0,-10,8,5],[6,-3,8,5],[0,4,8,5]];
+    light = [[-12,-9,4,2],[-6,-2,4,2],[1,-9,4,2]];
   } else if (type === 'regen') {
-    sh = 0x0d6d72; hi = 0xbefcf7;
-    base = [[-3,-7,6,4],[-6,-3,12,10]];
-    light = [[-4,-6,2,2],[-4,-2,1,4]];
-    accent = [[-4,1,8,3]];
+    hi = 0xbefcf7;
+    base = [[-4,-12,8,4],[-7,-8,14,4],[-10,-4,20,12],[-8,8,16,5]];
+    light = [[-3,-11,3,2],[-6,-7,4,2],[-9,-3,3,6]];
+  } else if (type === 'guard') {
+    hi = 0xdaf8ff;
+    base = [[-9,-10,18,5],[-12,-5,24,7],[-10,2,20,6],[-7,8,14,5],[-3,13,6,4]];
+    light = [[-8,-9,8,2],[-11,-4,5,2],[-9,3,4,2]];
   } else {
-    sh = 0x1f6aa0; hi = 0xdaf8ff;
-    base = [[-7,-6,14,4],[-6,-2,12,5],[-4,3,8,4],[-2,7,4,3]];
-    light = [[-6,-5,3,1],[-5,-2,1,3]];
+    base = [[-8,-8,16,16]];
+    light = [[-7,-7,5,2],[-7,-5,2,5]];
   }
-  const shadow = off(base, 1, 1);
-  c.add(scene.add.rectangle(0, 0, 27, 27, col, 0.18)); c.add(g);
-  fill(0x07111a, [[-9,-11,18,22],[-11,-9,22,18]], 0.82);
-  fill(0x122130, [[-7,-9,14,2],[-9,-7,2,14]], 0.9);
-  fill(col, [[-7,-9,14,2]], 0.16);
-  fill(sh, shadow);
+  const shadow = off(base, 2, 2);
+  c.add(g);
+  fill(0x04080d, [[-17,-17,34,34]], 0.92);
+  fill(0x10202c, [[-15,-15,30,30]], 0.98);
+  fill(0x1d3344, [[-15,-15,30,2],[-15,-13,2,28]], 0.92);
+  fill(0x061019, [[-15,13,30,2],[13,-15,2,30]], 0.95);
+  fill(col, [[-15,-15,30,30]], 0.10);
+  fill(0x050a10, shadow, 0.55);
+  stroke(base, 0x03070b, 0.98);
   fill(col, base);
-  if (accent) fill(hi, accent);
   fill(hi, light);
   return c;
 }
@@ -1224,13 +1233,22 @@ class GameScene extends Phaser.Scene {
       if ((this.pickupTimer -= dt) <= 0) this.spawnPickup();
       return;
     }
-    const nx = this.pickup.plat.hitbox.x + this.pickup.offX;
-    const ny = this.pickup.plat.hitbox.y - 22;
-    this.pickup.orb.setPosition(nx, ny);
-    this.pickup.x = nx; this.pickup.y = ny;
-    if ((this.pickup.life -= dt) <= 0) {
-      this.tweens.killTweensOf(this.pickup.orb);
-      this.pickup.orb.destroy();
+    const p = this.pickup, nx = p.plat.hitbox.x + p.offX, ny = p.plat.hitbox.y - 22;
+    const now = this.time.now, bob = Math.sin(now * p.floatSpd + p.seed) * p.floatAmp;
+    const drift = p.jitterAmp ? Math.sin(now * p.jitterSpd + p.seed * 2.1) * p.jitterAmp : 0;
+    const pulse = 1 + Math.sin(now * p.pulseSpd + p.seed * 1.4) * p.pulseAmp;
+    const glowBeat = Math.sin(now * p.glowSpd + p.seed * 0.8);
+    const ringBeat = Math.sin(now * p.ringSpd + p.seed + 1.2);
+    p.orb.setPosition(nx + drift, ny + bob);
+    p.x = nx; p.y = ny; p.vx = drift; p.vy = bob;
+    p.body.setScale(pulse).setRotation(p.rotAmp ? Math.sin(now * p.rotSpd + p.seed) * p.rotAmp : 0);
+    p.glow.setAlpha(p.glowBase + glowBeat * p.glowAmp).setScale(1.02 + glowBeat * 0.08);
+    p.halo.setAlpha(p.haloBase + glowBeat * p.haloAmp).setScale(1.08 + glowBeat * 0.12);
+    p.ring.setAlpha(p.ringBase + ringBeat * p.ringAmp).setScale(0.98 + ringBeat * 0.06);
+    if ((p.life -= dt) <= 0) {
+      this.tweens.killTweensOf(p.orb); this.tweens.killTweensOf(p.shell);
+      this.tweens.killTweensOf(p.glow); this.tweens.killTweensOf(p.halo); this.tweens.killTweensOf(p.ring);
+      p.orb.destroy();
       this.pickup = null;
       this.scheduleNextPickup();
     }
@@ -1243,25 +1261,68 @@ class GameScene extends Phaser.Scene {
     const type = rnd<0.30?'recovery':rnd<0.50?'power':rnd<0.70?'speed':rnd<0.88?'regen':'guard';
     const cfg = PICKUP_CFG[type];
     const ox = pl.hitbox.x + offX, oy = pl.hitbox.y - 22;
-    const orb = this.add.container(ox, oy);
-    orb.add(drawPickupIcon(this, type, cfg.col));
-    this.tweens.add({ targets: orb, scaleX: 1.06, scaleY: 1.06, alpha: 0.88, duration: 520, yoyo: true, repeat: -1 });
-    this.pickup = { orb, type, x: ox, y: oy, plat: pl, offX, life: 5500 };
+    const orb = this.add.container(ox, oy).setDepth(6);
+    const shell = this.add.container(0, 0).setScale(0.2).setAlpha(0);
+    const halo = this.add.circle(0, 0, 24, cfg.col, 0.08);
+    const glow = this.add.circle(0, 0, 18, cfg.col, 0.18);
+    const ring = this.add.circle(0, 0, 22, cfg.col, 0).setStrokeStyle(2, cfg.col, 0.24);
+    const body = this.add.container(0, 0);
+    body.add(drawPickupIcon(this, type, cfg.col));
+    shell.add([halo, glow, ring, body]); orb.add(shell);
+    let floatAmp = 2.8, floatSpd = 0.0055, pulseAmp = 0.035, pulseSpd = 0.0062;
+    let glowBase = 0.21, glowAmp = 0.06, haloBase = 0.09, haloAmp = 0.03, ringBase = 0.18, ringAmp = 0.04;
+    let jitterAmp = 0, jitterSpd = 0.022, rotAmp = 0, rotSpd = 0.0046, peak = 1.18, popDur = 110;
+    if (type === 'power') {
+      pulseAmp = 0.06; pulseSpd = 0.0105; glowBase = 0.28; glowAmp = 0.09; haloBase = 0.12; haloAmp = 0.05;
+      ringBase = 0.24; ringAmp = 0.06; rotAmp = 0.03; rotSpd = 0.007; peak = 1.28; popDur = 90;
+    } else if (type === 'speed') {
+      floatAmp = 3.2; floatSpd = 0.0082; pulseAmp = 0.045; pulseSpd = 0.009; glowBase = 0.24; glowAmp = 0.07;
+      haloBase = 0.1; haloAmp = 0.035; ringBase = 0.2; ringAmp = 0.05; jitterAmp = 0.8; rotAmp = 0.012; rotSpd = 0.008;
+      peak = 1.22; popDur = 100;
+    } else if (type === 'regen') {
+      floatAmp = 2.4; floatSpd = 0.0046; pulseAmp = 0.03; pulseSpd = 0.0045; glowBase = 0.19; glowAmp = 0.05;
+      haloBase = 0.08; haloAmp = 0.028; ringBase = 0.16; ringAmp = 0.03;
+    } else if (type === 'guard') {
+      floatAmp = 1.7; floatSpd = 0.0041; pulseAmp = 0.024; pulseSpd = 0.0048; glowBase = 0.16; glowAmp = 0.04;
+      haloBase = 0.06; haloAmp = 0.02; ringBase = 0.14; ringAmp = 0.02;
+    }
+    this.tweens.timeline({
+      targets: shell,
+      tweens: [
+        { scaleX: peak, scaleY: peak, alpha: 1, duration: popDur, ease: 'Back.Out' },
+        { scaleX: 1, scaleY: 1, duration: 95, ease: 'Quad.easeOut' },
+      ],
+    });
+    const pop = this.add.circle(ox, oy, 10, cfg.col, 0.18).setStrokeStyle(2, 0xffffff, 0.75).setDepth(7);
+    this.tweens.add({ targets: pop, scaleX: type === 'power' ? 1.95 : 1.7, scaleY: type === 'power' ? 1.95 : 1.7, alpha: 0,
+      duration: type === 'power' ? 230 : 190, onComplete: () => pop.destroy() });
+    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 6 : Phaser.Math.Between(4, 5), 10, type === 'power' ? 26 : 22, 180, 8);
+    this.pickup = {
+      orb, shell, halo, glow, ring, body, type, x: ox, y: oy, vx: 0, vy: 0, plat: pl, offX, life: 5500,
+      seed: Math.random() * Math.PI * 2, floatAmp, floatSpd, pulseAmp, pulseSpd, glowBase, glowAmp, haloBase, haloAmp,
+      ringBase, ringAmp, ringSpd: pulseSpd * 0.8, jitterAmp, jitterSpd, rotAmp, rotSpd,
+    };
   }
 
   checkPickup(p) {
     if (!this.pickup) return;
     const dx = p.body.x - this.pickup.x, dy = p.body.y - this.pickup.y;
     if (dx * dx + dy * dy > 24 * 24) return;
-    const { type, x, y, orb } = this.pickup;
-    this.tweens.killTweensOf(orb);
-    orb.destroy();
+    const pk = this.pickup, { type, x, y, orb } = pk;
+    const ox = x + pk.vx, oy = y + pk.vy;
+    this.tweens.killTweensOf(orb); this.tweens.killTweensOf(pk.shell);
+    this.tweens.killTweensOf(pk.glow); this.tweens.killTweensOf(pk.halo); this.tweens.killTweensOf(pk.ring);
+    orb.setPosition(ox, oy);
     this.pickup = null;
     this.scheduleNextPickup();
     const cfg = PICKUP_CFG[type];
-    burst(this, x, y, cfg.col, 5);
-    showPickupText(this, x, y, cfg.txt, cfg.tc);
+    this.tweens.add({ targets: orb, scaleX: 1.14, scaleY: 1.14, alpha: 0, duration: 95, ease: 'Quad.easeOut', onComplete: () => orb.destroy() });
+    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 10 : type === 'speed' ? 9 : 8, 18, type === 'power' ? 56 : 46, 250, 8);
+    this.pickupFlash(ox, oy, cfg.col);
+    showPickupText(this, ox, oy, cfg.txt, cfg.tc);
+    this.pickupSoundHook(type, ox, oy);
     tone(this, cfg.f, cfg.ft, 0.07, cfg.fd);
+    if (type === 'power') this.cameras.main.shake(70, 0.0035);
     if (cfg.bk) { p.buffs[cfg.bk] = cfg.dur; }
     else { p.stamina = Math.min(p.staminaMax, p.stamina + 35); p.lastHitTime = 0; }
     this.hudDirty = true;
@@ -1275,6 +1336,29 @@ class GameScene extends Phaser.Scene {
   ring(x, y, r, endScale, c, dur) {
     const circ = this.add.circle(x, y, r, c, 0.15).setStrokeStyle(3, c);
     this.tweens.add({ targets: circ, scaleX: endScale, scaleY: endScale, alpha: 0, duration: dur, onComplete: () => circ.destroy() });
+  }
+
+  pickupBits(x, y, col, n, minDist, maxDist, dur, depth) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, d = Phaser.Math.Between(minDist, maxDist), s = Phaser.Math.Between(3, 5);
+      const r = this.add.rectangle(x, y, s, s, i % 3 ? col : 0xffffff, 0.95).setDepth(depth);
+      this.tweens.add({
+        targets: r, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, angle: Phaser.Math.Between(-80, 80),
+        alpha: 0, scaleX: 0.25, scaleY: 0.25, duration: dur + Math.random() * 60, ease: 'Quad.easeOut',
+        onComplete: () => r.destroy(),
+      });
+    }
+  }
+
+  pickupFlash(x, y, col) {
+    const tint = this.add.circle(x, y, 16, col, 0.26).setDepth(7);
+    const core = this.add.rectangle(x, y, 28, 28, 0xffffff, 0.86).setAngle(45).setDepth(8);
+    this.tweens.add({ targets: tint, scaleX: 1.9, scaleY: 1.9, alpha: 0, duration: 130, onComplete: () => tint.destroy() });
+    this.tweens.add({ targets: core, scaleX: 1.45, scaleY: 1.45, alpha: 0, duration: 95, onComplete: () => core.destroy() });
+  }
+
+  pickupSoundHook(type, x, y) {
+    // Placeholder for dedicated pickup collection SFX.
   }
 
   refreshHud() {
