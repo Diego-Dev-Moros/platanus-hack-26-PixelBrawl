@@ -2,7 +2,7 @@
 
 const W = 800, H = 600;
 const GRAVITY = 980, SPEED = 220, JUMP = -420, LIVES = 3;
-const ATK_CD = 280, DASH_CD = 900, FATIGUE_MS = 1000, INVULN_MS = 1200, EXHAUST_RECOVER = 35;
+const DASH_CD = 900, FATIGUE_MS = 1000, INVULN_MS = 1200, EXHAUST_RECOVER = 35;
 const BUFF_POWER_DUR = 10000, BUFF_SPEED_DUR = 10000, BUFF_REGEN_DUR = 8000, BUFF_GUARD_DUR = 9000;
 
 const PICKUP_CFG = {
@@ -29,6 +29,11 @@ const CHARS = [
 
 const SPAWNS = [{ x: 320, y: 300 }, { x: 480, y: 300 }];
 const BUFF_KEYS = ['power', 'speed', 'regen', 'guard'];
+const MOVESET = {
+  pulse: { bc:240, b:[[78,48,22,26,-6,7,0.90,0.84],[84,36,36,22,16,9,0.82,1.05]], bf:[28,-6,0xffffff], dc:780, dt:95, d:[95,36,28,24,-8,9,0.88,0.82], sk:'pulse', sp:[110,116,116,0,0,0,1.02,0.70] },
+  volt:  { bc:252, b:[[72,34,24,22,-2,8,1.06,0.56],[80,28,28,18,12,7,0.78,0.88]], bf:[20,-2,0xffdd00], dc:840, dt:95, d:[90,28,32,18,-2,11,1.08,0.40], sk:'volt',  sp:[110,34,68,16,-40,0,0.55,1.28] },
+  crush: { bc:330, b:[[106,50,32,20,2,10,1.20,0.40],[98,40,36,16,16,8,0.92,0.78]], bf:[18,2,0xff8844], dc:1000,dt:108,d:[108,48,40,12,4,13,1.24,0.30], slam:[90,130,60,0,6,0,1.08,0.78] },
+};
 
 const NOTES = { A2:110.0, C3:130.8, G3:196.0, C5:523.3, D5:587.3, E5:659.3, G5:784.0, A5:880.0 };
 const MELODY = ['E5',null,'G5','A5','E5','D5','E5',null,'C5',null,'E5','G5','A5',null,'E5',null];
@@ -135,8 +140,8 @@ function buildFighter(scene, x, y, ch, s) {
   return c;
 }
 
-function hitRect(a, b) {
-  return Math.abs(a.x - b.x) * 2 < a.w + b.w && Math.abs(a.y - b.y) * 2 < a.h + b.h;
+function hitBox(ax, ay, aw, ah, bx, by, bw, bh) {
+  return Math.abs(ax - bx) * 2 < aw + bw && Math.abs(ay - by) * 2 < ah + bh;
 }
 
 function down(v, dt) {
@@ -157,6 +162,10 @@ function buffMask(buffs) {
 
 function auraTypeOf(buffs) {
   return buffs.guard > 0 ? 'guard' : buffs.power > 0 ? 'power' : buffs.speed > 0 ? 'speed' : buffs.regen > 0 ? 'regen' : null;
+}
+
+function makeAttack(kind, spec, dir, dmg) {
+  return { kind, t: spec[0], hit: 0, w: spec[1], h: spec[2], ox: dir * spec[3], oy: spec[4], dmg: dmg ?? spec[5], fx: spec[6], fy: spec[7] };
 }
 
 function playNote(ctx, freq, type, startTime, dur, vol) {
@@ -815,62 +824,44 @@ class GameScene extends Phaser.Scene {
     const k = p.keys;
     const moving = this.ctrl.held[k.left] || this.ctrl.held[k.right];
     if (this.ctrl.pressed[k.attack] && p.atkCd <= 0) this.basicAttack(p, b);
-    if (this.ctrl.pressed[k.alt]) {
-      if (!grounded(b) && p.canAirDodge && moving)
-        this.doAirDodge(p, b);
-      else if (moving && p.dashCd <= 0) this.doDash(p);
-      else if (p.spCd <= 0) this.doSpecial(p);
-      else if (p.dashCd <= 0) this.doDash(p);
-    }
+    if (this.ctrl.pressed[k.alt]) this.handleAltAction(p, b, moving);
+  }
+
+  handleAltAction(p, b, moving) {
+    if (!grounded(b) && p.canAirDodge && moving) return this.doAirDodge(p, b);
+    if (moving && p.dashCd <= 0) return this.doDash(p);
+    if (p.spCd <= 0) return this.doSpecial(p);
+    if (p.dashCd <= 0) this.doDash(p);
+  }
+
+  setAttack(p, kind, spec, dir, dmg) {
+    p.atk = makeAttack(kind, spec, dir, dmg);
+    p._atkPoseT = p.atk.t;
   }
 
   basicAttack(p, b) {
-    const gr = grounded(b);
-    const id = p.char.id;
-    // Per-character attack cooldown
-    p.atkCd = id === 'pulse' ? 240 : id === 'volt' ? 252 : 330;
-    if (id === 'pulse') {
-      // Karateka: long thin kick, fast snap, moderate upward launch
-      p.atk = gr
-        ? { kind:'basic', t:78,  hit:0, w:48, h:22, ox:p.face*26, oy:-6,  dmg:7,  fx:0.90, fy:0.84 }
-        : { kind:'basic', t:84,  hit:0, w:36, h:36, ox:p.face*22, oy:16,  dmg:9,  fx:0.82, fy:1.05 };
-    } else if (id === 'volt') {
-      // Boxer: compact fast jab, strong horizontal push, minimal vertical
-      p.atk = gr
-        ? { kind:'basic', t:72,  hit:0, w:34, h:24, ox:p.face*22, oy:-2,  dmg:8,  fx:1.06, fy:0.56 }
-        : { kind:'basic', t:80,  hit:0, w:28, h:28, ox:p.face*18, oy:12,  dmg:7,  fx:0.78, fy:0.88 };
-    } else {
-      // Sumo: wide palm push, heavy startup, pure horizontal knockback
-      p.atk = gr
-        ? { kind:'basic', t:106, hit:0, w:50, h:32, ox:p.face*20, oy:2,   dmg:10, fx:1.20, fy:0.40 }
-        : { kind:'basic', t:98,  hit:0, w:40, h:36, ox:p.face*16, oy:16,  dmg:8,  fx:0.92, fy:0.78 };
-    }
-    p._atkPoseT = p.atk.t;  // drive attack active-frame pose
-    const fc = id==='volt' ? 0xffdd00 : id==='crush' ? 0xff8844 : p.char.accent;
-    const fOx = id==='pulse' ? 28 : id==='volt' ? 20 : 18;
-    const fOy = gr ? (id==='pulse' ? -6 : id==='volt' ? -2 : 2) : 14;
-    this.flash(p.body.x + p.face*fOx, p.body.y + fOy, 30, 20, fc, 85);
-    tone(this, p.idx?300:260, 'square', 0.07, 0.06);
+    const gr = grounded(b), m = MOVESET[p.char.id], fx = m.bf;
+    p.atkCd = m.bc;
+    this.setAttack(p, 'basic', m.b[gr ? 0 : 1], p.face);
+    this.flash(p.body.x + p.face * fx[0], p.body.y + (gr ? fx[1] : 14), 30, 20, fx[2], 85);
+    tone(this, p.idx ? 300 : 260, 'square', 0.07, 0.06);
   }
 
   doDash(p) {
-    const b = p.body.body;
-    const dir = p.face || (p.idx ? -1 : 1);
-    const id = p.char.id;
+    const b = p.body.body, id = p.char.id, m = MOVESET[id], dir = p.face || (p.idx ? -1 : 1);
     // Per-character dash cooldown
-    p.dashCd = id === 'pulse' ? 780 : id === 'volt' ? 840 : 1000;
-    p.dashT   = id === 'crush' ? 108 : 95;
+    p.dashCd = m.dc;
+    p.dashT = m.dt;
     if (id === 'pulse') {
       // Flying kick: long forward reach, moderate launch, upward angle
-      p.atk = { kind:'dash', t:95,  hit:0, w:36, h:28, ox:dir*24, oy:-8, dmg:9,  fx:0.88, fy:0.82 };
+      this.setAttack(p, 'dash', m.d, dir);
     } else if (id === 'volt') {
       // Cross punch: tight, high horizontal force, minimal vertical — ground pressure
-      p.atk = { kind:'dash', t:90,  hit:0, w:28, h:32, ox:dir*18, oy:-2, dmg:11, fx:1.08, fy:0.40 };
+      this.setAttack(p, 'dash', m.d, dir);
     } else {
       // Charging body press: widest hitbox, highest damage, pure horizontal push
-      p.atk = { kind:'dash', t:108, hit:0, w:48, h:40, ox:dir*12, oy:4,  dmg:13, fx:1.24, fy:0.30 };
+      this.setAttack(p, 'dash', m.d, dir);
     }
-    p._atkPoseT = p.atk.t;  // drive attack active-frame pose
     b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500) * (this.finalPhase ? 1.15 : 1));
     this.flash(p.body.x, p.body.y, 44, 20, p.char.color, 110);
     tone(this, 90, 'sawtooth', 0.06, 0.14);
@@ -887,19 +878,19 @@ class GameScene extends Phaser.Scene {
   }
 
   doSpecial(p) {
+    const m = MOVESET[p.char.id];
     p.spCd = p.char.sp;
-    if (p.char.id === 'pulse') {
-      p.atk = { kind: 'pulse', t: 110, hit: 0, w: 116, h: 116, ox: 0, oy: 0, dmg: p.char.sd, fx: 1.02, fy: 0.7 };
-      p._atkPoseT = 110;
-      this.ring(p.body.x, p.body.y, 16, 4, p.char.color, 140);
-      this.spark(p.body.x, p.body.y, 0xffffff, 7);
-      tone(this, 260, 'triangle', 0.06, 0.14);
-    } else if (p.char.id === 'volt') {
-      p.atk = { kind: 'volt', t: 110, hit: 0, w: 34, h: 68, ox: p.face * 16, oy: -40, dmg: p.char.sd, fx: 0.55, fy: 1.28 };
-      p._atkPoseT = 110;
-      this.flash(p.body.x + p.face * 10, p.body.y - 38, 24, 64, p.char.accent, 120);
-      this.spark(p.body.x + p.face * 10, p.body.y - 24, 0xffdd00, 6);
-      tone(this, 360, 'square', 0.06, 0.12);
+    if (m.sp) {
+      this.setAttack(p, m.sk, m.sp, p.face, p.char.sd);
+      if (p.char.id === 'pulse') {
+        this.ring(p.body.x, p.body.y, 16, 4, p.char.color, 140);
+        this.spark(p.body.x, p.body.y, 0xffffff, 7);
+        tone(this, 260, 'triangle', 0.06, 0.14);
+      } else {
+        this.flash(p.body.x + p.face * 10, p.body.y - 38, 24, 64, p.char.accent, 120);
+        this.spark(p.body.x + p.face * 10, p.body.y - 24, 0xffdd00, 6);
+        tone(this, 360, 'square', 0.06, 0.12);
+      }
     } else {
       p.slam = 1;
       p._atkPoseT = 85;  // dive animation
@@ -915,7 +906,7 @@ class GameScene extends Phaser.Scene {
     const b = p.body.body;
     if (grounded(b)) {
       p.slam = 0;
-      p.atk = { kind: 'crush', t: 90, hit: 0, w: 130, h: 60, ox: 0, oy: 6, dmg: p.char.sd, fx: 1.08, fy: 0.78 };
+      this.setAttack(p, 'crush', MOVESET.crush.slam, 1, p.char.sd);
       this.ring(p.body.x, p.body.y + 12, 12, 5.5, p.char.accent, 140);
       this.flash(p.body.x, p.body.y + 10, 90, 22, p.char.accent, 120);
       this.cameras.main.shake(90, 0.009);
@@ -928,13 +919,12 @@ class GameScene extends Phaser.Scene {
     const a = p.atk;
     if (!a || a.hit || !p || !foe || !p.alive || !foe.alive || foe.invuln > 0) return;
     if (!p.body || !foe.body || !p.body.body || !foe.body.body) return;
-    const box = { x: p.body.x + a.ox, y: p.body.y + a.oy, w: a.w, h: a.h };
-    const target = { x: foe.body.x, y: foe.body.y, w: 26, h: 40 };
-    if (!hitRect(box, target)) return;
+    const ax = p.body.x + a.ox, ay = p.body.y + a.oy;
+    if (!hitBox(ax, ay, a.w, a.h, foe.body.x, foe.body.y, 26, 40)) return;
     if (a.kind === 'basic' || a.kind === 'dash') {
-      const d2 = (p.body.x - foe.body.x) ** 2 + (p.body.y - foe.body.y) ** 2;
+      const dx = p.body.x - foe.body.x, dy = p.body.y - foe.body.y, d2 = dx * dx + dy * dy;
       a._sweet = d2 < 900 ? 1.25 : d2 > 3364 ? 0.80 : 1.0;
-    } else { a._sweet = 1.0; }
+    } else a._sweet = 1.0;
     a.hit = 1;
     this.hitPlayer(foe, p, a);
   }
@@ -944,7 +934,7 @@ class GameScene extends Phaser.Scene {
     if (!t || !p || !a || !t.alive || !p.alive) return;
     if (!t.body || !p.body || !t.body.body || !p.body.body) return;
     const b = t.body.body;
-    const kind = a.kind || 'basic';
+    const kind = a.kind || 'basic', basic = kind === 'basic', dash = kind === 'dash', blocked = t.shielding;
     const ratio = t.stamina / t.staminaMax;
     const pct  = 1 + Math.pow(Math.min(KB_PERCENT_CAP, t.percent) / KB_PERCENT_DIV, 1.16) * KB_PERCENT_GAIN;
     const mul  = (1 + (1 - ratio) * 0.62) * pct;
@@ -952,44 +942,44 @@ class GameScene extends Phaser.Scene {
     const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
       ? 1 + (1 - p.stamina / p.staminaMax) * 0.30 : 1;
     const sweet = Number.isFinite(a._sweet) ? a._sweet : 1.0;
-    const shld  = t.shielding ? 0.30 : t.buffs.guard > 0 ? 0.76 : 1;
+    const shld  = blocked ? 0.30 : t.buffs.guard > 0 ? 0.76 : 1;
     const dir  = p.body.x <= t.body.x ? 1 : -1;
     let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * shld;
     let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * shld;
-    if (kind === 'dash') vy = -95 * mul * pwr * sweet * rage * shld;
+    if (dash) vy = -95 * mul * pwr * sweet * rage * shld;
     if (this.ctrl.held[t.keys.left]) vx -= 80;
     if (this.ctrl.held[t.keys.right]) vx += 80;
     if (this.ctrl.held[t.keys.up]) vy -= 35;
     t.lastHitTime = this.time.now;
-    const pg = kind === 'basic' ? 0.98 : kind === 'dash' ? 1.10 : 1.22;
+    const pg = basic ? 0.98 : dash ? 1.10 : 1.22;
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
     t.comboHits++; t.comboT = 1800;
     if (t.comboHits === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
     else if (t.comboHits === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
-    t.stun = (kind === 'basic' ? 110 : kind === 'dash' ? 130 : 150)
+    t.stun = (basic ? 110 : dash ? 130 : 150)
       * Math.max(0.60, 1 - (t.comboHits - 1) * 0.10);
     if (this.finalPhase) { vx *= 1.18; vy *= 1.18; }
     // VOLT bonus vs airborne targets
     if (p.char.id === 'volt' && !grounded(t.body.body)) { vx *= 1.22; vy *= 1.22; }
-    const impact = Math.max(0.65, mul * sweet * (kind === 'basic' ? 1 : kind === 'dash' ? 1.15 : 1.30));
+    const impact = Math.max(0.65, mul * sweet * (basic ? 1 : dash ? 1.15 : 1.30));
     const heavy = impact > 1.95 || kind === 'crush' || kind === 'volt';
     const killish = heavy && (t.percent > 160 || Math.abs(vx) > 560 || Math.abs(vy) > 380);
-    const baseBld = impact > 2.25 || kind === 'crush' ? 2 : impact > 1.45 || kind === 'dash' || sweet > 1.15 ? 1 : 0;
-    const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy && !t.shielding ? 1 : 0));
-    if (t.shielding) { vx *= 0.88; vy *= 0.84; }
+    const baseBld = impact > 2.25 || kind === 'crush' ? 2 : impact > 1.45 || dash || sweet > 1.15 ? 1 : 0;
+    const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy && !blocked ? 1 : 0));
+    if (blocked) { vx *= 0.88; vy *= 0.84; }
     b.setVelocity(vx, vy);
-    p._recoilT = t.shielding ? 48 : killish ? 145 : heavy ? 95 : 58;
+    p._recoilT = blocked ? 48 : killish ? 145 : heavy ? 95 : 58;
     p._atkPoseT = 0;  // hit connected — hand off to recoil pose
-    if (t.shielding && p.body.body) p.body.body.velocity.x -= dir * (kind === 'dash' ? 92 : 58);
+    if (blocked && p.body.body) p.body.body.velocity.x -= dir * (dash ? 92 : 58);
     if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
     if (heavy || sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : 6);
     else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
-    if (bloodLv && !t.shielding) this.bloodImpact(t.body.x, t.body.y - 8, bloodLv, killish, dir);
-    if (heavy && !t.shielding && t.percent > 100) this.flash(t.body.x, t.body.y - 10, 40, 60, 0xff1a1a, t.percent > 160 ? 80 : 55);
+    if (bloodLv && !blocked) this.bloodImpact(t.body.x, t.body.y - 8, bloodLv, killish, dir);
+    if (heavy && !blocked && t.percent > 100) this.flash(t.body.x, t.body.y - 10, 40, 60, 0xff1a1a, t.percent > 160 ? 80 : 55);
     this.flash(t.body.x, t.body.y - 6, killish ? 56 : heavy ? 42 : 24, killish ? 34 : 24, p.char.accent, killish ? 135 : 90);
-    if (!t.shielding) {
+    if (!blocked) {
       if (p.char.id === 'pulse') {
         this.flash(t.body.x - dir * 10, t.body.y - 10, killish ? 56 : 42, 5, 0xffffff, 100);
         this.flash(t.body.x + dir * 8, t.body.y - 2, killish ? 46 : 34, 4, 0x8befff, 92);
@@ -1002,8 +992,8 @@ class GameScene extends Phaser.Scene {
       }
     }
     // Progressive shake — scales with impact score, dampened by shield
-    const shkMul = t.shielding ? 0.3 : 1;
-    const medium = kind === 'dash' || (kind === 'basic' && sweet > 1.1);
+    const shkMul = blocked ? 0.3 : 1;
+    const medium = dash || (basic && sweet > 1.1);
     const shkAmt = (killish ? 0.0100
       : heavy ? Math.min(0.0090, 0.0062 + impact * 0.0010)
       : medium ? Math.min(0.0054, 0.0031 + impact * 0.0008)
@@ -1014,9 +1004,9 @@ class GameScene extends Phaser.Scene {
       : Math.min(31, 22 + impact * 8);
     this.cameras.main.shake(shkDur, shkAmt);
     // Hit freeze — every hit type gets a freeze, strength-scaled, anti-stacking handled by hitFreeze()
-    this.hitFreeze(killish ? 58 : heavy ? 52 : kind === 'dash' ? 39 : 20);
+    this.hitFreeze(killish ? 58 : heavy ? 52 : dash ? 39 : 20);
     // Distinct sound per hit type + blocked VFX
-    if (t.shielding) {
+    if (blocked) {
       this.flash(t.body.x, t.body.y - 8, 58, 58, 0xdff7ff, 110);
       this.flash(t.body.x, t.body.y - 8, 42, 42, 0x4ebcff, 90);
       this.ring(t.body.x, t.body.y - 6, 12, 3.8, 0xaee6ff, 150);
