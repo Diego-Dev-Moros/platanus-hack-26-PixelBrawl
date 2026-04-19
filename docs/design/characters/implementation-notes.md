@@ -1,107 +1,42 @@
 # Character Implementation Notes
 
-## Goal
+## Current Implementation
 
-Design the character system so it fits cleanly into `game.js` without overengineering.
+Characters are still implemented through a compact definition table plus shared player state.
 
-## Strategy
-
-Do not create separate runtime classes per character.
-
-Use:
-
-- one shared player base
-- one small definition table
-- one function per special or one switch by special type
-
-## Recommended Model
-
-Each character only needs:
+Current character data includes:
 
 - `id`
 - `name`
 - `color`
 - `accent`
-- `special`
+- `line`
+- special cooldown
+- special damage
 
-Optional:
+## Visual Implementation
 
-- `shape`
-- `headShape`
+Visuals are generated in `buildFighter()`.
+Each fighter is a container of rectangles, not a sprite.
 
-Example:
+This means:
 
-```js
-const CHARS = {
-  pulse: { name: 'Pulse', color: 0x00e5ff, accent: 0xffffff, special: 'shockwave' },
-  volt: { name: 'Volt', color: 0xffdd00, accent: 0xff7a00, special: 'uppercut' },
-  crush: { name: 'Crush', color: 0xff3cac, accent: 0xff5a36, special: 'groundSlam' }
-};
-```
+- silhouette changes are cheap compared to external art
+- tiny detail is expensive in bytes and weak in readability
+- every extra rectangle must justify itself
 
-## Special System
+## Current Visual Intent In Code
 
-Do not build three separate subsystems.
+- `PULSE`: gi-like body blocks, cleaner martial silhouette, cyan/white reads
+- `VOLT`: glove-forward boxer silhouette, hot yellow/orange flash language
+- `CRUSH`: broad torso, lower center of gravity, heavier sumo read
 
-Prefer:
+## Current Implementation Rule
 
-- one shared input path
-- one shared cooldown concept
-- one per-type resolution branch
+Future work should not create separate runtime classes.
+Character identity should continue to come from:
 
-Conceptual example:
-
-```js
-function useSpecial(p) {
-  if (p.cd > 0) return;
-  if (p.char.special === 'shockwave') doShockwave(p);
-  else if (p.char.special === 'uppercut') doUppercut(p);
-  else doGroundSlam(p);
-}
-```
-
-## Desired Reuse
-
-All three specials should reuse:
-
-- temporary hitbox creation
-- target check against the rival
-- knockback application
-- stamina reduction
-- visual flash
-- cooldown handling
-
-## What Not To Do
-
-- do not create a `Pulse`, `Volt`, and `Crush` class
-- do not split runtime characters into importable files
-- do not add skill hierarchies
-- do not create detailed data that will never be used
-
-## What To Do
-
-- prototype ideas in `tmp/workbench/characters/`
-- document decisions in this folder
-- move only the final validated version into `game.js`
-
-## Recommended Order
-
-1. implement the shared player base
-2. implement the basic attack
-3. implement `Shockwave`
-4. duplicate the structure for `Uppercut`
-5. duplicate the structure for `Ground Slam`
-6. tune cooldowns and force
-
-## File Size Risks
-
-The main risks are:
-
-- duplicated logic across specials
-- too many per-character states
-- too many distinct visual effects
-- complex balancing before gameplay is validated
-
-## Final Rule
-
-Characters should feel different because of space control, not code complexity.
+- one roster table
+- one shared action model
+- one per-special branch
+- one per-character VFX identity layer

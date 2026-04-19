@@ -1,102 +1,46 @@
 # Character Visual Language
 
-## Goal
+## Current Rule Set
 
-Make characters easy to distinguish using only simple shapes.
+Characters must read at tiny scale while moving fast.
 
-Since there are no sprites or traditional animation, readability depends on:
+That means the current visual priorities are:
 
-- silhouette
-- color
-- facing direction
-- special effect read
+1. silhouette
+2. value contrast
+3. costume cue
+4. VFX support
+5. micro-detail last
 
-## Shared Visual Base
+## Current Fighter Reads
 
-Each character should be built from:
+### PULSE
 
-- `1` main body
-- `1` head
-- `1` optional small detail
+- karateka
+- cleaner vertical torso
+- belt / trim cues
+- white and cyan strike accents
 
-Example:
+### VOLT
 
-- body: `rectangle`
-- head: `circle`
-- detail: small `rectangle` or color split
+- boxer
+- gloves must read first
+- compact upper-body guard
+- yellow / orange hit accents
 
-## Readability Rules
+### CRUSH
 
-- the body should be larger than the head
-- the front of the character should read quickly
-- the main colors should not be confused across fighters
-- the special flash should be different from the basic attack flash
-- respawn invulnerability should read through blinking alpha or a bright tint
+- sumo
+- heavy torso mass
+- low waist cue
+- heavier lower-body read
 
-## Proposed Silhouettes
+## Current VFX Identity
 
-### Pulse
+- `PULSE`: thin white/cyan strike trails and pulse rings
+- `VOLT`: sharp yellow/orange punch bursts
+- `CRUSH`: dust and ground-impact emphasis
 
-- wide body
-- round head
-- feeling: stable and expansive
+## Current Weakness
 
-### Volt
-
-- medium body
-- square head
-- feeling: compact and sharp
-
-### Crush
-
-- taller body
-- smaller head
-- feeling: heavy and descending
-
-## Suggested Palette
-
-### Pulse
-
-- main: cyan
-- secondary: white
-
-### Volt
-
-- main: yellow
-- secondary: orange
-
-### Crush
-
-- main: magenta
-- secondary: red
-
-## Special Effects By Character
-
-### Shockwave
-
-- simple ring or expanding rectangle
-- short lateral particles
-
-### Uppercut
-
-- vertical flash
-- small upward trail
-
-### Ground Slam
-
-- ground burst or hard impact line
-- small side particles on landing
-
-## Technical Principle
-
-All of these effects should come from:
-
-- `rectangle`
-- `circle`
-- `graphics`
-- minimal particles
-- alpha
-- scale
-- tint
-
-Nothing more is needed for the roster to feel distinct.
+The visuals are materially better than the original abstract blocks, but they are still dependent on FX and color more than on pose clarity.

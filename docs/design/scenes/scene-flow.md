@@ -1,69 +1,123 @@
 # Scene Flow
 
-## Goal
-
-Define a minimal scene structure that supports the full game loop without overengineering.
-
-## Scene List
+## Current Scene List
 
 - `BootScene`
 - `MenuScene`
+- `CharacterSelectScene`
+- `ControlsScene`
+- `CreditsScene`
 - `GameScene`
 - `EndScene`
 
+## Runtime Flow
+
+`BootScene` -> `MenuScene` -> `CharacterSelectScene` -> `GameScene` -> `EndScene`
+
+Auxiliary routes:
+
+- `MenuScene` -> `ControlsScene`
+- `MenuScene` -> `CreditsScene`
+- `ControlsScene` -> `MenuScene`
+- `CreditsScene` -> `MenuScene`
+- `EndScene` -> `MenuScene`
+
 ## BootScene
 
-Purpose:
+Current role:
 
-- initialize shared game state
-- register scene transitions
-- move quickly into menu or select
+- minimal entry scene
+- immediately transfers into `MenuScene`
 
-This scene should stay tiny.
+Do not grow this scene unless boot-time setup becomes unavoidable.
 
 ## MenuScene
 
-Purpose:
+Current role:
 
-- act as title screen and character select wrapper
-- show `SELECT YOUR BRAWLER`
-- handle P1 and P2 choice flow
+- title/menu hub
+- play / controls / credits / exit
+- visual preview of the three fighters
 
-This can be the same place where character selection happens.
+Current quality:
+
+- functional and readable
+- still closer to an arcade prototype screen than a finished front-end
+- contains some text encoding artifacts that should be cleaned
+
+## CharacterSelectScene
+
+Current role:
+
+- separate roster select scene
+- both players can move independently and lock in
+- both players can still pick the same fighter
+
+Current implementation state:
+
+- three cards
+- one line of character fantasy per fighter
+- explicit lock status for P1 / P2
+- starts match only after both are locked and `START` is pressed
+
+## ControlsScene
+
+Current role:
+
+- static controls explanation
+- explains movement, jump, attack, dash/special, and win condition
+
+Current issue:
+
+- useful but utilitarian
+- typography and spacing do not yet match the more polished gameplay HUD
+
+## CreditsScene
+
+Current role:
+
+- static credits
+- returns to menu on start/confirm
+
+Current issue:
+
+- same as controls: functional, not yet premium
 
 ## GameScene
 
-Purpose:
+Current role:
 
-- create the arena
-- spawn both players
-- run movement
-- run combat
-- handle deaths, respawns, stamina, and win checks
+- core gameplay scene
+- background, platforms, HUD, players, pickups, music, timer, final phase, KO/respawn, winner resolution
 
-This is the main scene and should contain most gameplay code.
+Systems currently handled here:
+
+- input polling
+- movement and jumps
+- stamina / fatigue / shielding
+- percent accumulation and knockback
+- attacks, dash, specials
+- hit feedback and VFX
+- pickups and buffs
+- moving platforms
+- final minute platform mutation
+- timeout resolution
+
+Risk note:
+
+- this scene already concentrates most of the project complexity and byte weight
 
 ## EndScene
 
-Purpose:
+Current role:
 
-- show winner
-- offer restart
-- return to menu / select
+- displays winner
+- plays celebration animation
+- delays winner text until after the celebration
+- returns to menu on start
 
-Keep this scene minimal and fast.
+Current quality:
 
-## Recommended Flow
-
-`BootScene` -> `MenuScene` -> `GameScene` -> `EndScene`
-
-Then:
-
-- restart match
-- or return to select
-
-## Scope Rule
-
-Do not add extra scenes unless they clearly reduce complexity.
-
-For this project, more scenes usually means more overhead for little gain.
+- materially better than the first version
+- still compact and contest-safe
+- not a full cinematic layer, but enough for an arcade contest build

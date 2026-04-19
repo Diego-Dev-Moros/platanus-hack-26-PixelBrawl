@@ -1,75 +1,35 @@
 # Arena Visual Direction
 
-## Goal
+## Current Direction
 
-Give the stage a clear identity using code-generated visuals only.
+The live background now targets:
 
-## Visual Theme
+- desert sunset
+- buried ruins
+- ruined skyline
+- semi-buried temple / city fragments
+- drifting dust and wind
 
-The arena should feel like:
+## Current Layering
 
-- dark
-- clean
-- neon
-- arcade
-- readable first, stylish second
+- sky color bands
+- sun disc
+- cloud layer
+- far skyline silhouettes
+- mid ruin layer
+- dune layers
+- drifting dust / wind streaks
 
-## Background
+## Current Visual Goal
 
-Use a dark background with a subtle neon grid.
+Background should feel like a place with history, but must stay behind:
 
-Suggested approach:
+- fighters
+- pickups
+- platform edges
+- hit effects
 
-- very dark blue, charcoal, or near-black base
-- thin grid lines with low alpha
-- no heavy gradients needed unless they are cheap
+## Current Weakness
 
-The background should never compete with player readability.
-
-## Platforms
-
-Platforms should be:
-
-- solid, bright enough to read immediately
-- slightly glowing or accented if cheap
-- clearly separated from the background
-
-Suggested visual treatment:
-
-- flat bright fill
-- thin outline
-- optional accent stripe
-
-## Color Direction
-
-Recommended stage palette:
-
-- background: deep navy or dark gray
-- grid: cyan-blue with low alpha
-- platform fill: muted steel or dark slate
-- platform outline: cyan or white accent
-
-This lets character colors stay dominant.
-
-## Death Zone Communication
-
-The arena does not need visible walls, but the bottom danger area should be readable.
-
-Cheap options:
-
-- a dim red line near the bottom boundary
-- subtle red glow below the arena
-- particles only when someone dies
-
-Do not clutter the stage with permanent hazard decoration.
-
-## Technical Rule
-
-All stage visuals should come from:
-
-- `graphics`
-- `rectangle`
-- `lineStyle`
-- low-cost alpha overlays
-
-No image assets should be required.
+The scene is improved, but still not fully iconic.
+It reads as “good ruined desert layers” more than “one unforgettable arena.”

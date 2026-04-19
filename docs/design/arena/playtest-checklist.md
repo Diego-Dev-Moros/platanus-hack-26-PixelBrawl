@@ -2,50 +2,50 @@
 
 ## Goal
 
-Define what to verify once the arena is playable.
+Verify that the current live stage supports the implemented match systems without hurting readability.
 
 ## Core Questions
 
-1. Does the main floor feel wide enough for neutral but small enough for edge kills?
-2. Are the side platforms useful, or do they slow the match?
-3. Is the top platform worth contesting?
-4. Can all three specials find natural use cases on this layout?
-5. Do deaths happen at a good pace?
+1. Does the opening layout create useful neutral and edge pressure?
+2. Do the moving side and top platforms create routing options without causing accidental deaths?
+3. Does the final-minute split create a meaningful pace shift?
+4. Are pickups still readable and reachable on moving platforms?
+5. Is the ruined-desert background readable during heavy combat?
 
 ## Specific Checks
 
 ### Movement
 
-- jumping between platforms feels natural
-- players do not get stuck on edges
-- platform spacing is reachable with the base jump
+- jumps between current platform heights feel natural
+- players do not snag on moving-platform edges
+- edge-snap / recovery behavior feels stable
 
 ### Combat
 
-- `Pulse` can threaten edges without dominating center stage
-- `Volt` can anti-air under platforms
-- `Crush` can slam from above without becoming unavoidable
+- `PULSE` can control space without covering everything
+- `VOLT` can threaten anti-air routes around the top platform
+- `CRUSH` gets meaningful slam opportunities from platform height
+- shield, percent, and ring-out interactions remain readable in final phase
 
 ### Match Pace
 
-- ring-outs happen often enough
-- off-stage space is not too large
-- respawns do not feel unfair
+- the first two minutes do not feel too static
+- final minute creates higher tension without chaos
+- ring-outs and respawns stay fair after the main-platform split
 
 ### Readability
 
-- players can instantly see where they can stand
-- the background does not obscure action
-- platform edges are visually clean
+- players remain readable over dunes, ruins, and FX
+- platform tops and edges are obvious at a glance
+- pickup silhouettes are still clear during motion
+- HUD remains readable while action stays centered
 
 ## Tuning Order
 
 If the arena feels wrong, tune in this order:
 
-1. main floor width
-2. side platform height
-3. top platform height
-4. blast zone distance
+1. platform motion ranges and heights
+2. final-phase split behavior
+3. blast-zone pressure
+4. pickup visibility on platforms
 5. visual polish
-
-Do not start with visual polish if the layout itself is wrong.

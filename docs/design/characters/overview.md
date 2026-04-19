@@ -1,103 +1,47 @@
 # Character Design Overview
 
-## Goal
+## Current Roster Model
 
-Define `3` playable characters for `Pixel Brawl` under these rules:
+The roster still shares one common gameplay base, but the current game now differentiates fighters through:
 
-- same base movement
-- same base stats
-- same jump
-- same speed
-- same base body size
-- only the special attack changes
+- special move
+- silhouette
+- color language
+- VFX identity
+- attack fantasy
 
-The goal is not to replicate `Smash Bros` characters, but to use their **archetypes** as reference:
+## Shared Gameplay Base
 
-- area push fighter
-- vertical launcher fighter
-- descending impact fighter
+All characters still share:
 
-This keeps the game simple, readable, and cheap in file size.
+- movement speed
+- jump count and gravity response
+- stocks
+- stamina baseline
+- basic attack structure
+- dash structure
 
-## Design Constraints
+## Current Character Identity
 
-- everything must be represented with simple geometry
-- no complex animation
-- no spritesheets
-- no heavy VFX
-- no deeply different per-character logic
-- the special should reuse the same hitbox and knockback systems
+### PULSE
 
-## Shared Base
+- archetype: karateka
+- gameplay read: balanced close-range controller
+- fantasy: clean martial strike into shockwave spacing
 
-All characters share:
+### VOLT
 
-- similar base width and height
-- same horizontal acceleration
-- same max speed
-- same jump
-- same gravity
-- same number of lives
-- same starting stamina
-- same starting max stamina
-- same basic attack
-- same base dash or lunge
+- archetype: boxer
+- gameplay read: punch-heavy vertical launcher
+- fantasy: uppercut punishes and sharp contact bursts
 
-## Real Differentiation
+### CRUSH
 
-Each character is differentiated by:
+- archetype: sumo
+- gameplay read: heavy slam threat and grounded force
+- fantasy: body-weight impact and landing pressure
 
-- color
-- geometric silhouette
-- special
-- combat feel
+## Current Design Constraint
 
-They are not differentiated by:
-
-- complex combos
-- skill trees
-- heavy stat separation
-- exclusive systems
-
-## Implementation Principle
-
-The ideal implementation is:
-
-- one data structure per character
-- one `id`
-- one main color
-- one or two secondary colors
-- one head/detail type
-- one special type or special function
-
-Conceptual example:
-
-```js
-{
-  id: 'shock',
-  name: 'Pulse',
-  color: 0x00e5ff,
-  accent: 0xffffff,
-  special: 'shockwave'
-}
-```
-
-## Feel Target
-
-The three characters should feel different even with shared stats.
-
-That difference should come from:
-
-- when each special is best used
-- what zone of space each character controls
-- how each character forces mistakes
-
-## Expected Roster Coverage
-
-The final roster should cover:
-
-1. horizontal pressure and clearing space
-2. vertical punishment
-3. aerial and falling threat
-
-That is enough variety for a jam-scale `1v1` game.
+The game is already at a point where new character complexity would likely cost too many bytes.
+Future work should improve clarity, not roster depth.

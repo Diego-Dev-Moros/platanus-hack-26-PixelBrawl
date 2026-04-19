@@ -1,76 +1,67 @@
 # Stamina System
 
-## Goal
+## Current Model
 
-Replace a traditional damage percent or health system with a simpler stamina-based knockback model.
+The live game now uses two overlapping risk systems:
 
-## Core Rule
+- `stamina` as a defensive / fatigue / shielding resource
+- `percent` as the primary launch-risk escalator
 
-Each player has:
+Stamina is still important, but it is no longer the only knockback driver.
+
+## Player State
+
+Each player currently has:
 
 - `stamina`
 - `staminaMax`
+- `fatigue`
+- `lastHitTime`
+- `shielding`
 
-Hits reduce stamina.
-Lower stamina means the player receives more knockback.
+Related buffs:
 
-## Starter Values
+- `regen`
+- `guard`
+
+## Live Behavior
+
+- hits reduce stamina
+- lower stamina increases knockback through a multiplier in `hitPlayer()`
+- reaching `0` stamina triggers `fatigue`
+- while fatigued, the player loses access to normal action flow
+- stamina slowly recovers after time out of combat
+- regen buff accelerates recovery
+- shielding drains stamina continuously
+
+## Current Tuning
 
 - starting `staminaMax`: `100`
-- basic attack stamina damage: `8`
-- dash hit stamina damage: `10`
-- special stamina damage: `12-15`
-
-## Special Damage Values
-
-- `Pulse`: `12`
-- `Volt`: `14`
-- `Crush`: `15`
-
-## Fatigue Rule
-
-When stamina reaches `0`:
-
-- the player enters fatigue for `900 ms`
-- the player cannot use dash
-- the player cannot use special
-- the player remains vulnerable
-
-This creates a punish window without adding a heavy status system.
+- `EXHAUST_RECOVER`: `35`
+- `FATIGUE_MS`: `1000`
+- shield drain is continuous while held
+- recovery is passive and time-based, not pickup-only
 
 ## Design Intent
 
-The stamina system should:
+Stamina should currently read as:
 
-- make repeated hits matter
-- increase ring-out danger over time
-- create comeback tension
-- stay simple enough for one-file implementation
+- a short-term defensive endurance system
+- the cost of shielding
+- the condition for fatigue punish windows
+- a secondary danger amplifier layered under percent
 
-## Implementation Principle
+It should not replace percent in the current version.
 
-Keep it lightweight.
+## Current Risks
 
-Avoid:
+- the system is now more interesting, but also more visually dense
+- if future changes make stamina too prominent in UI, it will compete with percent
+- adding more stamina-specific mechanics would likely increase complexity faster than value
 
-- layered buffs
-- multiple resource bars
-- complex recovery math
+## Future Rule
 
-Prefer:
+If the game keeps the current percent/stamina hybrid:
 
-- one scalar value
-- one fatigue timer
-- one knockback multiplier derived from stamina ratio
-
-## Pickups
-
-Pickups are optional and should only be added after the core combat works.
-
-If added, allowed effects are:
-
-- restore stamina
-- increase `staminaMax`
-- increase attack power
-
-Keep pickup logic minimal.
+- percent remains the main launch-risk indicator
+- stamina remains the resource that governs fatigue, defense, and sustain

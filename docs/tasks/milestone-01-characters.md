@@ -1,85 +1,61 @@
-# Milestone 01: Character Design
+# Milestone 01: Character System State
 
-## Goal
+## Purpose
 
-Lock the roster and special definitions before building deeper combat polish.
+This document now serves as a snapshot of the currently implemented roster baseline.
+It is no longer a planning note for a future milestone.
 
-## Deliverables
+## Current Roster
 
-- `3` defined characters
-- one clear role per character
-- one special per character
-- fixed starter values for cooldown, area, and stamina damage
-- minimal character select rules
+- `PULSE`: radial shockwave special
+- `VOLT`: vertical uppercut special
+- `CRUSH`: downward slam with landing burst
 
-## Locked Decisions
+## Shared Gameplay Baseline
 
-### Character Select
+- same base movement speed
+- same jump tuning
+- same stock count
+- same base attack structure
+- same dash / air-dodge / shield framework
+- character differentiation comes primarily from the special and visual identity
 
-- yes, there is character select
-- it must stay minimal
-- one single screen before the match
-- both players may select the same character
-- no pick locking
+## Current Character Select Rules
 
-### Input Flow
+- separate `CharacterSelectScene`
+- both players move cursors independently
+- each player must lock their pick
+- match starts only after both players lock and confirm
+- mirror picks are allowed
 
-- `P1`: move with `A / D`, confirm with `F`
-- `P2`: move with `Left / Right`, confirm with `K`
-
-### Roster
-
-- `Pulse`: `Shockwave`
-- `Volt`: `Uppercut`
-- `Crush`: `Ground Slam`
-
-### Shared Design Rule
-
-- same base movement
-- same jump
-- same lives
-- same basic attack
-- same dash
-- only the special changes
-
-## Locked Special Values
+## Current Special Baseline
 
 ### Pulse
 
 - cooldown: `2200 ms`
-- radius: `60 px`
-- force: `1.0`
-- stamina damage: `12`
+- fantasy: area control / pushback
+- current implementation: radial hitbox centered on the fighter
 
 ### Volt
 
 - cooldown: `2000 ms`
-- width: `34 px`
-- height: `68 px`
-- vertical force: `1.2`
-- horizontal force: `0.55`
-- stamina damage: `14`
+- fantasy: anti-air launcher
+- current implementation: narrow vertical strike in front of the fighter
 
 ### Crush
 
 - cooldown: `2400 ms`
-- impact radius: `65 px`
-- force: `1.15`
-- stamina damage: `15`
-- accelerated fall during activation
+- fantasy: downward body slam
+- current implementation: forced descent followed by a landing burst hitbox
 
-## Pending
+## Current Visual Intent
 
-- final visual layout of the select screen
-- exact special recovery feel
-- final arena-dependent tuning
+- `PULSE`: karateka
+- `VOLT`: boxer
+- `CRUSH`: sumo
 
-## Next Step
+See:
 
-Move to:
-
-1. `arena`
-2. `core match flow`
-3. `base combat`
-
-Do not keep expanding the roster before a playable match exists.
+- [Current Roster](/abs/path/docs/design/characters/roster.md)
+- [Character Visual Language](/abs/path/docs/design/characters/visual-language.md)
+- [Base Combat](/abs/path/docs/design/combat/base-combat.md)

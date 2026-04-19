@@ -1,69 +1,42 @@
 # Character Select
 
-## Goal
+## Current State
 
-Add character identity before combat starts without inflating scope.
+Character select is a dedicated scene, not folded into the menu.
 
-## Design Rule
+Current behavior:
 
-Character select should exist, but it must stay minimal.
+- three roster cards
+- player-independent cursor movement
+- player-independent lock-in
+- match starts only after both players lock and confirm
 
-Do not build:
+## Displayed Information
 
-- animated menu trees
-- profile panels
-- stat pages
-- complex transitions
+Each card currently shows:
 
-Build:
-
-- one pre-match screen
-- three visible choices
-- simple cursor movement
-- simple confirm flow
-
-## Screen Layout
-
-The screen should show:
-
-- title: `SELECT YOUR BRAWLER`
-- three character cards or columns
+- fighter visual
 - character name
-- character color
-- one short special line
+- one short fantasy line
+- lock / focus status
+
+## Roster Identity
+
+Current identity exposed to players:
+
+- `PULSE`: karateka / shockwave
+- `VOLT`: boxer / uppercut
+- `CRUSH`: sumo / ground slam
 
 ## Input Flow
 
-### Player 1
+- P1 moves with left/right and locks with the mapped attack button
+- P2 moves with left/right and locks with the mapped attack button
+- `START` begins the match once both are locked
 
-- move cursor with `A / D`
-- confirm with `F`
+## Current Quality Assessment
 
-### Player 2
-
-- move cursor with `Left / Right`
-- confirm with `K`
-
-## Selection Order
-
-- Player 1 picks first
-- Player 2 picks second
-- once both confirm, the match starts
-
-## Important Rule
-
-Both players are allowed to pick the same character.
-
-Do not block duplicate picks.
-That adds logic cost and gives little benefit in a jam setting.
-
-## Why This Is Worth It
-
-This screen adds:
-
-- immediate character identity
-- clear match setup
-- low code cost
-- better replay value
-
-It should still remain a small wrapper around the actual combat loop.
+- structurally correct
+- communicates roster and lock state well enough
+- still visually lighter than the gameplay HUD
+- should eventually share stronger typography and spacing rules with the rest of the front-end

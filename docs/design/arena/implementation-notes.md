@@ -1,74 +1,29 @@
 # Arena Implementation Notes
 
-## Goal
+## Current Implementation
 
-Keep the arena implementation compact and stable inside `game.js`.
+The arena is no longer purely static.
 
-## Recommended Structure
+Current stage responsibilities include:
 
-The stage should be built from static rectangles.
+- background generation
+- static platform hitboxes
+- moving platform visual sync
+- final phase mutation
+- death bound checks
 
-Implementation should likely include:
+## Data Model
 
-- one array of platform definitions
-- one static physics group
-- one background draw function
-- one out-of-bounds check
+Platforms are stored as live entries containing:
 
-## Suggested Platform Data
+- hitbox
+- visual
+- base position
+- motion range
+- phase offset
+- optional vertical motion data
 
-Conceptual example:
+## Current Risk
 
-```js
-const STAGE = [
-  { x: 400, y: 470, w: 420, h: 28 },
-  { x: 250, y: 360, w: 120, h: 20 },
-  { x: 550, y: 360, w: 120, h: 20 },
-  { x: 400, y: 270, w: 100, h: 18 }
-];
-```
-
-This is small, readable, and enough for a jam build.
-
-## Collision Rule
-
-All platforms should use:
-
-- static physics bodies
-- simple rectangular collision
-
-Do not add:
-
-- slopes
-- moving platforms
-- one-way edge-case behavior unless truly needed
-
-## Out-Of-Bounds Check
-
-The cheapest death system is a simple positional check each update:
-
-```js
-if (p.x < -80 || p.x > 880 || p.y > 680) killPlayer(p);
-```
-
-That is enough for the current game design.
-
-## Background Rule
-
-The background should be drawn once in scene setup, not rebuilt every frame.
-
-The same applies to:
-
-- grid lines
-- static decorative shapes
-
-## Scope Rule
-
-Do not add extra arena features yet:
-
-- no moving hazards
-- no destructible platforms
-- no stage shifting
-- no alternate layouts
-
-One clean stage is enough until the full match loop is proven.
+Arena code is now one of the larger non-combat systems in `game.js`.
+Future stage polish should prefer better art direction, not more mechanics.

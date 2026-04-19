@@ -1,92 +1,131 @@
 # Base Combat
 
-## Goal
+## Current Combat Structure
 
-Define the smallest combat model that still feels like a platform fighter.
+All fighters currently share:
 
-## Shared Combat Kit
+- movement
+- jump logic
+- basic attack slot
+- dash slot
+- air dodge
+- shield
+- stamina / percent interaction
 
-All characters have:
+Per-fighter differentiation comes from:
 
-- one basic attack
-- one dash
-- one special
+- special move
+- VFX identity
+- hit feel emphasis
+- silhouette and attack fantasy
 
-The basic attack and dash are shared.
-Only the special changes by character.
+## Shared Actions
 
-## Basic Attack
+### Basic Attack
 
-### Purpose
+Current role:
 
-Fast, short-range pressure tool.
+- fastest grounded or aerial pressure tool
+- low commitment
+- low percent gain
+- short reach
 
-### Recommended Values
+Current behavior:
 
-- cooldown: `280 ms`
-- horizontal range: `38-44 px`
-- hitbox height: `26-30 px`
-- stamina damage: `8`
+- grounded and aerial variants exist
+- sweetspot logic is applied by distance
 
-### Design Role
+### Dash
 
-- close-range neutral tool
-- edge pressure starter
-- low-commit poke
+Current role:
 
-## Dash
+- burst approach
+- contact-based punish tool
+- higher commitment than jab
 
-### Purpose
+Current behavior:
 
-Quick reposition or burst entry tool.
+- sets temporary dash state
+- can create contact damage
+- has moderate percent gain
 
-### Recommended Values
+### Air Dodge
 
-- cooldown: `900 ms`
-- travel distance: `70-90 px`
-- hitbox: body-sized or slightly larger if it deals contact damage
-- dash hit stamina damage: `10`
+Current role:
 
-### Design Role
+- short defensive reposition in air
+- brief invulnerability
 
-- approach
-- burst reposition
-- quick punish
+### Shield
+
+Current role:
+
+- absorbs pressure at stamina cost
+- reduces knockback and dramatically changes hit feedback
+
+Blocked hits currently:
+
+- do less knockback
+- create smaller shake
+- produce no blood
+- trigger shield-specific flash/ripple/audio
 
 ## Specials
 
-### Role In The Match
+### PULSE
 
-Specials should feel important, but not rare.
+- radial push / shockwave
+- close-range control
+- white/cyan strike identity
 
-They should:
+### VOLT
 
-- create clear combat identity
-- reward timing
-- matter in edge play and platform control
-- remain readable
+- vertical uppercut
+- anti-air and launch identity
+- yellow/orange punch flash identity
 
-### Cooldown Rule
+### CRUSH
 
-- shared target range: `2000-2400 ms`
-- each character can vary slightly
+- downward slam into landing burst
+- platform pressure and heavy impact identity
+- dust / ground hit identity
 
-## Knockback Philosophy
+## Knockback Model
 
-Knockback should be:
+Current knockback is derived from:
 
-- readable
-- strong enough to create ring-out tension
-- amplified by low stamina
+- base knockback values
+- hitbox force multipliers
+- stamina ratio
+- percent growth curve
+- buffs
+- rage-like low-stamina attacker modifier
+- final phase bonus
 
-Do not make knockback so large that every clean hit kills.
+This is no longer a minimal combat model. It is now a compact but layered combat model.
 
-## Recovery And Risk
+## Hit Feel
 
-Every strong option needs some exposure:
+Current combat feedback uses:
 
-- basic attack: short commitment
-- dash: moderate commitment
-- special: highest commitment
+- flash
+- spark
+- ring
+- blood
+- camera shake
+- hit freeze with anti-stack behavior
+- attacker recoil pose
+- per-character accent effects
 
-This keeps neutral meaningful without building a heavy combat engine.
+Current design target:
+
+- blocked hits feel absorbed
+- normal hits feel sharp
+- heavy hits feel cinematic
+- KO hits feel like payoffs
+
+## Risk Areas
+
+- `hitPlayer()` is one of the densest functions in the file
+- combat feedback is now a major source of both polish and code size growth
+- future work should replace weak branches, not keep stacking new ones
