@@ -536,6 +536,11 @@ class GameScene extends Phaser.Scene {
     this.over = 0; this.matchTime = 180000; this.finalPhase = false;
     this.ready = false;
     this.hudDirty = false;
+    this._fzEnd = 0; this._fzToken = 0;
+    this.events.once('shutdown', () => {
+      this._fzEnd = 0; this._fzToken = 0;
+      if (this.physics && this.physics.world && this.physics.world.isPaused) this.physics.resume();
+    });
     this.drawStage();
     this.makeStage();
     this.makeHud();
@@ -873,7 +878,8 @@ class GameScene extends Phaser.Scene {
 
   updateAttack(p, foe) {
     const a = p.atk;
-    if (!a || a.hit || !foe.alive || foe.invuln > 0) return;
+    if (!a || a.hit || !p || !foe || !p.alive || !foe.alive || foe.invuln > 0) return;
+    if (!p.body || !foe.body || !p.body.body || !foe.body.body) return;
     const box = { x: p.body.x + a.ox, y: p.body.y + a.oy, w: a.w, h: a.h };
     const target = { x: foe.body.x, y: foe.body.y, w: 26, h: 40 };
     if (!hitRect(box, target)) return;
@@ -887,45 +893,48 @@ class GameScene extends Phaser.Scene {
 
   hitPlayer(t, p, a) {
     // DAMAGE PERCENT SYSTEM
+    if (!t || !p || !a || !t.alive || !p.alive) return;
+    if (!t.body || !p.body || !t.body.body || !p.body.body) return;
     const b = t.body.body;
+    const kind = a.kind || 'basic';
     const ratio = t.stamina / t.staminaMax;
     const pct  = 1 + Math.pow(Math.min(KB_PERCENT_CAP, t.percent) / KB_PERCENT_DIV, 1.16) * KB_PERCENT_GAIN;
     const mul  = (1 + (1 - ratio) * 0.62) * pct;
     const pwr  = p.buffs.power > 0 ? 1.40 : 1;
     const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
       ? 1 + (1 - p.stamina / p.staminaMax) * 0.30 : 1;
-    const sweet = a._sweet || 1.0;
+    const sweet = Number.isFinite(a._sweet) ? a._sweet : 1.0;
     const shld  = t.shielding ? 0.30 : t.buffs.guard > 0 ? 0.76 : 1;
     const dir  = p.body.x <= t.body.x ? 1 : -1;
     let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * shld;
     let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * shld;
-    if (a.kind === 'dash') vy = -95 * mul * pwr * sweet * rage * shld;
+    if (kind === 'dash') vy = -95 * mul * pwr * sweet * rage * shld;
     if (this.ctrl.held[t.idx ? 'P2_L' : 'P1_L']) vx -= 80;
     if (this.ctrl.held[t.idx ? 'P2_R' : 'P1_R']) vx += 80;
     if (this.ctrl.held[t.idx ? 'P2_U' : 'P1_U']) vy -= 35;
     t.lastHitTime = this.time.now;
-    const pg = a.kind === 'basic' ? 0.98 : a.kind === 'dash' ? 1.10 : 1.22;
+    const pg = kind === 'basic' ? 0.98 : kind === 'dash' ? 1.10 : 1.22;
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
     t.comboHits++; t.comboT = 1800;
     if (t.comboHits === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
     else if (t.comboHits === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
-    t.stun = (a.kind === 'basic' ? 110 : a.kind === 'dash' ? 130 : 150)
+    t.stun = (kind === 'basic' ? 110 : kind === 'dash' ? 130 : 150)
       * Math.max(0.60, 1 - (t.comboHits - 1) * 0.10);
     if (this.finalPhase) { vx *= 1.18; vy *= 1.18; }
     // VOLT bonus vs airborne targets
     if (p.char.id === 'volt' && !t.body.body.blocked.down && !t.body.body.touching.down) { vx *= 1.22; vy *= 1.22; }
-    const impact = mul * sweet * (a.kind === 'basic' ? 1 : a.kind === 'dash' ? 1.15 : 1.30);
-    const baseBld = impact > 2.25 || a.kind === 'crush' ? 2 : impact > 1.45 || a.kind === 'dash' || sweet > 1.15 ? 1 : 0;
-    const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy && !t.shielding ? 1 : 0));
-    const heavy = impact > 1.95 || a.kind === 'crush' || a.kind === 'volt';
+    const impact = Math.max(0.65, mul * sweet * (kind === 'basic' ? 1 : kind === 'dash' ? 1.15 : 1.30));
+    const heavy = impact > 1.95 || kind === 'crush' || kind === 'volt';
     const killish = heavy && (t.percent > 160 || Math.abs(vx) > 560 || Math.abs(vy) > 380);
+    const baseBld = impact > 2.25 || kind === 'crush' ? 2 : impact > 1.45 || kind === 'dash' || sweet > 1.15 ? 1 : 0;
+    const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy && !t.shielding ? 1 : 0));
     if (t.shielding) { vx *= 0.88; vy *= 0.84; }
     b.setVelocity(vx, vy);
     p._recoilT = t.shielding ? 48 : killish ? 145 : heavy ? 95 : 58;
     p._atkPoseT = 0;  // hit connected — hand off to recoil pose
-    if (t.shielding) p.body.body.velocity.x -= dir * (a.kind === 'dash' ? 92 : 58);
+    if (t.shielding && p.body.body) p.body.body.velocity.x -= dir * (kind === 'dash' ? 92 : 58);
     if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
     if (heavy || sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : 6);
     else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
@@ -950,7 +959,7 @@ class GameScene extends Phaser.Scene {
     const shkDur = killish ? 185 : heavy ? Math.min(130, 55 + impact * 22) : 44;
     this.cameras.main.shake(shkDur, shkAmt);
     // Hit freeze — every hit type gets a freeze, strength-scaled, anti-stacking handled by hitFreeze()
-    this.hitFreeze(killish ? 112 : heavy ? (a.kind === 'dash' ? 56 : 76) : 28);
+    this.hitFreeze(killish ? 112 : heavy ? (kind === 'dash' ? 56 : 76) : 28);
     // Distinct sound per hit type + blocked VFX
     if (t.shielding) {
       this.flash(t.body.x, t.body.y - 8, 58, 58, 0xdff7ff, 110);
@@ -958,14 +967,14 @@ class GameScene extends Phaser.Scene {
       this.ring(t.body.x, t.body.y - 6, 12, 3.8, 0xaee6ff, 150);
       this.spark(t.body.x, t.body.y - 8, 0xcfefff, 2);
       tone(this, 408, 'triangle', 0.045, 0.08);
-      this.time.delayedCall(18, () => tone(this, 286, 'triangle', 0.03, 0.06));
+      this.time.delayedCall(18, () => { if (this.sys.isActive()) tone(this, 286, 'triangle', 0.03, 0.06); });
     } else if (killish) {
       tone(this, 88, 'sawtooth', 0.13, 0.16);
-      this.time.delayedCall(32, () => tone(this, 196, 'square', 0.07, 0.10));
-    } else if (a.kind === 'crush' || a.kind === 'volt') {
+      this.time.delayedCall(32, () => { if (this.sys.isActive()) tone(this, 196, 'square', 0.07, 0.10); });
+    } else if (kind === 'crush' || kind === 'volt') {
       tone(this, 128, 'square', 0.10, 0.13);
-      this.time.delayedCall(22, () => tone(this, 256, 'triangle', 0.05, 0.08));
-    } else if (a.kind === 'dash') {
+      this.time.delayedCall(22, () => { if (this.sys.isActive()) tone(this, 256, 'triangle', 0.05, 0.08); });
+    } else if (kind === 'dash') {
       tone(this, 182, 'sawtooth', 0.09, 0.10);
     } else {
       tone(this, sweet > 1.1 ? 320 : 276, 'square', 0.07, 0.07);
@@ -997,16 +1006,20 @@ class GameScene extends Phaser.Scene {
     p.visual.setVisible(false);
     p.overlay.setVisible(false);
     tone(this, 90, 'sawtooth', 0.22, 0.5);
-    this.time.delayedCall(46, () => tone(this, 46, 'sawtooth', 0.16, 0.55));
-    this.time.delayedCall(88, () => tone(this, 70, 'triangle', 0.08, 0.28));
+    this.time.delayedCall(46, () => { if (this.sys.isActive()) tone(this, 46, 'sawtooth', 0.16, 0.55); });
+    this.time.delayedCall(88, () => { if (this.sys.isActive()) tone(this, 70, 'triangle', 0.08, 0.28); });
     this.hudDirty = true;
     if (p.lives <= 0) {
       this.over = 1;
       const win = this.players[1 - p.idx];
-      this.time.delayedCall(600, () => this.scene.start('End', { winner: win.idx + 1, char: win.char }));
+      this.time.delayedCall(600, () => {
+        if (this.sys.isActive()) this.scene.start('End', { winner: win.idx + 1, char: win.char });
+      });
       return;
     }
-    this.time.delayedCall(INVULN_MS, () => this.respawnPlayer(p));
+    this.time.delayedCall(INVULN_MS, () => {
+      if (this.sys.isActive()) this.respawnPlayer(p);
+    });
   }
 
   respawnPlayer(p) {
@@ -1144,17 +1157,21 @@ class GameScene extends Phaser.Scene {
   }
 
   hitFreeze(ms) {
+    if (!this.physics || !this.physics.world) return;
+    ms = Math.max(0, ms | 0);
     const end = this.time.now + ms;
-    if ((this._fzEnd || 0) >= this.time.now) {
+    this._fzToken = (this._fzToken || 0) + 1;
+    if (!this.physics.world.isPaused) this.physics.pause();
+    if (end > (this._fzEnd || 0)) this._fzEnd = end;
+    const token = this._fzToken;
       // Already frozen — extend end if this freeze is longer, skip re-pause
-      if (end > this._fzEnd) this._fzEnd = end;
-    } else {
-      this._fzEnd = end;
-      this.physics.pause();
-    }
     // Only the last scheduled callback actually resumes (prevents early resume from stacking)
     this.time.delayedCall(ms, () => {
-      if (!this.over && this.time.now + 6 >= (this._fzEnd || 0)) this.physics.resume();
+      if (!this.sys.isActive() || !this.physics || !this.physics.world) return;
+      if (this.time.now + 6 < (this._fzEnd || 0)) return;
+      if (token !== this._fzToken && this.physics.world.isPaused) return;
+      this._fzEnd = 0;
+      if (this.physics.world.isPaused) this.physics.resume();
     });
   }
 
