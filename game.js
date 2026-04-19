@@ -69,8 +69,17 @@ const CABINET_KEYS = {
   P2_4: ['f'], P2_5: ['g'], P2_6: ['h'],
   START1: ['Enter'], START2: ['2'],
 };
+const NAV_UP_KEYS = ['P1_U', 'P2_U'], NAV_DOWN_KEYS = ['P1_D', 'P2_D'];
+const START_KEYS = ['START1', 'START2'], MENU_CONFIRM_KEYS = ['START1', 'START2', 'P2_4', 'P1_5'];
+const BACK_KEYS = ['START1', 'START2', 'P1_1', 'P2_1'];
+const PLAYER_KEYS = [
+  { left: 'P1_L', right: 'P1_R', up: 'P1_U', attack: 'P2_4', alt: 'P2_5', shield: 'P1_4' },
+  { left: 'P2_L', right: 'P2_R', up: 'P2_U', attack: 'P1_5', alt: 'P1_6', shield: 'P2_6' },
+];
 
 function nk(k) { return k === ' ' ? 'space' : k.length === 1 ? k.toLowerCase() : k; }
+function mapKey(k) { return KEY_MAP[nk(k)]; }
+function makeCtrl() { return { held: Object.create(null), pressed: Object.create(null), frame: [] }; }
 const KEY_MAP = {};
 for (const [code, keys] of Object.entries(CABINET_KEYS)) for (const k of keys) KEY_MAP[nk(k)] = code;
 
@@ -88,18 +97,18 @@ function tone(scene, f, type, vol, dur) {
 }
 
 function bindKeys(scene) {
-  scene.ctrl = { held: {}, pressed: {} };
+  const ctrl = scene.ctrl = makeCtrl();
   const onDown = e => {
     const ctx = scene.sound && scene.sound.context;
     if (ctx && ctx.state === 'suspended') ctx.resume();
-    const code = KEY_MAP[nk(e.key)];
+    const code = mapKey(e.key);
     if (!code) return;
-    if (!scene.ctrl.held[code]) scene.ctrl.pressed[code] = true;
-    scene.ctrl.held[code] = true;
+    if (!ctrl.held[code]) { ctrl.pressed[code] = true; ctrl.frame.push(code); }
+    ctrl.held[code] = true;
   };
   const onUp = e => {
-    const code = KEY_MAP[nk(e.key)];
-    if (code) scene.ctrl.held[code] = false;
+    const code = mapKey(e.key);
+    if (code) ctrl.held[code] = false;
   };
   window.addEventListener('keydown', onDown);
   window.addEventListener('keyup', onUp);
@@ -109,7 +118,11 @@ function bindKeys(scene) {
   });
 }
 
-function flush(scene) { for (const k in scene.ctrl.pressed) scene.ctrl.pressed[k] = false; }
+function flush(scene) {
+  const ctrl = scene.ctrl, frame = ctrl.frame, pressed = ctrl.pressed;
+  for (let i = 0; i < frame.length; i++) pressed[frame[i]] = false;
+  frame.length = 0;
+}
 
 function addLabel(scene, x, y, text, size, color, align) {
   return scene.add.text(x, y, text, {
@@ -117,7 +130,11 @@ function addLabel(scene, x, y, text, size, color, align) {
   });
 }
 
-function anyOf(scene, codes) { return codes.some(c => scene.ctrl.pressed[c]); }
+function anyOf(scene, codes) {
+  const pressed = scene.ctrl.pressed;
+  for (let i = 0; i < codes.length; i++) if (pressed[codes[i]]) return true;
+  return false;
+}
 
 function drawBg(scene, title) {
   scene.add.rectangle(W / 2, H / 2, W, H, C.bg);
@@ -528,9 +545,9 @@ class MenuScene extends Phaser.Scene {
     this.refresh();
   }
   update() {
-    if (anyOf(this, ['P1_U', 'P2_U'])) this.sel = (this.sel + this.OPTS.length - 1) % this.OPTS.length;
-    if (anyOf(this, ['P1_D', 'P2_D'])) this.sel = (this.sel + 1) % this.OPTS.length;
-    if (anyOf(this, ['START1', 'START2', 'P2_4', 'P1_5'])) this.confirm();
+    if (anyOf(this, NAV_UP_KEYS)) this.sel = (this.sel + this.OPTS.length - 1) % this.OPTS.length;
+    if (anyOf(this, NAV_DOWN_KEYS)) this.sel = (this.sel + 1) % this.OPTS.length;
+    if (anyOf(this, MENU_CONFIRM_KEYS)) this.confirm();
     this.refresh();
     flush(this);
   }
@@ -583,7 +600,7 @@ class CharacterSelectScene extends Phaser.Scene {
       if (this.ctrl.pressed.P2_R) this.sel[1] = (this.sel[1] + 1) % 3;
       if (this.ctrl.pressed.P1_5) { this.lock[1] = 1; tone(this, 620, 'square', 0.06, 0.08); }
     }
-    if (this.lock[0] && this.lock[1] && anyOf(this, ['START1', 'START2'])) {
+    if (this.lock[0] && this.lock[1] && anyOf(this, START_KEYS)) {
       tone(this, 700, 'square', 0.06, 0.1);
       this.scene.start('Game', { picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
       return;
@@ -633,7 +650,7 @@ class ControlsScene extends Phaser.Scene {
     addLabel(this, cx, H - 30, 'PRESS ENTER TO RETURN', 13, '#fff0aa', 'center').setOrigin(0.5);
   }
   update() {
-    if (anyOf(this, ['START1', 'START2', 'P1_1', 'P2_1'])) this.scene.start('Menu');
+    if (anyOf(this, BACK_KEYS)) this.scene.start('Menu');
     flush(this);
   }
 }
@@ -653,7 +670,7 @@ class CreditsScene extends Phaser.Scene {
     addLabel(this, cx, H - 30,   'PRESS ENTER TO RETURN', 13, C.dim, 'center').setOrigin(0.5);
   }
   update() {
-    if (anyOf(this, ['START1', 'START2', 'P1_1', 'P2_1'])) this.scene.start('Menu');
+    if (anyOf(this, BACK_KEYS)) this.scene.start('Menu');
     flush(this);
   }
 }
@@ -738,10 +755,7 @@ class GameScene extends Phaser.Scene {
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0, guard: 0 }, _auraType: null, recovering: false,
       canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0, _recoilT: 0, _atkPoseT: 0,
-      keys: {
-        left: idx ? 'P2_L' : 'P1_L', right: idx ? 'P2_R' : 'P1_R', up: idx ? 'P2_U' : 'P1_U',
-        attack: idx ? 'P1_5' : 'P2_4', alt: idx ? 'P1_6' : 'P2_5', shield: idx ? 'P2_6' : 'P1_4',
-      },
+      keys: PLAYER_KEYS[idx],
       _hud: { seg: 10, sp: -1, bk: 0, fat: false, pct: 0 }, _lastAlpha: -1, _lastOvAlpha: -1, _lastOvColor: -1, _lastSx: 0,
     };
   }
@@ -751,7 +765,7 @@ class GameScene extends Phaser.Scene {
     updatePlatforms(this);
     this.updatePickup(dt);
     if (this.over) {
-      if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
+      if (anyOf(this, START_KEYS)) this.scene.start('Menu');
       flush(this); return;
     }
     const p1 = this.players[0], p2 = this.players[1];
@@ -790,7 +804,8 @@ class GameScene extends Phaser.Scene {
   }
 
   updateShield(p, dt) {
-    p.shielding = p.fatigue <= 0 && p.stun <= 0 && p.stamina > 0 && !!this.ctrl.held[p.keys.shield];
+    const held = this.ctrl.held;
+    p.shielding = p.fatigue <= 0 && p.stun <= 0 && p.stamina > 0 && !!held[p.keys.shield];
     if (!p.shielding) return;
     p.stamina = Math.max(0, p.stamina - dt * 0.025);
     if (p.stamina <= 0) { p.fatigue = FATIGUE_MS * 0.6; p.shielding = false; }
@@ -907,10 +922,10 @@ class GameScene extends Phaser.Scene {
 
   handleActions(p, b) {
     if (!this.ready || p.stun > 0 || p.fatigue > 0 || p.shielding) return;
-    const k = p.keys;
-    const moving = this.ctrl.held[k.left] || this.ctrl.held[k.right];
-    if (this.ctrl.pressed[k.attack] && p.atkCd <= 0) this.basicAttack(p, b);
-    if (this.ctrl.pressed[k.alt]) this.handleAltAction(p, b, moving);
+    const k = p.keys, held = this.ctrl.held, pressed = this.ctrl.pressed;
+    const moving = held[k.left] || held[k.right];
+    if (pressed[k.attack] && p.atkCd <= 0) this.basicAttack(p, b);
+    if (pressed[k.alt]) this.handleAltAction(p, b, moving);
   }
 
   handleAltAction(p, b, moving) {
@@ -1033,9 +1048,10 @@ class GameScene extends Phaser.Scene {
     let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * shld;
     let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * shld;
     if (dash) vy = -95 * mul * pwr * sweet * rage * shld;
-    if (this.ctrl.held[t.keys.left]) vx -= 80;
-    if (this.ctrl.held[t.keys.right]) vx += 80;
-    if (this.ctrl.held[t.keys.up]) vy -= 35;
+    const held = this.ctrl.held;
+    if (held[t.keys.left]) vx -= 80;
+    if (held[t.keys.right]) vx += 80;
+    if (held[t.keys.up]) vy -= 35;
     t.lastHitTime = this.time.now;
     const pg = basic ? 0.98 : dash ? 1.10 : 1.22;
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
@@ -1581,7 +1597,7 @@ class EndScene extends Phaser.Scene {
     });
   }
   update() {
-    if (this.ctrl.pressed.START1 || this.ctrl.pressed.START2) this.scene.start('Menu');
+    if (anyOf(this, START_KEYS)) this.scene.start('Menu');
     flush(this);
   }
 }
