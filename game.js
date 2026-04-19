@@ -220,63 +220,73 @@ function burst(scene, x, y, color, n) {
   }
 }
 
+function drawRects(g, ox, parts) {
+  for (const p of parts) {
+    g.fillStyle(p[4], p[5] == null ? 1 : p[5]);
+    g.fillRect(ox + p[0], p[1], p[2], p[3]);
+  }
+}
+
+function drawPeaks(g, ox, parts, col, a) {
+  g.fillStyle(col, a == null ? 1 : a);
+  for (const p of parts)
+    g.fillTriangle(ox + p[0], p[1], ox + p[0] + p[2] / 2, p[1] - p[3], ox + p[0] + p[2], p[1]);
+}
+
+function wrapLayer(node, speed, s) {
+  node.x -= speed * s;
+  if (node.x <= -W) node.x += W;
+}
+
 function createDesertBackground(scene) {
-  // BACKGROUND REDESIGN
-  const sk = scene.add.graphics();
-  [
-    [0x44536a, 0, 180],[0x657087, 180, 82],[0xe3a363, 262, 72],
-    [0xc2774b, 334, 82],[0x704839, 416, 88],[0x35253a, 504, 96],
-  ].forEach(([col, y, h]) => { sk.fillStyle(col, 1); sk.fillRect(0, y, W, h); });
-  sk.fillStyle(0xf3d1a0, 0.24); sk.fillCircle(152, 98, 96);
-  sk.fillStyle(0xf3d1a0, 0.46); sk.fillCircle(152, 98, 62);
-  sk.fillStyle(0xfff1cb, 0.9);  sk.fillCircle(152, 98, 24);
+  const sky = scene.add.graphics();
+  const ruins = [
+    [96,304,108,118,0x63504d],[126,248,30,56,0x413541],[160,268,18,36,0x3f3a44],[112,320,74,8,0x90766d,0.42],
+    [316,260,148,110,0x544541],[342,236,96,24,0x312a34],[330,288,16,72,0x312a34],[438,288,16,72,0x312a34],[338,300,98,8,0x8d765f,0.40],
+    [424,330,122,88,0x4f3a31],[438,342,82,8,0x88614d,0.36],
+    [580,282,22,146,0x453428],[634,272,22,156,0x453428],[576,272,80,18,0x6d5240],[594,356,12,72,0x36281f],[630,346,12,82,0x36281f],
+  ];
+  [[0x44536a,0,188],[0x6b7890,188,76],[0xe0a062,264,70],[0xaf714d,334,86],[0x654644,420,92],[0x31253a,512,88]].forEach(p => {
+    sky.fillStyle(p[0], 1); sky.fillRect(0, p[1], W, p[2]);
+  });
+  [[0xf3d1a0,0.22,96],[0xf3d1a0,0.42,62],[0xfff1cb,0.88,24]].forEach(p => {
+    sky.fillStyle(p[0], p[1]); sky.fillCircle(152, 98, p[2]);
+  });
   scene.bgClouds = scene.add.container(0, 0);
-  const cg = scene.add.graphics(); scene.bgClouds.add(cg);
+  const cg = scene.add.graphics();
+  scene.bgClouds.add(cg);
   [0, W].forEach(ox => {
-    [[92,110,190,34],[250,148,180,28],[540,112,220,30],[690,160,130,22]].forEach(([x,y,w,h]) => {
-      cg.fillStyle(0xe7d7c0, 0.09); cg.fillRoundedRect(ox + x - w / 2, y, w, h, 14);
-      cg.fillStyle(0x846f72, 0.08); cg.fillRoundedRect(ox + x - w / 2 + 24, y + 12, w * 0.66, h * 0.65, 12);
+    [[110,118,200,34],[356,146,164,26],[642,134,210,30]].forEach(p => {
+      cg.fillStyle(0xe7d7c0, 0.08); cg.fillRoundedRect(ox + p[0] - p[2] / 2, p[1], p[2], p[3], 14);
+      cg.fillStyle(0x846f72, 0.07); cg.fillRoundedRect(ox + p[0] - p[2] * 0.28, p[1] + 10, p[2] * 0.56, p[3] * 0.56, 10);
     });
   });
   scene.bgFar = scene.add.container(0, 0);
-  const fg = scene.add.graphics(); scene.bgFar.add(fg);
-  const drawSil = ox => {
-    [[48,42,108],[96,26,86],[144,58,132],[246,44,96],[326,30,78],[384,70,148],[522,36,90],[594,54,128],[668,28,80],[736,64,154]].forEach(([bx,bw,bh]) => {
-      fg.fillStyle(0x3f485e, 1); fg.fillRect(ox + bx - bw / 2, H - 252 - bh, bw, bh);
-      fg.fillStyle(0x586277, 0.4); fg.fillRect(ox + bx - bw / 2 + 4, H - 252 - bh + 10, bw - 8, 10);
-    });
-  };
-  drawSil(0); drawSil(W);
+  const fg = scene.add.graphics();
+  scene.bgFar.add(fg);
+  [0, W].forEach(ox => {
+    const sil = [[52,42,108],[112,30,78],[174,56,126],[286,46,94],[390,70,146],[560,40,104],[700,60,138]];
+    fg.fillStyle(0x3f485e, 1);
+    sil.forEach(p => fg.fillRect(ox + p[0] - p[1] / 2, H - 252 - p[2], p[1], p[2]));
+    fg.fillStyle(0x586277, 0.32);
+    for (let i = 0; i < sil.length; i += 2) {
+      const p = sil[i];
+      fg.fillRect(ox + p[0] - p[1] / 2 + 4, H - 242 - p[2], p[1] - 8, 8);
+    }
+  });
   scene.bgMid = scene.add.container(0, 0);
-  const mg = scene.add.graphics(); scene.bgMid.add(mg);
-  const ruins = ox => {
-    mg.fillStyle(0x63504d, 1); mg.fillRect(ox + 104, 302, 114, 126);
-    mg.fillStyle(0x413541, 1); mg.fillRect(ox + 132, 244, 34, 58);
-    mg.fillStyle(0x3f3a44, 1); mg.fillRect(ox + 174, 264, 20, 38);
-    mg.fillStyle(0x90766d, 0.45); mg.fillRect(ox + 118, 318, 84, 10);
-    mg.fillStyle(0x4f3a31, 1); mg.fillRect(ox + 416, 324, 138, 92);
-    mg.fillStyle(0x88614d, 0.4); mg.fillRect(ox + 430, 338, 92, 10);
-    mg.fillStyle(0x453428, 1); mg.fillRect(ox + 588, 286, 26, 148);
-    mg.fillStyle(0x453428, 1); mg.fillRect(ox + 646, 272, 26, 162);
-    mg.fillStyle(0x6d5240, 1); mg.fillRect(ox + 584, 272, 92, 20);
-    mg.fillStyle(0x36281f, 1); mg.fillRect(ox + 602, 356, 14, 78);
-    mg.fillStyle(0x36281f, 1); mg.fillRect(ox + 642, 344, 14, 90);
-    [[245,386,58,26],[288,396,72,30],[528,400,54,24],[676,402,70,28]].forEach(([x,y,w,h]) => {
-      mg.fillStyle(0x8a6c4e, 1); mg.fillTriangle(ox + x, y, ox + x + w / 2, y - h, ox + x + w, y);
-    });
-    mg.fillStyle(0x544541, 1); mg.fillRect(ox + 318, 258, 164, 118);
-    mg.fillStyle(0x312a34, 1); mg.fillRect(ox + 344, 230, 110, 28);
-    mg.fillStyle(0x312a34, 1); mg.fillRect(ox + 332, 286, 18, 76);
-    mg.fillStyle(0x312a34, 1); mg.fillRect(ox + 448, 286, 18, 76);
-    mg.fillStyle(0x8d765f, 0.42); mg.fillRect(ox + 340, 300, 108, 10);
-    mg.fillStyle(0xb99662, 0.82); mg.fillTriangle(ox + 302, 408, ox + 400, 346, ox + 498, 408);
-  };
-  ruins(0); ruins(W);
+  const mg = scene.add.graphics();
+  scene.bgMid.add(mg);
+  [0, W].forEach(ox => {
+    drawRects(mg, ox, ruins);
+    drawPeaks(mg, ox, [[234,388,54,24],[274,398,64,26],[520,402,50,22],[654,404,64,26]], 0x8a6c4e);
+    drawPeaks(mg, ox, [[300,408,192,58]], 0xb99662, 0.78);
+  });
   const dune = (y, a, f, col, al) => {
     mg.fillStyle(col, al);
     [0, W].forEach(ox => {
       mg.beginPath(); mg.moveTo(ox - 20, y + a * Math.sin((ox - 20) * f));
-      for (let x = ox - 14; x <= ox + W + 20; x += 6) mg.lineTo(x, y + a * Math.sin(x * f));
+      for (let x = ox - 12; x <= ox + W + 20; x += 8) mg.lineTo(x, y + a * Math.sin(x * f));
       mg.lineTo(ox + W + 20, H); mg.lineTo(ox - 20, H); mg.closePath(); mg.fillPath();
     });
   };
@@ -287,13 +297,13 @@ function createDesertBackground(scene) {
   mg.fillStyle(0x6f584b, 0.38); mg.fillEllipse(404, 402, 132, 40);
   scene.bgParticles = scene.add.container(0, 0);
   scene.dustParticles = []; scene.windStreaks = [];
-  for (let i = 0; i < 26; i++) {
-    const r = scene.add.rectangle(Phaser.Math.Between(0, W), Phaser.Math.Between(170, H - 56), Phaser.Math.Between(2, 4), Phaser.Math.Between(1, 3), 0xe7c08d, Phaser.Math.FloatBetween(0.12, 0.38));
+  for (let i = 0; i < 18; i++) {
+    const r = scene.add.rectangle(Phaser.Math.Between(0, W), Phaser.Math.Between(170, H - 56), Phaser.Math.Between(2, 4), Phaser.Math.Between(1, 3), 0xe7c08d, Phaser.Math.FloatBetween(0.10, 0.28));
     scene.bgParticles.add(r); scene.dustParticles.push({ r, spd: Phaser.Math.FloatBetween(14, 44), drift: Phaser.Math.FloatBetween(-4, 4) });
   }
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 8; i++) {
     const len = Phaser.Math.Between(28, 66);
-    const r = scene.add.rectangle(Phaser.Math.Between(-W, W), Phaser.Math.Between(120, H - 84), len, 1, 0xf3d3a1, Phaser.Math.FloatBetween(0.08, 0.22));
+    const r = scene.add.rectangle(Phaser.Math.Between(-W, W), Phaser.Math.Between(120, H - 84), len, 1, 0xf3d3a1, Phaser.Math.FloatBetween(0.07, 0.18));
     scene.bgParticles.add(r); scene.windStreaks.push({ r, spd: Phaser.Math.FloatBetween(78, 168), drift: Phaser.Math.FloatBetween(-8, 8) });
   }
 }
@@ -301,9 +311,9 @@ function createDesertBackground(scene) {
 function updateBackground(scene, delta) {
   if (!scene.bgFar) return;
   const s = delta / 1000;
-  scene.bgClouds.x -= 8 * s; if (scene.bgClouds.x <= -W) scene.bgClouds.x += W;
-  scene.bgFar.x -= 18 * s; if (scene.bgFar.x <= -W) scene.bgFar.x += W;
-  scene.bgMid.x -= 42 * s; if (scene.bgMid.x <= -W) scene.bgMid.x += W;
+  wrapLayer(scene.bgClouds, 8, s);
+  wrapLayer(scene.bgFar, 18, s);
+  wrapLayer(scene.bgMid, 42, s);
   for (const d of scene.dustParticles) {
     d.r.x += d.spd * s; d.r.y += d.drift * s;
     if (d.r.x > W + 5) d.r.x = -5;
