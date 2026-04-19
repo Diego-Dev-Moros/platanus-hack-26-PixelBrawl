@@ -288,44 +288,45 @@ function updateBackground(scene, delta) {
   }
 }
 
-// PICKUP ICON REDESIGN
 function drawPickupIcon(scene, type, col) {
   const c = scene.add.container(0, 0), g = scene.add.graphics();
-  c.add(g);
   const px = (x, y, w, h, cc) => g.fillStyle(cc, 1).fillRect(x * 2, y * 2, w * 2, h * 2);
-  const sh = 0x1b1412;
-  const hi = 0xffffff;
-  const glow = scene.add.rectangle(0, 0, type === 'guard' ? 22 : 20, type === 'regen' ? 24 : 20, col, 0.14);
-  c.add(glow);
+  const sh = 0x1b1412, hi = 0xffffff;
+  // glow behind icon (added first = renders below g)
+  const glow = scene.add.rectangle(0, 0, 26, 26, col, 0.18);
+  c.add(glow); c.add(g);
+
   if (type === 'recovery') {
-    // heal: compact heart
-    [[-4,-4,3,2],[1,-4,3,2],[-5,-2,5,4],[0,-2,5,4],[-4,2,8,3],[-2,5,4,2]].forEach(v => px(...v, sh));
-    [[-3,-4,2,2],[1,-4,2,2],[-4,-2,4,4],[0,-2,4,4],[-3,2,6,3],[-1,5,2,2]].forEach(v => px(...v, col));
-    [[-2,-3,1,1],[2,-3,1,1],[-2,0,1,1],[1,0,1,1],[-1,3,2,1]].forEach(v => px(...v, hi));
+    // HEART: two separate top lobes, explicit V-notch, tapered bottom point
+    [[-5,-6,4,2],[1,-6,4,2],[-6,-4,12,9],[-4,5,8,3],[-2,8,4,2],[-1,10,3,2]].forEach(v=>px(...v,sh));
+    [[-4,-6,3,6],[1,-6,3,6],[-5,-4,10,9],[-3,5,6,3],[-1,8,2,2],[0,10,1,1]].forEach(v=>px(...v,col));
+    px(-1,-6,2,6,sh); // dark V-notch drawn after fill to split the two lobes
+    [[-3,-5,1,3],[2,-5,1,2],[-4,-1,2,4]].forEach(v=>px(...v,hi));
+
   } else if (type === 'power') {
-    // power: flexed bicep
-    [[-5,-2,5,4],[-2,2,4,3],[1,-1,4,7],[4,-2,3,3],[-1,-5,3,2]].forEach(v => px(...v, sh));
-    [[-4,-2,4,4],[-1,2,3,3],[1,-1,3,7],[4,-2,2,3],[0,-5,2,2]].forEach(v => px(...v, col));
-    [[-2,-1,1,1],[2,0,1,1],[2,3,1,2],[0,4,1,1]].forEach(v => px(...v, hi));
+    // BICEP: oversized upper-arm bulge (top-left) + bent elbow + forearm (lower-right)
+    [[-5,-8,7,7],[-3,-1,5,5],[-1,3,8,5]].forEach(v=>px(...v,sh));
+    [[-4,-8,6,7],[-2,-1,4,5],[0,3,7,5]].forEach(v=>px(...v,col));
+    [[-3,-7,1,5],[-1,0,1,3],[1,4,2,2]].forEach(v=>px(...v,hi));
+
   } else if (type === 'speed') {
-    // speed: angled boot
-    [[-5,-1,6,3],[-1,-4,4,4],[1,2,6,3],[4,0,3,2]].forEach(v => px(...v, sh));
-    [[-4,-1,5,3],[-1,-3,3,4],[1,2,5,3],[4,0,2,2]].forEach(v => px(...v, col));
-    [[0,-2,1,2],[2,-1,1,1],[1,3,2,1]].forEach(v => px(...v, hi));
+    // BOOT: vertical ankle shaft + rightward foot + wide flat sole
+    [[-3,-7,5,9],[0,-2,8,5],[-4,2,13,3]].forEach(v=>px(...v,sh));
+    [[-2,-7,4,9],[0,-1,7,5],[-3,2,11,3]].forEach(v=>px(...v,col));
+    [[-1,-6,1,5],[1,0,1,3],[-2,3,3,1]].forEach(v=>px(...v,hi));
+
   } else if (type === 'regen') {
-    // regen: bottle with neck and cap
-    [[-2,-7,4,2],[-1,-9,2,2],[-4,-5,8,10],[4,-1,1,4]].forEach(v => px(...v, sh));
-    [[-1,-7,2,2],[0,-9,1,2],[-3,-5,6,10],[3,-1,1,4]].forEach(v => px(...v, col));
-    [[-1,-3,1,5],[1,-2,1,3]].forEach(v => px(...v, hi));
+    // POTION BOTTLE: small cap + narrow neck + wide body
+    [[-1,-9,2,2],[-2,-7,4,2],[-5,-5,10,13]].forEach(v=>px(...v,sh));
+    [[0,-9,1,2],[-1,-7,2,2],[-4,-5,8,13]].forEach(v=>px(...v,col));
+    [[-2,-3,1,7],[0,-2,1,5]].forEach(v=>px(...v,hi));
+
   } else {
-    // guard: classic shield, wide top and pointed bottom
-    [[-5,-6,10,2],[-6,-4,12,6],[-5,2,10,3],[-3,5,6,2],[-2,7,4,1]].forEach(v => px(...v, sh));
-    [[-4,-6,8,2],[-5,-4,10,6],[-4,2,8,3],[-2,5,4,2],[-1,7,2,1]].forEach(v => px(...v, col));
-    [[-2,-3,1,4],[0,-4,1,5],[2,-3,1,3]].forEach(v => px(...v, hi));
+    // SHIELD: wide flat top, stepped sides, pronounced bottom point
+    [[-6,-6,12,2],[-7,-4,14,8],[-6,4,12,3],[-4,7,8,2],[-2,9,4,2],[-1,11,3,2]].forEach(v=>px(...v,sh));
+    [[-5,-6,10,2],[-6,-4,12,8],[-5,4,10,3],[-3,7,6,2],[-1,9,2,2],[0,11,1,1]].forEach(v=>px(...v,col));
+    [[-2,-4,1,6],[0,-5,1,7],[2,-4,1,5]].forEach(v=>px(...v,hi));
   }
-  glow.setScale(type === 'guard' ? 1.1 : 1);
-  [-10, 10].forEach(x => c.add(scene.add.rectangle(x, -10, 2, 2, hi, 0.45)));
-  c.add(scene.add.rectangle(0, 14, 24, 3, 0x2a1811, 0.3));
   return c;
 }
 
