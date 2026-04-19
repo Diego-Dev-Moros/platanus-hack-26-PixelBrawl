@@ -609,7 +609,7 @@ class GameScene extends Phaser.Scene {
       stamina: 100, staminaMax: 100, percent: 0, invuln: 0, fatigue: 0, stun: 0,
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0, guard: 0 }, _auraType: null, recovering: false,
-      canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0, _recoilT: 0,
+      canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0, _recoilT: 0, _atkPoseT: 0,
       _hud: { seg: 10, sp: -1, bk: 0, fat: false, pct: 0 }, _lastAlpha: -1, _lastOvAlpha: -1, _lastOvColor: -1, _lastSx: 0,
     };
   }
@@ -703,6 +703,7 @@ class GameScene extends Phaser.Scene {
     if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
     if (p.comboT > 0) { p.comboT -= dt; if (p.comboT <= 0) p.comboHits = 0; }
     if (p._recoilT > 0) p._recoilT -= dt;
+    if (p._atkPoseT > 0) p._atkPoseT -= dt;
     const wasExh = p.fatigue > 0;
     if (p.fatigue > 0) p.fatigue -= dt;
     if (wasExh && p.fatigue <= 0) {
@@ -789,6 +790,7 @@ class GameScene extends Phaser.Scene {
         ? { kind:'basic', t:106, hit:0, w:50, h:32, ox:p.face*20, oy:2,   dmg:10, fx:1.20, fy:0.40 }
         : { kind:'basic', t:98,  hit:0, w:40, h:36, ox:p.face*16, oy:16,  dmg:8,  fx:0.92, fy:0.78 };
     }
+    p._atkPoseT = p.atk.t;  // drive attack active-frame pose
     const fc = id==='volt' ? 0xffdd00 : id==='crush' ? 0xff8844 : p.char.accent;
     const fOx = id==='pulse' ? 28 : id==='volt' ? 20 : 18;
     const fOy = gr ? (id==='pulse' ? -6 : id==='volt' ? -2 : 2) : 14;
@@ -813,6 +815,7 @@ class GameScene extends Phaser.Scene {
       // Charging body press: widest hitbox, highest damage, pure horizontal push
       p.atk = { kind:'dash', t:108, hit:0, w:48, h:40, ox:dir*12, oy:4,  dmg:13, fx:1.24, fy:0.30 };
     }
+    p._atkPoseT = p.atk.t;  // drive attack active-frame pose
     b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500) * (this.finalPhase ? 1.15 : 1));
     this.flash(p.body.x, p.body.y, 44, 20, p.char.color, 110);
     tone(this, 90, 'sawtooth', 0.06, 0.14);
@@ -833,16 +836,19 @@ class GameScene extends Phaser.Scene {
     p.spCd = p.char.sp;
     if (p.char.id === 'pulse') {
       p.atk = { kind: 'pulse', t: 110, hit: 0, w: 116, h: 116, ox: 0, oy: 0, dmg: p.char.sd, fx: 1.02, fy: 0.7 };
+      p._atkPoseT = 110;
       this.ring(p.body.x, p.body.y, 16, 4, p.char.color, 140);
-      this.spark(p.body.x, p.body.y, 0xffffff, 7);  // PULSE: white slash burst
+      this.spark(p.body.x, p.body.y, 0xffffff, 7);
       tone(this, 260, 'triangle', 0.06, 0.14);
     } else if (p.char.id === 'volt') {
       p.atk = { kind: 'volt', t: 110, hit: 0, w: 34, h: 68, ox: p.face * 16, oy: -40, dmg: p.char.sd, fx: 0.55, fy: 1.28 };
+      p._atkPoseT = 110;
       this.flash(p.body.x + p.face * 10, p.body.y - 38, 24, 64, p.char.accent, 120);
-      this.spark(p.body.x + p.face * 10, p.body.y - 24, 0xffdd00, 6);  // VOLT: yellow uppercut sparks
+      this.spark(p.body.x + p.face * 10, p.body.y - 24, 0xffdd00, 6);
       tone(this, 360, 'square', 0.06, 0.12);
     } else {
       p.slam = 1;
+      p._atkPoseT = 85;  // dive animation
       p.invuln = Math.max(p.invuln, 380);
       p.body.body.setVelocityY(600);
       this.flash(p.body.x, p.body.y + 10, 28, 34, p.char.color, 120);
@@ -910,17 +916,20 @@ class GameScene extends Phaser.Scene {
     // VOLT bonus vs airborne targets
     if (p.char.id === 'volt' && !t.body.body.blocked.down && !t.body.body.touching.down) { vx *= 1.22; vy *= 1.22; }
     const impact = mul * sweet * (a.kind === 'basic' ? 1 : a.kind === 'dash' ? 1.15 : 1.30);
-    const bloodLv = impact > 2.25 || a.kind === 'crush' ? 2 : impact > 1.45 || a.kind === 'dash' || sweet > 1.15 ? 1 : 0;
+    const baseBld = impact > 2.25 || a.kind === 'crush' ? 2 : impact > 1.45 || a.kind === 'dash' || sweet > 1.15 ? 1 : 0;
+    const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy && !t.shielding ? 1 : 0));
     const heavy = impact > 1.95 || a.kind === 'crush' || a.kind === 'volt';
     const killish = heavy && (t.percent > 160 || Math.abs(vx) > 560 || Math.abs(vy) > 380);
     if (t.shielding) { vx *= 0.88; vy *= 0.84; }
     b.setVelocity(vx, vy);
-    p._recoilT = t.shielding ? 48 : killish ? 145 : heavy ? 95 : 58;  // attacker follow-through
+    p._recoilT = t.shielding ? 48 : killish ? 145 : heavy ? 95 : 58;
+    p._atkPoseT = 0;  // hit connected — hand off to recoil pose
     if (t.shielding) p.body.body.velocity.x -= dir * (a.kind === 'dash' ? 92 : 58);
     if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
     if (heavy || sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : 6);
     else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
     if (bloodLv && !t.shielding) this.bloodImpact(t.body.x, t.body.y - 8, bloodLv, killish, dir);
+    if (heavy && !t.shielding && t.percent > 100) this.flash(t.body.x, t.body.y - 10, 40, 60, 0xff1a1a, t.percent > 160 ? 80 : 55);
     this.flash(t.body.x, t.body.y - 6, killish ? 56 : heavy ? 42 : 24, killish ? 34 : 24, p.char.accent, killish ? 135 : 90);
     if (!t.shielding) {
       if (p.char.id === 'pulse') {
@@ -969,7 +978,7 @@ class GameScene extends Phaser.Scene {
     p.atk = null;
     p.slam = 0;
     p.buffs.power = p.buffs.speed = p.buffs.regen = p.buffs.guard = 0;
-    p._auraType = null; p.shielding = false; p._recoilT = 0;
+    p._auraType = null; p.shielding = false; p._recoilT = 0; p._atkPoseT = 0;
     p.aura.setVisible(false);
     const kox = p.body.x, koy = p.body.y;
     burst(this, kox, koy, p.char.color, 24);
@@ -1013,7 +1022,7 @@ class GameScene extends Phaser.Scene {
     p.slam = 0;
     p.lastHitTime = 0;
     p.buffs.power = p.buffs.speed = p.buffs.regen = p.buffs.guard = 0;
-    p._auraType = null; p.shielding = false; p.canAirDodge = true; p.canEdgeSnap = true; p.comboHits = 0; p.comboT = 0; p._recoilT = 0;
+    p._auraType = null; p.shielding = false; p.canAirDodge = true; p.canEdgeSnap = true; p.comboHits = 0; p.comboT = 0; p._recoilT = 0; p._atkPoseT = 0;
     p.aura.setVisible(false).setAngle(0);
     p.recovering = false;
     p._lastAlpha = -1; p._lastOvAlpha = -1; p._lastOvColor = -1;
@@ -1055,15 +1064,22 @@ class GameScene extends Phaser.Scene {
     const bF = p.char.id === 'volt' ? 0.0048 : p.char.id === 'crush' ? 0.0020 : 0.0034;
     const bA = p.char.id === 'crush' ? 2.2 : 1.4;
     let yOff = 0, ang = 0;
-    if (p._recoilT > 0 && p.stun <= 0 && p.fatigue <= 0) {
-      // Attacker follow-through lean — decays as _recoilT drops
+    if (p._atkPoseT > 0 && p.stun <= 0) {
+      // Active-frame attack pose: character commits to the swing (before hit connects)
+      const af = Math.max(0, Math.min(1, p._atkPoseT / 52));
+      ang = (p.char.id === 'crush' ? 9 : p.char.id === 'volt' ? 16 : 18) * af;
+      yOff = p.char.id === 'pulse' ? -bA * 0.70 * af : p.char.id === 'crush' ? bA * 0.85 * af : 0;
+    } else if (p._recoilT > 0 && p.stun <= 0 && p.fatigue <= 0) {
+      // Post-hit follow-through lean — decays as _recoilT drops
       const rf = Math.max(0, Math.min(1, p._recoilT / 65));
       ang = (p.char.id === 'crush' ? 5 : p.char.id === 'volt' ? 11 : 8) * rf;
-      // Character-specific vertical pose: PULSE lifts (kick extend), CRUSH sinks (commit weight), VOLT neutral
       const yShift = p.char.id === 'pulse' ? -bA * 0.45 * rf : p.char.id === 'crush' ? bA * 0.55 * rf : 0;
       yOff = Math.sin(now * bF) * bA * 0.4 + yShift;
     } else if (p.stun > 0) {
-      yOff = Math.sin(now * 0.08) * 2;
+      // Stagger — intensity scales with accumulated damage percent
+      const si = Math.min(2.2, 1 + p.percent / 190);
+      yOff = Math.sin(now * 0.09) * 2 * si;
+      ang  = Math.sin(now * 0.045) * 2.5 * si * p.face;
     } else if (vx > 20 && b.blocked.down) {
       yOff = Math.sin(now * bF * 4) * bA;
       ang  = Math.sin(now * bF * 4 + Math.PI / 2) * 2.5 * p.face;
