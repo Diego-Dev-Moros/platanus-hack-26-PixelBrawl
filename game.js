@@ -5,12 +5,16 @@ const GRAVITY = 980, SPEED = 220, JUMP = -420, LIVES = 3;
 const DASH_CD = 900, FATIGUE_MS = 1000, INVULN_MS = 1200, EXHAUST_RECOVER = 35;
 const BUFF_POWER_DUR = 10000, BUFF_SPEED_DUR = 10000, BUFF_REGEN_DUR = 8000, BUFF_GUARD_DUR = 9000;
 
+const BUFF_KEYS = ['power', 'speed', 'regen', 'guard'];
+const AURA_KEYS = ['guard', 'power', 'speed', 'regen'];
+const PICKUP_SPAWN = [4, 22, 1.7, 190], PICKUP_TAKE = [6, 46];
+const PICKUP_IDLE = [2.8, 0.0055, 0.035, 0.0062, 0.21, 0.06, 0.09, 0.03, 0.18, 0.04, 0, 0.022, 0, 0.0046, 1.18, 110];
 const PICKUP_CFG = {
-  recovery: { col: 0xff5f77, txt: 'STAMINA +35', tc: '#ff8094', f: 660, ft: 'triangle', fd: 0.18 },
-  power:    { col: 0xff7a45, txt: 'POWER UP!',   tc: '#ff9f75', f: 880, ft: 'square',   fd: 0.12, bk: 'power', dur: BUFF_POWER_DUR },
-  speed:    { col: 0xffd54a, txt: 'SPEED UP!',   tc: '#ffe37b', f: 660, ft: 'square',   fd: 0.10, bk: 'speed', dur: BUFF_SPEED_DUR },
-  regen:    { col: 0x00d7c7, txt: 'REGEN UP!',   tc: '#00d7c7', f: 550, ft: 'triangle', fd: 0.14, bk: 'regen', dur: BUFF_REGEN_DUR },
-  guard:    { col: 0x57c9ff, txt: 'SHIELD UP!',  tc: '#9ce5ff', f: 490, ft: 'square',   fd: 0.15, bk: 'guard', dur: BUFF_GUARD_DUR },
+  recovery: { col: 0xff5f77, txt: 'STAMINA +35', tc: '#ff8094', s: [660, 'triangle', 0.18], heal: 35 },
+  power:    { col: 0xff7a45, txt: 'POWER UP!',   tc: '#ff9f75', s: [880, 'square',   0.12], buff: 'power', dur: BUFF_POWER_DUR, spawn: [5, 26, 1.95, 230], take: [8, 56], idle: [2.8, 0.0055, 0.06, 0.0105, 0.28, 0.09, 0.12, 0.05, 0.24, 0.06, 0, 0.022, 0.03, 0.007, 1.28, 90], shake: 0.0035 },
+  speed:    { col: 0xffd54a, txt: 'SPEED UP!',   tc: '#ffe37b', s: [660, 'square',   0.10], buff: 'speed', dur: BUFF_SPEED_DUR, take: [7, 46], idle: [3.2, 0.0082, 0.045, 0.009, 0.24, 0.07, 0.1, 0.035, 0.2, 0.05, 0.8, 0.022, 0.012, 0.008, 1.22, 100] },
+  regen:    { col: 0x00d7c7, txt: 'REGEN UP!',   tc: '#00d7c7', s: [550, 'triangle', 0.14], buff: 'regen', dur: BUFF_REGEN_DUR, idle: [2.4, 0.0046, 0.03, 0.0045, 0.19, 0.05, 0.08, 0.028, 0.16, 0.03, 0, 0.022, 0, 0.0046, 1.18, 110] },
+  guard:    { col: 0x57c9ff, txt: 'SHIELD UP!',  tc: '#9ce5ff', s: [490, 'square',   0.15], buff: 'guard', dur: BUFF_GUARD_DUR, idle: [1.7, 0.0041, 0.024, 0.0048, 0.16, 0.04, 0.06, 0.02, 0.14, 0.02, 0, 0.022, 0, 0.0046, 1.18, 110] },
 };
 const BASE_KB_X = 240, BASE_KB_Y = 155;
 const KB_PERCENT_CAP = 190, KB_PERCENT_DIV = 172, KB_PERCENT_GAIN = 0.46;
@@ -28,7 +32,12 @@ const CHARS = [
 ];
 
 const SPAWNS = [{ x: 320, y: 300 }, { x: 480, y: 300 }];
-const BUFF_KEYS = ['power', 'speed', 'regen', 'guard'];
+const BUFF_BADGES = {
+  power: [[-2, -1, 5, 3], [0, -4, 3, 3]],
+  speed: [[-3, 0, 6, 2], [-1, -4, 3, 4]],
+  regen: [[-2, -4, 4, 7], [-1, -6, 2, 2]],
+  guard: [[-3, -4, 6, 2], [-4, -2, 8, 4], [-2, 2, 4, 2]],
+};
 const MOVESET = {
   pulse: { bc:240, b:[[78,48,22,26,-6,7,0.90,0.84],[84,36,36,22,16,9,0.82,1.05]], bf:[28,-6,0xffffff], dc:780, dt:95, d:[95,36,28,24,-8,9,0.88,0.82], sk:'pulse', sp:[110,116,116,0,0,0,1.02,0.70] },
   volt:  { bc:252, b:[[72,34,24,22,-2,8,1.06,0.56],[80,28,28,18,12,7,0.78,0.88]], bf:[20,-2,0xffdd00], dc:840, dt:95, d:[90,28,32,18,-2,11,1.08,0.40], sk:'volt',  sp:[110,34,68,16,-40,0,0.55,1.28] },
@@ -157,11 +166,28 @@ function clearBuffs(buffs) {
 }
 
 function buffMask(buffs) {
-  return (buffs.power > 0 ? 8 : 0) | (buffs.speed > 0 ? 4 : 0) | (buffs.regen > 0 ? 2 : 0) | (buffs.guard > 0 ? 1 : 0);
+  let mask = 0;
+  for (const k of BUFF_KEYS) mask = mask * 2 + (buffs[k] > 0);
+  return mask;
 }
 
 function auraTypeOf(buffs) {
-  return buffs.guard > 0 ? 'guard' : buffs.power > 0 ? 'power' : buffs.speed > 0 ? 'speed' : buffs.regen > 0 ? 'regen' : null;
+  for (const k of AURA_KEYS) if (buffs[k] > 0) return k;
+  return null;
+}
+
+function tickBuffs(buffs, dt) {
+  for (const k of BUFF_KEYS) buffs[k] = down(buffs[k], dt);
+}
+
+function eachBuff(buffs, fn) {
+  let i = 0;
+  for (const k of BUFF_KEYS) if (buffs[k] > 0) fn(k, i++);
+}
+
+function applyPickupToPlayer(p, cfg) {
+  if (cfg.buff) p.buffs[cfg.buff] = cfg.dur;
+  else { p.stamina = Math.min(p.staminaMax, p.stamina + cfg.heal); p.lastHitTime = 0; }
 }
 
 function makeAttack(kind, spec, dir, dmg) {
@@ -256,6 +282,17 @@ function drawPeaks(g, ox, parts, col, a) {
 function wrapLayer(node, speed, s) {
   node.x -= speed * s;
   if (node.x <= -W) node.x += W;
+}
+
+function drawBuffBadges(g, buffs, x, y, dir) {
+  g.clear();
+  eachBuff(buffs, (type, i) => {
+    const bx = x + dir * i * 16, col = PICKUP_CFG[type].col;
+    g.fillStyle(0x10202c, 0.95); g.fillRoundedRect(bx - 6, y - 6, 12, 12, 3);
+    g.lineStyle(1, col, 0.95); g.strokeRoundedRect(bx - 6, y - 6, 12, 12, 3);
+    g.fillStyle(col, 1);
+    for (const p of BUFF_BADGES[type]) g.fillRect(bx + p[0], y + p[1], p[2], p[3]);
+  });
 }
 
 function createDesertBackground(scene) {
@@ -795,7 +832,7 @@ class GameScene extends Phaser.Scene {
     p.dashCd = down(p.dashCd, dt);
     p.spCd = down(p.spCd, dt);
     p.dashT = down(p.dashT, dt);
-    for (const k of BUFF_KEYS) p.buffs[k] = down(p.buffs[k], dt);
+    tickBuffs(p.buffs, dt);
     if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
     if (p.comboT > 0) { p.comboT = down(p.comboT, dt); if (!p.comboT) p.comboHits = 0; }
     p._recoilT = down(p._recoilT, dt);
@@ -1315,6 +1352,8 @@ class GameScene extends Phaser.Scene {
     const rnd = Math.random();
     const type = rnd<0.30?'recovery':rnd<0.50?'power':rnd<0.70?'speed':rnd<0.88?'regen':'guard';
     const cfg = PICKUP_CFG[type];
+    const spawn = cfg.spawn || PICKUP_SPAWN, idle = cfg.idle || PICKUP_IDLE;
+    const [floatAmp, floatSpd, pulseAmp, pulseSpd, glowBase, glowAmp, haloBase, haloAmp, ringBase, ringAmp, jitterAmp, jitterSpd, rotAmp, rotSpd, peak, popDur] = idle;
     const ox = pl.hitbox.x + offX, oy = pl.hitbox.y - 22;
     const orb = this.add.container(ox, oy).setDepth(6);
     const shell = this.add.container(0, 0).setScale(0.2).setAlpha(0);
@@ -1324,23 +1363,6 @@ class GameScene extends Phaser.Scene {
     const body = this.add.container(0, 0);
     body.add(drawPickupIcon(this, type, cfg.col));
     shell.add([halo, glow, ring, body]); orb.add(shell);
-    let floatAmp = 2.8, floatSpd = 0.0055, pulseAmp = 0.035, pulseSpd = 0.0062;
-    let glowBase = 0.21, glowAmp = 0.06, haloBase = 0.09, haloAmp = 0.03, ringBase = 0.18, ringAmp = 0.04;
-    let jitterAmp = 0, jitterSpd = 0.022, rotAmp = 0, rotSpd = 0.0046, peak = 1.18, popDur = 110;
-    if (type === 'power') {
-      pulseAmp = 0.06; pulseSpd = 0.0105; glowBase = 0.28; glowAmp = 0.09; haloBase = 0.12; haloAmp = 0.05;
-      ringBase = 0.24; ringAmp = 0.06; rotAmp = 0.03; rotSpd = 0.007; peak = 1.28; popDur = 90;
-    } else if (type === 'speed') {
-      floatAmp = 3.2; floatSpd = 0.0082; pulseAmp = 0.045; pulseSpd = 0.009; glowBase = 0.24; glowAmp = 0.07;
-      haloBase = 0.1; haloAmp = 0.035; ringBase = 0.2; ringAmp = 0.05; jitterAmp = 0.8; rotAmp = 0.012; rotSpd = 0.008;
-      peak = 1.22; popDur = 100;
-    } else if (type === 'regen') {
-      floatAmp = 2.4; floatSpd = 0.0046; pulseAmp = 0.03; pulseSpd = 0.0045; glowBase = 0.19; glowAmp = 0.05;
-      haloBase = 0.08; haloAmp = 0.028; ringBase = 0.16; ringAmp = 0.03;
-    } else if (type === 'guard') {
-      floatAmp = 1.7; floatSpd = 0.0041; pulseAmp = 0.024; pulseSpd = 0.0048; glowBase = 0.16; glowAmp = 0.04;
-      haloBase = 0.06; haloAmp = 0.02; ringBase = 0.14; ringAmp = 0.02;
-    }
     const pickup = {
       orb, shell, halo, glow, ring, body, type, x: ox, y: oy, vx: 0, vy: 0, plat: pl, offX, life: 5500,
       seed: Math.random() * Math.PI * 2, floatAmp, floatSpd, pulseAmp, pulseSpd, glowBase, glowAmp, haloBase, haloAmp,
@@ -1349,8 +1371,8 @@ class GameScene extends Phaser.Scene {
     this.pickup = pickup;
     this.startPickupSpawnTween(pickup, peak, popDur);
     const pop = this.add.circle(ox, oy, 10, cfg.col, 0.18).setStrokeStyle(2, 0xffffff, 0.75).setDepth(7);
-    fxGone(this, pop, { scaleX: type === 'power' ? 1.95 : 1.7, scaleY: type === 'power' ? 1.95 : 1.7, alpha: 0, duration: type === 'power' ? 230 : 190 });
-    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 5 : 4, 10, type === 'power' ? 26 : 22, 180, 8);
+    fxGone(this, pop, { scaleX: spawn[2], scaleY: spawn[2], alpha: 0, duration: spawn[3] });
+    this.pickupBits(ox, oy, cfg.col, spawn[0], 10, spawn[1], 180, 8);
   }
 
   checkPickup(p) {
@@ -1364,16 +1386,16 @@ class GameScene extends Phaser.Scene {
     this.pickup = null;
     this.scheduleNextPickup();
     const cfg = PICKUP_CFG[type];
+    const take = cfg.take || PICKUP_TAKE, snd = cfg.s;
     if (orb && orb.active)
       fxGone(this, orb, { scaleX: 1.14, scaleY: 1.14, alpha: 0, duration: 95, ease: 'Quad.easeOut' });
-    this.pickupBits(ox, oy, cfg.col, type === 'power' ? 8 : type === 'speed' ? 7 : 6, 18, type === 'power' ? 56 : 46, 250, 8);
+    this.pickupBits(ox, oy, cfg.col, take[0], 18, take[1], 250, 8);
     this.pickupFlash(ox, oy, cfg.col);
     showPickupText(this, ox, oy, cfg.txt, cfg.tc);
     this.pickupSoundHook(type, ox, oy);
-    tone(this, cfg.f, cfg.ft, 0.07, cfg.fd);
-    if (type === 'power') this.cameras.main.shake(70, 0.0035);
-    if (cfg.bk) { p.buffs[cfg.bk] = cfg.dur; }
-    else { p.stamina = Math.min(p.staminaMax, p.stamina + 35); p.lastHitTime = 0; }
+    tone(this, snd[0], snd[1], 0.07, snd[2]);
+    if (cfg.shake) this.cameras.main.shake(70, cfg.shake);
+    applyPickupToPlayer(p, cfg);
     this.hudDirty = true;
   }
 
@@ -1496,28 +1518,9 @@ class GameScene extends Phaser.Scene {
         g.fillRect(x + i * 10, 63, 8, 6);
       }
     };
-    const drawBuffs = (g, p, x, y, dir) => {
-      g.clear();
-      const buffs = [
-        p.buffs.power > 0 ? ['power', PICKUP_CFG.power.col] : null,
-        p.buffs.speed > 0 ? ['speed', PICKUP_CFG.speed.col] : null,
-        p.buffs.regen > 0 ? ['regen', PICKUP_CFG.regen.col] : null,
-        p.buffs.guard > 0 ? ['guard', PICKUP_CFG.guard.col] : null,
-      ].filter(Boolean);
-      buffs.forEach((it, i) => {
-        const bx = x + dir * i * 16, by = y, col = it[1];
-        g.fillStyle(0x10202c, 0.95); g.fillRoundedRect(bx - 6, by - 6, 12, 12, 3);
-        g.lineStyle(1, col, 0.95); g.strokeRoundedRect(bx - 6, by - 6, 12, 12, 3);
-        g.fillStyle(col, 1);
-        if (it[0] === 'power') { g.fillRect(bx - 2, by - 1, 5, 3); g.fillRect(bx, by - 4, 3, 3); }
-        else if (it[0] === 'speed') { g.fillRect(bx - 3, by, 6, 2); g.fillRect(bx - 1, by - 4, 3, 4); }
-        else if (it[0] === 'regen') { g.fillRect(bx - 2, by - 4, 4, 7); g.fillRect(bx - 1, by - 6, 2, 2); }
-        else { g.fillRect(bx - 3, by - 4, 6, 2); g.fillRect(bx - 4, by - 2, 8, 4); g.fillRect(bx - 2, by + 2, 4, 2); }
-      });
-    };
     dB(this.hudBar1, p1, 24); dB(this.hudBar2, p2, W - 122);
-    drawBuffs(this.hudBuff1, p1, 188, 74, 1);
-    drawBuffs(this.hudBuff2, p2, W - 188, 74, -1);
+    drawBuffBadges(this.hudBuff1, p1.buffs, 188, 74, 1);
+    drawBuffBadges(this.hudBuff2, p2.buffs, W - 188, 74, -1);
     this.hudP1.setText('P1  ' + p1.char.name + '  ' + dots(p1.lives));
     this.hudP2.setText('P2  ' + p2.char.name + '  ' + dots(p2.lives));
     this.hudPct1.setText(p1._hud.pct + '%').setColor(p1._hud.pct >= 150 ? '#ff6d78' : p1._hud.pct >= 80 ? '#ffd25a' : C.p1);
