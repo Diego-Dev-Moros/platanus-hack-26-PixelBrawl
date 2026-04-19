@@ -13,7 +13,7 @@ const PICKUP_CFG = {
   guard:    { col: 0xffd56a, txt: 'SHIELD UP!',  tc: '#ffe08d', f: 490, ft: 'square',   fd: 0.15, bk: 'guard', dur: BUFF_GUARD_DUR },
 };
 const BASE_KB_X = 240, BASE_KB_Y = 155;
-const KB_PERCENT_CAP = 220, KB_PERCENT_DIV = 145, KB_PERCENT_GAIN = 0.58;
+const KB_PERCENT_CAP = 190, KB_PERCENT_DIV = 172, KB_PERCENT_GAIN = 0.46;
 const DEATH_X = 80, DEATH_Y = 680;
 
 const C = {
@@ -563,13 +563,13 @@ class GameScene extends Phaser.Scene {
 
   makeHud() {
     this.hudFrame = this.add.graphics().setDepth(10);
-    this.hudTimer = addLabel(this, W / 2, 16, '3:00', 22, C.text, 'center').setOrigin(0.5, 0).setDepth(11);
-    this.hudP1 = addLabel(this, 24, 16, '', 11, C.p1).setDepth(11);
-    this.hudPct1 = addLabel(this, 24, 34, '', 28, C.p1).setDepth(11);
-    this.hudS1 = addLabel(this, 24, 72, '', 11, C.dim).setDepth(11);
-    this.hudP2 = addLabel(this, W - 24, 16, '', 11, C.p2, 'right').setOrigin(1, 0).setDepth(11);
-    this.hudPct2 = addLabel(this, W - 24, 34, '', 28, C.p2, 'right').setOrigin(1, 0).setDepth(11);
-    this.hudS2 = addLabel(this, W - 24, 72, '', 11, C.dim, 'right').setOrigin(1, 0).setDepth(11);
+    this.hudTimer = addLabel(this, W / 2, 14, '3:00', 20, C.text, 'center').setOrigin(0.5, 0).setDepth(11);
+    this.hudP1 = addLabel(this, 24, 15, '', 10, C.p1).setDepth(11);
+    this.hudPct1 = addLabel(this, 24, 30, '', 30, C.p1).setDepth(11);
+    this.hudS1 = addLabel(this, 24, 69, '', 10, C.dim).setDepth(11);
+    this.hudP2 = addLabel(this, W - 24, 15, '', 10, C.p2, 'right').setOrigin(1, 0).setDepth(11);
+    this.hudPct2 = addLabel(this, W - 24, 30, '', 30, C.p2, 'right').setOrigin(1, 0).setDepth(11);
+    this.hudS2 = addLabel(this, W - 24, 69, '', 10, C.dim, 'right').setOrigin(1, 0).setDepth(11);
     this.hudBar1 = this.add.graphics();
     this.hudBar2 = this.add.graphics();
     this.hudBar1.setDepth(11); this.hudBar2.setDepth(11);
@@ -834,8 +834,8 @@ class GameScene extends Phaser.Scene {
     // DAMAGE PERCENT SYSTEM
     const b = t.body.body;
     const ratio = t.stamina / t.staminaMax;
-    const pct  = 1 + Math.pow(Math.min(KB_PERCENT_CAP, t.percent) / KB_PERCENT_DIV, 1.18) * KB_PERCENT_GAIN;
-    const mul  = (1 + (1 - ratio) * 0.72) * pct;
+    const pct  = 1 + Math.pow(Math.min(KB_PERCENT_CAP, t.percent) / KB_PERCENT_DIV, 1.16) * KB_PERCENT_GAIN;
+    const mul  = (1 + (1 - ratio) * 0.62) * pct;
     const pwr  = p.buffs.power > 0 ? 1.40 : 1;
     const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
       ? 1 + (1 - p.stamina / p.staminaMax) * 0.30 : 1;
@@ -849,7 +849,7 @@ class GameScene extends Phaser.Scene {
     if (this.ctrl.held[t.idx ? 'P2_R' : 'P1_R']) vx += 80;
     if (this.ctrl.held[t.idx ? 'P2_U' : 'P1_U']) vy -= 35;
     t.lastHitTime = this.time.now;
-    const pg = a.kind === 'basic' ? 1.12 : a.kind === 'dash' ? 1.25 : 1.36;
+    const pg = a.kind === 'basic' ? 0.98 : a.kind === 'dash' ? 1.10 : 1.22;
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
@@ -862,13 +862,14 @@ class GameScene extends Phaser.Scene {
     // VOLT bonus vs airborne targets
     if (p.char.id === 'volt' && !t.body.body.blocked.down && !t.body.body.touching.down) { vx *= 1.22; vy *= 1.22; }
     b.setVelocity(vx, vy);
-    const impact = mul * sweet * (a.kind === 'basic' ? 1 : a.kind === 'dash' ? 1.18 : 1.35);
-    const heavy = impact > 2.1 || a.kind === 'crush' || a.kind === 'volt';
-    const killish = heavy && (t.percent > 140 || Math.abs(vx) > 520 || Math.abs(vy) > 350);
+    const impact = mul * sweet * (a.kind === 'basic' ? 1 : a.kind === 'dash' ? 1.15 : 1.30);
+    const bloodLv = impact > 2.25 || a.kind === 'crush' ? 2 : impact > 1.45 || a.kind === 'dash' || sweet > 1.15 ? 1 : 0;
+    const heavy = impact > 1.95 || a.kind === 'crush' || a.kind === 'volt';
+    const killish = heavy && (t.percent > 160 || Math.abs(vx) > 560 || Math.abs(vy) > 380);
     if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
     if (heavy || sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : 6);
     else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
-    if (heavy) this.bloodImpact(t.body.x, t.body.y - 6, killish ? 8 : 5, killish ? 34 : 22);
+    if (bloodLv) this.bloodImpact(t.body.x, t.body.y - 6, bloodLv, killish);
     this.flash(t.body.x, t.body.y - 6, killish ? 48 : heavy ? 38 : 24, 24, p.char.accent, killish ? 120 : 90);
     const [shkDur, shkAmt] = killish ? [150, 0.016] : heavy ? [110, 0.010] : [35, 0.003];
     this.cameras.main.shake(shkDur, shkAmt);
@@ -1010,7 +1011,7 @@ class GameScene extends Phaser.Scene {
       : this.scene.start('Menu'));
   }
 
-  bloodImpact(x,y,n,s){for(let i=0;i<n;i++){const a=-Math.PI/2+(Math.random()-.5)*Math.PI,r=this.add.rectangle(x,y,Phaser.Math.Between(2,3),Phaser.Math.Between(2,4),0xcc0000);this.tweens.add({targets:r,x:x+Math.cos(a)*Phaser.Math.Between(10,s),y:y+Math.sin(a)*Phaser.Math.Between(10,s)+14,alpha:0,duration:250+Math.random()*90,onComplete:()=>r.destroy()});}}
+  bloodImpact(x,y,l,h){const n=l===2?(h?10:8):(h?6:4),s=l===2?(h?38:30):(h?26:18),c=l===2?0xe01414:0xd93a3a;for(let i=0;i<n;i++){const a=-Math.PI/2+(Math.random()-.5)*Math.PI*.95,r=this.add.rectangle(x,y,Phaser.Math.Between(2,4),Phaser.Math.Between(2,4),c);this.tweens.add({targets:r,x:x+Math.cos(a)*Phaser.Math.Between(10,s),y:y+Math.sin(a)*Phaser.Math.Between(8,s)+16,alpha:0,duration:290+Math.random()*120,onComplete:()=>r.destroy()});}}
 
   hitFreeze(ms) {
     this.physics.pause();
@@ -1116,44 +1117,37 @@ class GameScene extends Phaser.Scene {
 
   refreshHud() {
     const dots = n => 'X'.repeat(n) + '-'.repeat(LIVES - n);
-    const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP READY';
-    const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('POW'); if(p.buffs.speed>0)b.push('SPD'); if(p.buffs.regen>0)b.push('REG'); if(p.buffs.guard>0)b.push('GRD'); return b.length ? b.join(' ') : 'NO BUFF'; };
+    const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP OK';
+    const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('POW'); if(p.buffs.speed>0)b.push('SPD'); if(p.buffs.regen>0)b.push('REG'); if(p.buffs.guard>0)b.push('GRD'); return b.join(' '); };
     const p1 = this.players[0], p2 = this.players[1];
     const frame = this.hudFrame;
     frame.clear();
-    frame.fillStyle(0x07121c, 0.78);
-    frame.fillRoundedRect(12, 10, 248, 78, 14);
-    frame.fillRoundedRect(W - 260, 10, 248, 78, 14);
-    frame.fillRoundedRect(W / 2 - 92, 10, 184, 42, 12);
-    frame.lineStyle(2, 0x295374, 0.92);
-    frame.strokeRoundedRect(12, 10, 248, 78, 14);
-    frame.strokeRoundedRect(W - 260, 10, 248, 78, 14);
-    frame.strokeRoundedRect(W / 2 - 92, 10, 184, 42, 12);
-    frame.fillStyle(0x0e2230, 0.85);
-    frame.fillRoundedRect(20, 54, 110, 12, 6);
-    frame.fillRoundedRect(W - 130, 54, 110, 12, 6);
-    frame.fillStyle(0x122434, 0.9);
-    frame.fillRoundedRect(136, 54, 116, 12, 6);
-    frame.fillRoundedRect(W - 252, 54, 116, 12, 6);
-    frame.fillStyle(this.finalPhase ? 0x803030 : 0x0d2131, 0.85);
-    frame.fillRect(W / 2 - 38, 52, 76, 26);
-    frame.lineStyle(1, this.finalPhase ? 0xff6666 : 0x4fb6da, 0.9);
-    frame.strokeRect(W / 2 - 38, 52, 76, 26);
+    frame.fillStyle(0x07121c, 0.60);
+    frame.fillRoundedRect(14, 10, 236, 72, 12);
+    frame.fillRoundedRect(W - 250, 10, 236, 72, 12);
+    frame.fillRoundedRect(W / 2 - 74, 10, 148, 34, 10);
+    frame.lineStyle(1, 0x295374, 0.72);
+    frame.strokeRoundedRect(14, 10, 236, 72, 12);
+    frame.strokeRoundedRect(W - 250, 10, 236, 72, 12);
+    frame.strokeRoundedRect(W / 2 - 74, 10, 148, 34, 10);
+    frame.fillStyle(0x0d2131, 0.68);
+    frame.fillRoundedRect(22, 53, 104, 10, 5);
+    frame.fillRoundedRect(W - 126, 53, 104, 10, 5);
     const dB = (g, p, x) => {
       g.clear();
       const c = p._hud.seg >= 7 ? 0x3de8ff : p._hud.seg >= 4 ? 0xffcf45 : 0xff5261;
       for (let i = 0; i < 10; i++) {
         g.fillStyle(i < p._hud.seg ? c : 0x1a2a3a, i < p._hud.seg ? 1 : .35);
-        g.fillRect(x + i * 10, 56, 8, 8);
+        g.fillRect(x + i * 9, 54, 7, 8);
       }
     };
-    dB(this.hudBar1, p1, 22); dB(this.hudBar2, p2, W - 122);
-    this.hudP1.setText('P1  ' + p1.char.name + '  ' + dots(p1.lives));
-    this.hudP2.setText('P2  ' + p2.char.name + '  ' + dots(p2.lives));
+    dB(this.hudBar1, p1, 24); dB(this.hudBar2, p2, W - 121);
+    this.hudP1.setText('P1 ' + p1.char.name + '  ' + dots(p1.lives));
+    this.hudP2.setText('P2 ' + p2.char.name + '  ' + dots(p2.lives));
     this.hudPct1.setText(p1._hud.pct + '%').setColor(p1._hud.pct >= 150 ? '#ff6d78' : p1._hud.pct >= 80 ? '#ffd25a' : C.p1);
     this.hudPct2.setText(p2._hud.pct + '%').setColor(p2._hud.pct >= 150 ? '#ff6d78' : p2._hud.pct >= 80 ? '#ffd25a' : C.p2);
-    this.hudS1.setText('STM  ' + p1._hud.seg + '/10   ' + cool(p1) + (p1.fatigue > 0 ? '   EXH' : '') + '   ' + bufStr(p1));
-    this.hudS2.setText('STM  ' + p2._hud.seg + '/10   ' + cool(p2) + (p2.fatigue > 0 ? '   EXH' : '') + '   ' + bufStr(p2));
+    this.hudS1.setText('STM ' + p1._hud.seg + '/10  ' + cool(p1) + (p1.fatigue > 0 ? '  EXH' : '') + (bufStr(p1) ? '  ' + bufStr(p1) : ''));
+    this.hudS2.setText('STM ' + p2._hud.seg + '/10  ' + cool(p2) + (p2.fatigue > 0 ? '  EXH' : '') + (bufStr(p2) ? '  ' + bufStr(p2) : ''));
   }
 }
 
