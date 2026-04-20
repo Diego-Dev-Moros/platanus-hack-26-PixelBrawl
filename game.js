@@ -540,7 +540,7 @@ class MenuScene extends Phaser.Scene {
   create() {
     bindKeys(this);
     this.sel = 0;
-    this.OPTS = ['PLAY', 'CONTROLS', 'CREDITS', 'EXIT'];
+    this.OPTS = ['SOLO', 'VS', 'CONTROLS', 'CREDITS', 'EXIT'];
     drawBg(this, 'PIXEL BRAWL');
     addLabelC(this, W / 2, 92, 'BRAWLER', 13, C.dim);
     buildFighter(this, W / 2 - 82, 202, CHARS[0], 1);
@@ -562,7 +562,8 @@ class MenuScene extends Phaser.Scene {
   confirm() {
     tone(this, 420, SQ, 0.05, 0.07);
     const opt = this.OPTS[this.sel];
-    if (opt === 'PLAY') this.scene.start('S');
+    if (opt === 'SOLO') this.scene.start('S', { mode: 'solo' });
+    else if (opt === 'VS') this.scene.start('S', { mode: 'vs' });
     else if (opt === 'CONTROLS') this.scene.start('C');
     else if (opt === 'CREDITS') this.scene.start('R');
     else return;
@@ -578,6 +579,7 @@ class MenuScene extends Phaser.Scene {
 
 class CharacterSelectScene extends Phaser.Scene {
   constructor() { super('S'); }
+  init(data) { this.mode = data.mode === 'solo' ? 'solo' : 'vs'; }
   create() {
     bindKeys(this);
     this.sel = [0, 1];
@@ -594,10 +596,33 @@ class CharacterSelectScene extends Phaser.Scene {
       this.cards.push({ box, mark });
     }
     this.status = addLabelC(this, W / 2, H - 68, '', 16, C.text);
-    addLabelC(this, W / 2, H - 42, 'P1 A/D+F · P2 ARROWS+K', 11, C.dim);
+    this.cpuLabel = this.mode === 'solo' ? addLabelC(this, W / 2, H - 92, 'CPU: RANDOM', 12, C.dim) : null;
+    addLabelC(this, W / 2, H - 42, this.mode === 'solo' ? 'P1 A/D+F' : 'P1 A/D+F · P2 ARROWS+K', 11, C.dim);
     this.refresh();
   }
   update() {
+    if (this.mode === 'solo') {
+      if (!this.lock[0]) {
+        if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
+        if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
+        if (this.ctrl.pressed.P2_4) {
+          this.lock[0] = 1;
+          this.lock[1] = 1;
+          const pool = [0, 1, 2].filter(i => i !== this.sel[0]);
+          this.sel[1] = pool[Phaser.Math.Between(0, pool.length - 1)];
+          tone(this, 520, SQ, 0.06, 0.08);
+          this.time.delayedCall(260, () => {
+            if (!this.sys.isActive()) return;
+            tone(this, 700, SQ, 0.06, 0.1);
+            this.scene.start('G', { mode: 'solo', picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
+          });
+        }
+      }
+      if (anyOf(this, BACK_KEYS)) this.scene.start('M');
+      this.refresh();
+      flush(this);
+      return;
+    }
     if (!this.lock[0]) {
       if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
       if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
@@ -610,7 +635,7 @@ class CharacterSelectScene extends Phaser.Scene {
     }
     if (this.lock[0] && this.lock[1] && anyOf(this, START_KEYS)) {
       tone(this, 700, SQ, 0.06, 0.1);
-      this.scene.start('G', { picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
+      this.scene.start('G', { mode: 'vs', picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
       return;
     }
     this.refresh();
@@ -625,10 +650,17 @@ class CharacterSelectScene extends Phaser.Scene {
       if (p1 && this.lock[0]) { stroke = 0x00ffcc; fill = 0x0f2e1e; mark = 'P1 LOCKED'; }
       if (p2 && this.lock[1]) {
         stroke = 0xff88bb; fill = 0x2a1020;
-        mark = (p1 && this.lock[0]) ? 'P1+P2 LOCK' : 'P2 LOCKED';
+        if (this.mode === 'solo') mark = (p1 && this.lock[0]) ? 'P1 LOCK / CPU' : 'CPU';
+        else mark = (p1 && this.lock[0]) ? 'P1+P2 LOCK' : 'P2 LOCKED';
       }
       this.cards[i].box.setFillStyle(fill).setStrokeStyle(2, stroke);
       this.cards[i].mark.setText(mark);
+    }
+    if (this.mode === 'solo') {
+      const done = this.lock[0] && this.lock[1];
+      this.status.setText(done ? 'ENEMY SELECTED' : 'P1 WAIT').setColor(done ? C.text : C.dim);
+      if (this.cpuLabel) this.cpuLabel.setText(done ? 'CPU: ' + CHARS[this.sel[1]].name : 'CPU: RANDOM');
+      return;
     }
     const both = this.lock[0] && this.lock[1];
     const p1s = this.lock[0] ? 'P1 LOCK' : 'P1 WAIT';
@@ -685,7 +717,10 @@ class CreditsScene extends Phaser.Scene {
 
 class GameScene extends Phaser.Scene {
   constructor() { super('G'); }
-  init(data) { this.picks = data.picks || ['pulse', 'volt']; }
+  init(data) {
+    this.mode = data.mode === 'solo' ? 'solo' : 'vs';
+    this.picks = data.picks || ['pulse', 'volt'];
+  }
 
   create() {
     bindKeys(this);
@@ -702,6 +737,7 @@ class GameScene extends Phaser.Scene {
     this.makeStage();
     this.makeHud();
     this.players = [this.makePlayer(0, this.picks[0]), this.makePlayer(1, this.picks[1])];
+    if (this.mode === 'solo') this.setupCpu(this.players[1]);
     this.refreshHud();
     this.pickup = null;
     this.pickupTimer = 4300 + Math.random() * 1800;
@@ -779,11 +815,66 @@ class GameScene extends Phaser.Scene {
       flush(this); return;
     }
     const p1 = this.players[0], p2 = this.players[1];
+    if (this.mode === 'solo') this.tickCpu(p2, p1, dt);
     this.tickPlayer(p1, p2, dt);
     this.tickPlayer(p2, p1, dt);
     if (this.hudDirty) { this.refreshHud(); this.hudDirty = false; }
     this.updateMatchTimer(dt);
     flush(this);
+  }
+
+  setupCpu(p) {
+    p.cpu = { think: 120, pause: 0, dir: -1, jumpCd: 0, actCd: 0 };
+  }
+
+  cpuPress(code) {
+    const c = this.ctrl;
+    if (!c.pressed[code]) { c.pressed[code] = true; c.frame.push(code); }
+  }
+
+  clearCpuInput(p) {
+    if (!p || !p.keys || !this.ctrl) return;
+    const k = p.keys, held = this.ctrl.held, pressed = this.ctrl.pressed;
+    held[k.left] = false; held[k.right] = false;
+    pressed[k.up] = false; pressed[k.attack] = false; pressed[k.alt] = false;
+  }
+
+  tickCpu(p, foe, dt) {
+    if (!p || !foe || !p.cpu || !p.alive || !foe.alive || !this.ready) { this.clearCpuInput(p); return; }
+    const k = p.keys, held = this.ctrl.held, ai = p.cpu, bb = p.body.body;
+    this.clearCpuInput(p);
+    ai.think = down(ai.think, dt);
+    ai.pause = down(ai.pause, dt);
+    ai.jumpCd = down(ai.jumpCd, dt);
+    ai.actCd = down(ai.actCd, dt);
+    const dx = foe.body.x - p.body.x, dy = foe.body.y - p.body.y, adx = Math.abs(dx);
+    const edge = p.body.x < 112 || p.body.x > W - 112;
+    if (ai.think <= 0) {
+      ai.think = 85 + Math.random() * 140;
+      let dir = dx > 18 ? 1 : dx < -18 ? -1 : 0;
+      if (edge) dir = p.body.x < W * 0.5 ? 1 : -1;
+      if (Math.random() < 0.12) { ai.pause = 90 + Math.random() * 140; dir = 0; }
+      ai.dir = dir;
+      if (ai.jumpCd <= 0 && ((dy < -40 && Math.random() < 0.46) || (edge && grounded(bb) && Math.random() < 0.42))) {
+        this.cpuPress(k.up);
+        ai.jumpCd = 260 + Math.random() * 200;
+      }
+      if (ai.actCd <= 0) {
+        if (adx < 66 && Math.random() < 0.48) {
+          this.cpuPress(k.attack);
+          ai.actCd = 150 + Math.random() * 200;
+        } else if ((adx < 128 && Math.random() < 0.24) || (dy < -56 && adx < 96 && Math.random() < 0.28)) {
+          this.cpuPress(k.alt);
+          ai.actCd = 260 + Math.random() * 260;
+        }
+      }
+    }
+    if (ai.pause <= 0) {
+      if (ai.dir < 0) held[k.left] = true;
+      else if (ai.dir > 0) held[k.right] = true;
+    }
+    if (p.body.x < 92) { held[k.left] = false; held[k.right] = true; }
+    else if (p.body.x > W - 92) { held[k.right] = false; held[k.left] = true; }
   }
 
   updateMatchTimer(dt) {
@@ -1511,7 +1602,7 @@ class GameScene extends Phaser.Scene {
     drawBuffBadges(this.hudBuff1, p1.buffs, 188, 74, 1);
     drawBuffBadges(this.hudBuff2, p2.buffs, W - 188, 74, -1);
     setHudLabel(this.hudP1, 'P1  ' + p1.char.name + '  ' + dots(p1.lives));
-    setHudLabel(this.hudP2, 'P2  ' + p2.char.name + '  ' + dots(p2.lives));
+    setHudLabel(this.hudP2, (this.mode === 'solo' ? 'P2 CPU  ' : 'P2  ') + p2.char.name + '  ' + dots(p2.lives));
     setHudLabel(this.hudPct1, p1._hud.pct + '%', hudPctColor(p1._hud.pct, C.p1));
     setHudLabel(this.hudPct2, p2._hud.pct + '%', hudPctColor(p2._hud.pct, C.p2));
     setHudLabel(this.hudS1, cool(p1) + (p1.fatigue > 0 ? '  EXH' : ''));
