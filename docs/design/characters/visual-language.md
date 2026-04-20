@@ -1,46 +1,64 @@
 # Character Visual Language
 
-## Current Rule Set
+## Overview
+This document defines the live visual-read rules for the three fighters: silhouette, costume cue, color usage, and per-character VFX language.
 
-Characters must read at tiny scale while moving fast.
+## Scope
+This document owns:
 
-That means the current visual priorities are:
+- fighter silhouette priorities
+- per-character visual read rules
+- per-character VFX identity at a high level
 
-1. silhouette
-2. value contrast
-3. costume cue
-4. VFX support
-5. micro-detail last
+This document does not own:
 
-## Current Fighter Reads
+- global art direction in `docs/design/visual/current-state.md`
+- arena-specific art direction in `docs/design/arena/visual-direction.md`
+- combat rule ownership in `docs/design/combat/base-combat.md`
+
+## Current Implementation
+- Fighters are drawn at small scale and move quickly, so readability depends on silhouette first.
+- Current visual priority order is:
+  1. silhouette
+  2. value contrast
+  3. costume cue
+  4. VFX support
+  5. micro-detail
 
 ### PULSE
-
-- karateka
-- cleaner vertical torso
-- belt / trim cues
-- white and cyan strike accents
+- karateka read
+- cleaner torso and trim cues
+- white / cyan strike accents
 
 ### VOLT
-
-- boxer
-- gloves must read first
-- compact upper-body guard
-- yellow / orange hit accents
+- boxer read
+- gloves and guarded upper body must read first
+- yellow / orange punch accents
 
 ### CRUSH
+- sumo read
+- heavy torso and lower center of gravity
+- dust / impact emphasis and heavier lower-body read
 
-- sumo
-- heavy torso mass
-- low waist cue
-- heavier lower-body read
+## Design Intent
+- Make each fighter identifiable while moving, not only while standing still.
+- Let VFX reinforce identity rather than replace silhouette.
+- Preserve a compact arcade read under size and asset constraints.
 
-## Current VFX Identity
+## Rules / Constraints
+- Extra rectangles only belong if they improve silhouette or contrast.
+- Color alone is not enough; each fighter still needs a readable body shape.
+- Character VFX language should support the fighter read without overwhelming combat clarity.
 
-- `PULSE`: thin white/cyan strike trails and pulse rings
-- `VOLT`: sharp yellow/orange punch bursts
-- `CRUSH`: dust and ground-impact emphasis
+## Technical Notes
+- Fighter visuals are generated in `buildFighter()` from rectangles inside containers.
+- The current code uses per-character accent colors plus shared combat FX helpers.
 
-## Current Weakness
+## Known Issues
+- The fighters are materially stronger than the original block versions, but they still lean on color and FX more than on pose variety.
+- Tiny detail has a poor byte-to-readability ratio in this project.
 
-The visuals are materially better than the original abstract blocks, but they are still dependent on FX and color more than on pose clarity.
+## Safe Iteration Guidelines
+- Improve silhouette before adding decorative detail.
+- If a visual change weakens in-motion readability, cut it even if it looks better in a still image.
+- Keep global visual rules in the visual doc and per-fighter reads here.

@@ -1,42 +1,48 @@
-# Character Select
+# Character Select Combat Read
 
-## Current State
+## Overview
+This document defines the combat-facing information currently exposed by the character select scene.
 
-Character select is a dedicated scene, not folded into the menu.
+## Scope
+This document owns:
 
-Current behavior:
+- the combat identity that character select communicates to players
+- the current limits on what combat data is shown before a match
 
-- three roster cards
-- player-independent cursor movement
-- player-independent lock-in
-- match starts only after both players lock and confirm
+This document does not own:
 
-## Displayed Information
+- scene routing in `docs/design/scenes/scene-flow.md`
+- full roster identity in `docs/design/characters/roster.md`
+- live combat rules in `docs/design/combat/base-combat.md`
 
-Each card currently shows:
+## Current Implementation
+- Character select shows three roster cards.
+- Each card displays a fighter visual, fighter name, and one short fantasy line.
+- The current combat-facing lines are:
+  - `PULSE`: `Karateka / shockwave`
+  - `VOLT`: `Boxer / uppercut`
+  - `CRUSH`: `Sumo / ground slam`
+- The scene does not show cooldown values, damage values, matchup tips, or detailed move lists.
 
-- fighter visual
-- character name
-- one short fantasy line
-- lock / focus status
+## Design Intent
+- Give both players enough combat identity to pick quickly.
+- Keep pre-match information lightweight and readable for local play.
+- Let the actual match teach the deeper interaction details.
 
-## Roster Identity
+## Rules / Constraints
+- Character select should communicate role and special fantasy, not become a stat sheet.
+- Combat information shown here must stay shorter and simpler than the roster or combat docs.
+- If more information is added, it should improve role clarity first.
 
-Current identity exposed to players:
+## Technical Notes
+- The short fantasy line is sourced from the live character table in `game.js`.
+- Mirror picks are allowed, so the scene must communicate identity clearly without assuming unique selection.
 
-- `PULSE`: karateka / shockwave
-- `VOLT`: boxer / uppercut
-- `CRUSH`: sumo / ground slam
+## Known Issues
+- The current line format is readable but minimal.
+- The select scene is lighter and less polished than the gameplay HUD, so combat identity relies on silhouette and color more than on typography.
 
-## Input Flow
-
-- P1 moves with left/right and locks with the mapped attack button
-- P2 moves with left/right and locks with the mapped attack button
-- `START` begins the match once both are locked
-
-## Current Quality Assessment
-
-- structurally correct
-- communicates roster and lock state well enough
-- still visually lighter than the gameplay HUD
-- should eventually share stronger typography and spacing rules with the rest of the front-end
+## Safe Iteration Guidelines
+- Keep this doc focused on what select communicates, not on full character design.
+- If the select scene adds icons or more copy, update this file and cross-check `characters/roster.md` for duplication.
+- Do not restate full combat rules here.

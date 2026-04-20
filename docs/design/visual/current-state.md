@@ -1,31 +1,53 @@
 # Visual Current State
 
-## Current Rendering Strategy
+## Overview
+This document defines the live global visual direction of the project.
 
-All visuals are generated from code using:
+## Scope
+This document owns:
 
-- rectangles
-- circles
-- `Graphics`
-- text
-- particles
-- tweens
+- global rendering strategy
+- project-wide readability rules
+- silhouette, contrast, and primitive-language rules
 
-No external art assets are used.
+This document does not own:
 
-## Current Visual Systems
+- per-character visual identity in `docs/design/characters/visual-language.md`
+- arena-specific art direction in `docs/design/arena/visual-direction.md`
+- HUD information hierarchy in `docs/design/ui/current-state.md`
 
-- fighter silhouettes from rectangle stacks
-- background parallax layers
-- platform containers with simple emissive accents
-- hit flashes, sparks, rings, and blood
-- buff and pickup icons
-- HUD panels and buff mini-icons
+## Current Implementation
+- All live visuals are generated in code from rectangles, circles, `Graphics`, text, lightweight particles, and tweens.
+- There are no external art assets in the current implementation.
+- The live visual stack includes:
+  - fighter silhouettes from rectangle builds
+  - procedural background and platform art
+  - pickup and buff iconography
+  - combat flashes, sparks, rings, and impact splatter
+  - procedural HUD chrome and bars
 
-## Current Strength
+## Design Intent
+- Prioritize gameplay readability over decorative detail.
+- Make the project feel intentional and distinct within contest-safe constraints.
+- Use strong silhouette, value contrast, and color separation before adding micro-detail.
 
-The project now looks like a deliberate jam game rather than a graybox prototype.
+## Rules / Constraints
+- Visuals must remain procedural and byte-conscious.
+- Fighter, pickup, platform-edge, and hit-feedback readability take priority over background richness.
+- New detail must justify itself through readability or atmosphere, not novelty alone.
+- Primitive-based art is a constraint, not a temporary placeholder.
 
-## Current Weakness
+## Technical Notes
+- Most visual systems are built from shared helpers plus small per-system branches.
+- The live project relies on containers for composite objects and `Graphics` for reusable drawn surfaces.
+- Combat FX are short-lived primitives rather than emitter-heavy systems.
 
-Visual consistency still varies by scene, and some systems have grown by layering improvements instead of replacing older weaker versions.
+## Known Issues
+- Visual consistency still varies by scene.
+- Some systems became better by layering improvements on top of older work, which can blur the visual rule set.
+- The project has a stronger identity than before, but some non-gameplay scenes still trail the gameplay presentation.
+
+## Safe Iteration Guidelines
+- Strengthen silhouette and contrast before adding more moving detail.
+- If a visual improvement weakens gameplay parsing, reject it.
+- Keep domain-specific visual rules in the character or arena docs and use this file only for project-wide rules.

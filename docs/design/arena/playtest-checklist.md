@@ -1,51 +1,57 @@
 # Arena Playtest Checklist
 
-## Goal
+## Overview
+This document is the reusable checklist for validating stage changes and catching arena regressions.
 
-Verify that the current live stage supports the implemented match systems without hurting readability.
+## Scope
+This document owns:
 
-## Core Questions
+- what to verify when the stage changes
+- the order of arena-focused checks
+- the questions that determine whether a layout change is safe
 
-1. Does the opening layout create useful neutral and edge pressure?
-2. Do the moving side and top platforms create routing options without causing accidental deaths?
-3. Does the final-minute split create a meaningful pace shift?
-4. Are pickups still readable and reachable on moving platforms?
-5. Is the ruined-desert background readable during heavy combat?
+This document does not own:
 
-## Specific Checks
+- the live stage spec in `docs/design/arena/main-stage.md`
+- actual playtest notes, which belong in `docs/playtests/`
 
-### Movement
+## Current Implementation
+Use this checklist against the live arena with its moving platforms, final-phase mutation, edge pressure, and ring-out rules.
 
-- jumps between current platform heights feel natural
-- players do not snag on moving-platform edges
-- edge-snap / recovery behavior feels stable
+Core checks:
+- movement routes still feel readable
+- top and side platforms still support clean landings
+- edge pressure still creates real ring-out threat
+- final phase still reads as escalation, not confusion
+- fighters and pickups remain readable against the background
 
-### Combat
+## Design Intent
+- Catch layout regressions before “small” arena tweaks spread into combat or match-flow problems.
+- Keep stage testing focused on gameplay space, not only on visual preference.
 
-- `PULSE` can control space without covering everything
-- `VOLT` can threaten anti-air routes around the top platform
-- `CRUSH` gets meaningful slam opportunities from platform height
-- shield, percent, and ring-out interactions remain readable in final phase
+## Rules / Constraints
+- A stage change is not safe until movement, combat, pace, and readability have all been checked.
+- Arena testing must include pre-final-phase and post-final-phase play.
+- Observations should distinguish between layout issues, motion issues, and visibility issues.
 
-### Match Pace
+## Technical Notes
+Suggested pass order:
+1. movement and landing checks
+2. combat route checks
+3. final-phase checks
+4. readability checks
 
-- the first two minutes do not feel too static
-- final minute creates higher tension without chaos
-- ring-outs and respawns stay fair after the main-platform split
+Specific prompts:
+- Can both players recover center stage reliably?
+- Do moving platforms create useful routes instead of random drops?
+- Does final phase increase pressure without creating unreadable collisions?
+- Are platform edges still clear over the background?
 
-### Readability
+## Known Issues
+- The live arena already has motion and mutation, so regressions can come from timing as well as layout.
+- Arena readability can be weakened by both geometry changes and purely visual changes.
 
-- players remain readable over dunes, ruins, and FX
-- platform tops and edges are obvious at a glance
-- pickup silhouettes are still clear during motion
-- HUD remains readable while action stays centered
-
-## Tuning Order
-
-If the arena feels wrong, tune in this order:
-
-1. platform motion ranges and heights
-2. final-phase split behavior
-3. blast-zone pressure
-4. pickup visibility on platforms
-5. visual polish
+## Safe Iteration Guidelines
+- Record actual findings in `docs/playtests/`, not in this file.
+- Keep this checklist evergreen and domain-specific.
+- If a repeated failure shows up in testing, promote it into `layout-rules.md` or `main-stage.md` as a live rule.

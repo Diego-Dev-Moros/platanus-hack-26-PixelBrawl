@@ -1,42 +1,49 @@
 # Character Implementation Notes
 
+## Overview
+This document records how character identity is currently implemented in code.
+
+## Scope
+This document owns:
+
+- roster data structure
+- per-character move/value tables
+- fighter visual construction model
+- implementation constraints for adding or changing a fighter
+
+This document does not own:
+
+- shared roster design rules in `docs/design/characters/overview.md`
+- per-character player-facing summaries in `docs/design/characters/roster.md`
+- shared combat interaction rules in `docs/design/combat/base-combat.md`
+
 ## Current Implementation
+- Characters are implemented through compact definition tables plus shared player state.
+- `CHARS` owns fighter-facing identity data such as `id`, `name`, `color`, `accent`, short fantasy line, special cooldown, and special damage baseline.
+- `MOVESET` owns per-character combat specs for basic attacks, dash attacks, and specials.
+- Shared player runtime state is created once in `makePlayer()`.
+- Character visuals are generated in `buildFighter()` as rectangle containers, not sprites.
 
-Characters are still implemented through a compact definition table plus shared player state.
+## Design Intent
+- Keep character code flat, compact, and easy to audit.
+- Preserve one shared player model with narrow per-character branches.
+- Concentrate differentiation in data tables and special handling instead of separate runtime classes.
 
-Current character data includes:
+## Rules / Constraints
+- Do not split fighters into separate scene objects or custom classes.
+- Prefer one roster table, one moveset table, and one shared action pipeline.
+- Character-specific logic should justify itself through clear gameplay or readability value.
 
-- `id`
-- `name`
-- `color`
-- `accent`
-- `line`
-- special cooldown
-- special damage
+## Technical Notes
+- `CHARS`, `MOVESET`, `buildFighter()`, and special-case FX branches are the main character identity surfaces.
+- `PULSE` and `VOLT` use direct special attack objects; `CRUSH` uses a slam state that converts into a landing burst.
+- The current implementation is size-sensitive, so repeated one-off move objects should be avoided.
 
-## Visual Implementation
+## Known Issues
+- Character identity is compact and maintainable, but it also means small mistakes in shared logic can affect all fighters at once.
+- Some older docs described “shared attack structure” too loosely and hid the live per-character move values.
 
-Visuals are generated in `buildFighter()`.
-Each fighter is a container of rectangles, not a sprite.
-
-This means:
-
-- silhouette changes are cheap compared to external art
-- tiny detail is expensive in bytes and weak in readability
-- every extra rectangle must justify itself
-
-## Current Visual Intent In Code
-
-- `PULSE`: gi-like body blocks, cleaner martial silhouette, cyan/white reads
-- `VOLT`: glove-forward boxer silhouette, hot yellow/orange flash language
-- `CRUSH`: broad torso, lower center of gravity, heavier sumo read
-
-## Current Implementation Rule
-
-Future work should not create separate runtime classes.
-Character identity should continue to come from:
-
-- one roster table
-- one shared action model
-- one per-special branch
-- one per-character VFX identity layer
+## Safe Iteration Guidelines
+- If a fighter changes, update `CHARS`, `MOVESET`, and any relevant fighter visual or FX branch together.
+- Keep code structure shared unless the new behavior cannot fit the current tables.
+- Treat the current one-table / one-shared-model approach as a core maintenance constraint.

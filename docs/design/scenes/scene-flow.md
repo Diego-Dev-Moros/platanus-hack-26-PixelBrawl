@@ -1,7 +1,24 @@
 # Scene Flow
 
-## Current Scene List
+## Overview
+This document defines the current scene list, the routes between scenes, and the responsibility of each scene.
 
+## Scope
+This document owns:
+
+- scene order
+- scene transition routes
+- per-scene runtime responsibility
+
+This document does not own:
+
+- match rules in `docs/design/core/game-loop.md`
+- UI composition in `docs/design/ui/current-state.md`
+- Phaser API details in `docs/phaser-quick-start.md`
+
+## Current Implementation
+
+### Scene List
 - `BootScene`
 - `MenuScene`
 - `CharacterSelectScene`
@@ -10,114 +27,49 @@
 - `GameScene`
 - `EndScene`
 
-## Runtime Flow
-
-`BootScene` -> `MenuScene` -> `CharacterSelectScene` -> `GameScene` -> `EndScene`
-
-Auxiliary routes:
-
+### Runtime Routes
+- `BootScene` -> `MenuScene`
+- `MenuScene` -> `CharacterSelectScene`
 - `MenuScene` -> `ControlsScene`
 - `MenuScene` -> `CreditsScene`
+- `CharacterSelectScene` -> `GameScene`
 - `ControlsScene` -> `MenuScene`
 - `CreditsScene` -> `MenuScene`
+- `GameScene` -> `EndScene`
+- `GameScene` -> `MenuScene` on draw / post-match return path
 - `EndScene` -> `MenuScene`
 
-## BootScene
+### Scene Responsibilities
+- `BootScene`: minimal entry scene, immediately starts the menu.
+- `MenuScene`: title hub for play, controls, credits, and exit placeholder.
+- `CharacterSelectScene`: two-player lock-in scene with independent cursor movement and mirror-pick support.
+- `ControlsScene`: static control explanation and return path.
+- `CreditsScene`: static credits and return path.
+- `GameScene`: live gameplay, HUD, stage, pickups, music, timer, final phase, KO/respawn, and winner resolution.
+- `EndScene`: winner presentation, celebration, and return to the menu.
 
-Current role:
+## Design Intent
+- Keep front-end flow simple and fast for local play.
+- Make the game enter matches quickly and return to menu cleanly after resolution.
+- Keep scene responsibilities narrow enough to stay maintainable even though `GameScene` is large.
 
-- minimal entry scene
-- immediately transfers into `MenuScene`
+## Rules / Constraints
+- Scene flow should stay explicit and easy to trace.
+- `BootScene` should remain minimal unless startup complexity truly increases.
+- Front-end scenes should not absorb gameplay ownership that belongs in `GameScene`.
+- Character select owns lock-in flow, not combat rules.
 
-Do not grow this scene unless boot-time setup becomes unavoidable.
+## Technical Notes
+- Every live scene binds the shared input layer and flushes one-frame input state in `update()`.
+- `CharacterSelectScene` starts `GameScene` only after both players are locked and confirm with start.
+- `GameScene` can return to `MenuScene` either through draw resolution or post-match start input.
 
-## MenuScene
+## Known Issues
+- Front-end scenes are functional but still less visually cohesive than the gameplay HUD.
+- Text encoding artifacts remain in some non-gameplay labels.
+- `GameScene` carries most project complexity, so scene-boundary drift is a maintenance risk.
 
-Current role:
-
-- title/menu hub
-- play / controls / credits / exit
-- visual preview of the three fighters
-
-Current quality:
-
-- functional and readable
-- still closer to an arcade prototype screen than a finished front-end
-- contains some text encoding artifacts that should be cleaned
-
-## CharacterSelectScene
-
-Current role:
-
-- separate roster select scene
-- both players can move independently and lock in
-- both players can still pick the same fighter
-
-Current implementation state:
-
-- three cards
-- one line of character fantasy per fighter
-- explicit lock status for P1 / P2
-- starts match only after both are locked and `START` is pressed
-
-## ControlsScene
-
-Current role:
-
-- static controls explanation
-- explains movement, jump, attack, dash/special, and win condition
-
-Current issue:
-
-- useful but utilitarian
-- typography and spacing do not yet match the more polished gameplay HUD
-
-## CreditsScene
-
-Current role:
-
-- static credits
-- returns to menu on start/confirm
-
-Current issue:
-
-- same as controls: functional, not yet premium
-
-## GameScene
-
-Current role:
-
-- core gameplay scene
-- background, platforms, HUD, players, pickups, music, timer, final phase, KO/respawn, winner resolution
-
-Systems currently handled here:
-
-- input polling
-- movement and jumps
-- stamina / fatigue / shielding
-- percent accumulation and knockback
-- attacks, dash, specials
-- hit feedback and VFX
-- pickups and buffs
-- moving platforms
-- final minute platform mutation
-- timeout resolution
-
-Risk note:
-
-- this scene already concentrates most of the project complexity and byte weight
-
-## EndScene
-
-Current role:
-
-- displays winner
-- plays celebration animation
-- delays winner text until after the celebration
-- returns to menu on start
-
-Current quality:
-
-- materially better than the first version
-- still compact and contest-safe
-- not a full cinematic layer, but enough for an arcade contest build
+## Safe Iteration Guidelines
+- If a scene gains new responsibility, check whether it actually belongs to a domain doc instead.
+- Retest confirm/back inputs across the whole route whenever scene transitions change.
+- Keep combat, arena, and HUD behavior owned by their domain docs even when they live inside `GameScene`.

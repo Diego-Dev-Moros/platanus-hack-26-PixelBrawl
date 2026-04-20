@@ -1,47 +1,49 @@
-# Character Design Overview
+# Character Overview
 
-## Current Roster Model
+## Overview
+This document defines the live roster model and the shared rules for how character differentiation works in `Pixel Brawl`.
 
-The roster still shares one common gameplay base, but the current game now differentiates fighters through:
+## Scope
+This document owns:
 
-- special move
-- silhouette
-- color language
-- VFX identity
-- attack fantasy
+- the current roster size
+- the shared character baseline
+- the high-level rule for where character differentiation comes from
 
-## Shared Gameplay Base
+This document does not own:
 
-All characters still share:
+- full combat rules in `docs/design/combat/base-combat.md`
+- per-character visual reads in `docs/design/characters/visual-language.md`
+- character implementation structure in `docs/design/characters/implementation-notes.md`
 
-- movement speed
-- jump count and gravity response
-- stocks
-- stamina baseline
-- basic attack structure
-- dash structure
+## Current Implementation
+- The live roster has `3` fighters: `PULSE`, `VOLT`, and `CRUSH`.
+- All fighters share base movement speed, jump behavior, stock count, stamina baseline, shield model, and the same top-level action model.
+- Differentiation currently comes from:
+  - one special per fighter
+  - silhouette and color language
+  - hit-feel emphasis and VFX treatment
+  - one short fantasy line used in front-end presentation
 
-## Current Character Identity
+## Design Intent
+- Keep the roster compact and readable.
+- Preserve a shared baseline so local matches are easy to parse.
+- Make each fighter feel distinct without paying the byte cost of fully separate character subsystems.
 
-### PULSE
+## Rules / Constraints
+- New character complexity is more expensive than improving the clarity of the current three fighters.
+- Shared movement and action structure should remain shared unless the design cost is justified across the whole game.
+- Roster docs should describe live behavior only, not speculative balance notes.
 
-- archetype: karateka
-- gameplay read: balanced close-range controller
-- fantasy: clean martial strike into shockwave spacing
+## Technical Notes
+- Character identity is split across the `CHARS` table, `MOVESET`, `buildFighter()`, and character-specific VFX branches.
+- The game currently supports mirror picks.
 
-### VOLT
+## Known Issues
+- Character identity is clear enough in play, but the current implementation still depends on FX and color more than on deep animation variety.
+- Some older docs still restate the same roster facts in multiple places.
 
-- archetype: boxer
-- gameplay read: punch-heavy vertical launcher
-- fantasy: uppercut punishes and sharp contact bursts
-
-### CRUSH
-
-- archetype: sumo
-- gameplay read: heavy slam threat and grounded force
-- fantasy: body-weight impact and landing pressure
-
-## Current Design Constraint
-
-The game is already at a point where new character complexity would likely cost too many bytes.
-Future work should improve clarity, not roster depth.
+## Safe Iteration Guidelines
+- Update this file when the shared roster model changes, not when only one fighter's details change.
+- Keep per-character specifics in `roster.md`, `visual-language.md`, and `implementation-notes.md`.
+- Treat any change to the shared character baseline as a cross-domain change affecting combat, UI, and scene presentation.

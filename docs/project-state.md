@@ -1,269 +1,217 @@
 # Pixel Brawl Project State
 
-## Project Overview
+## 1. Project Identity
+`Pixel Brawl` is a local `1v1` Phaser 3 platform fighter built for the Platanus arcade contest. The game is designed as a short-match arcade fighter: movement is immediate, exchanges are compact, knockback and ring-outs are the main payoff, and the overall presentation prioritizes clarity over decorative depth.
 
-`Pixel Brawl` is a local `1v1` platform fighter built for the Platanus arcade contest.
-It runs as a compact Phaser 3 game centered around ring-outs, short exchanges, and readable arcade feedback.
+Current experience target:
 
-Current gameplay loop:
+- short local matches with fast restarts
+- readable ring-out pressure rather than long health-bar attrition
+- clear character identity through specials, silhouette, and hit FX
+- contest-safe procedural presentation with no external art or audio dependency
 
-1. menu
-2. character select
-3. match countdown
-4. live match with platforms, attacks, pickups, and timer
-5. final phase at `60s`
-6. KO / respawn loop until stocks run out or time expires
-7. end screen with winner celebration
+## 2. Current Playable Loop
+1. `BootScene` starts and immediately hands control to `MenuScene`.
+2. `MenuScene` allows `PLAY`, `CONTROLS`, `CREDITS`, and `EXIT` selection.
+3. `CharacterSelectScene` lets both players choose from the current roster and lock in.
+4. `GameScene` starts with a countdown and then enables gravity / match control.
+5. Players move, jump, fight, shield, use specials, collect pickups, and contest moving platforms.
+6. KO happens by ring-out. The defeated player loses one life and respawns after a delay with temporary invulnerability, unless they are out of lives.
+7. At `60s`, final phase triggers: the stage layout mutates and movement/platform speed multipliers increase.
+8. The match ends when one player runs out of lives or when the timer expires.
+9. Timeout resolution compares lives, then stamina, then lower percent.
+10. If timeout produces a winner, `EndScene` is shown. If it is still tied, the game returns to `MenuScene`.
 
-Current design direction:
+## 3. Current Implemented Systems
 
-- compact arcade platform fighter
-- Smash-inspired risk through launch and ring-out
-- primitive-only art
-- strong gameplay readability over decorative detail
-- contest-safe procedural visuals and sound
+### Scenes
+- `BootScene`: immediate handoff into the main menu.
+- `MenuScene`: front door for play flow and secondary screens.
+- `CharacterSelectScene`: two-player lock-in flow for the current roster.
+- `ControlsScene`: input explanation screen.
+- `CreditsScene`: project/team credits.
+- `GameScene`: all match logic, HUD, pickups, stage motion, combat, KO, respawn, and timeout handling.
+- `EndScene`: winner presentation and return path back to the menu.
 
-## Contest Constraints
+### Player Systems
+- Shared base movement across all characters.
+- Gravity and platform collision through Arcade Physics.
+- Jump plus double jump.
+- Facing direction tracked separately from movement velocity.
+- Air dodge with invulnerability and cooldown interaction.
+- Shield state with stamina drain and visible overlay.
+- Stamina system with regeneration rules and fatigue when exhausted.
+- Percent system tracked separately from stamina and used for knockback escalation.
+- Respawn flow resets match-critical state such as percent, buffs, active attacks, and invulnerability timing.
+- Input is normalized through cabinet codes rather than raw key names inside gameplay logic.
 
-- Phaser 3 only
-- no external images
-- no spritesheets
-- no external sound files
-- no network calls
-- no external URLs
-- code-generated visuals and audio only
-- target: under `50 KB` after minification
+### Combat Systems
+- Basic attack, dash attack, and one special per character.
+- Per-character special identities:
+  - `PULSE`: shockwave-style pressure
+  - `VOLT`: uppercut / launcher behavior
+  - `CRUSH`: ground-slam / landing burst behavior
+- Hitboxes are temporary attack objects with timing, dimensions, offsets, damage, and force multipliers.
+- Knockback depends on percent, stamina state, move type, guard/shield context, and some contextual modifiers.
+- Hit response includes stun, recoil, camera shake, hit freeze, flashes, sparks, and blood/impact effects.
+- Combo tracking exists and currently affects reward thresholds and stun scaling.
+- Shielding, guard buff, and directional influence affect post-hit outcome.
 
-Implications for future work:
+### Pickups / Buffs
+- Pickup spawning is active during matches.
+- Current pickup types:
+  - `recovery`
+  - `power`
+  - `speed`
+  - `regen`
+  - `guard`
+- Pickups use shared config for visuals, collection feedback, and gameplay effect.
+- Recovery restores stamina.
+- Buff pickups apply timed effects without changing base roster stats permanently.
+- Pickup visuals float, pulse, glow, and use code-generated icons.
+- Pickup collection currently reuses shared effect helpers and sound hooks.
 
-- new art must be primitive-based: `Graphics`, `rectangle`, `circle`, text, particles
-- sound must remain oscillator/procedural
-- every new visual helper must justify its byte cost
-- duplicated drawing logic is expensive even if runtime cost is small
-- large per-character art blocks and per-hit VFX are the fastest way to exceed the size budget
+### HUD / UI
+- Gameplay HUD is mirrored left/right for each player.
+- Current HUD information shown:
+  - character name
+  - lives / stocks
+  - percent
+  - segmented stamina
+  - special cooldown state
+  - fatigue state (`EXH`)
+  - active buff icons
+  - centered match timer
+- HUD redraws are partially cached:
+  - timer text/color only update when the displayed second or timer state changes
+  - stamina bars redraw only when segment count changes
+  - buff icons redraw only when active buff mask changes
+  - static HUD chrome is separated from the dynamic HUD data path
+- Front-end scenes are functional, but non-gameplay screens are less consistent than the gameplay HUD.
 
-Current status:
+### Stage / Platform Logic
+- The match uses one main arena plus moving side/top platforms.
+- Platform layout is defined by shared stage config data.
+- Moving platforms animate from stored base positions rather than ad hoc per-object logic.
+- Final phase removes the main platform from active play and adds two lower moving platforms.
+- Edge snap logic exists and depends on cached platform geometry.
+- Platform motion is horizontal by default, with final-phase vertical motion on the added lower platforms.
 
-- `npm run check-restrictions` passes
-- current minified size is under `50 KB`
-- raw source is much larger than the minified target, so growth headroom is limited
+### Procedural Visuals
+- No external textures, spritesheets, or images are used for gameplay presentation.
+- Fighters are built from rectangles in `buildFighter()`.
+- Background is built procedurally with layered desert sky, clouds, skyline silhouettes, ruins, dunes, dust, and wind streaks.
+- Pickups use code-generated icon containers.
+- Combat feedback is driven by shared primitive FX helpers: rectangles, circles, flashes, rings, sparks, burst particles, and impact splatter.
+- HUD bars and buff icons are also drawn procedurally.
 
-## Current Features
+### Procedural Audio
+- Audio is oscillator-based and generated at runtime.
+- The project includes:
+  - looping procedural music
+  - countdown tones
+  - attack / hit / block feedback tones
+  - KO / respawn / final-phase tones
+  - pickup collection tones
+- There are no external sound files in the match flow.
+- Audio logic is intentionally lightweight and byte-conscious.
 
-- menu scene with play / controls / credits / exit
-- character select with lock-in flow for both players
-- gameplay scene with shared base movement
-- jump, double-jump behavior, gravity, platform collisions
-- local cabinet input mapping via `CABINET_KEYS`
-- basic attack, dash, air dodge, and character special
-- `PULSE` shockwave
-- `VOLT` uppercut
-- `CRUSH` ground slam
-- stamina, fatigue, shield, and partial regeneration logic
-- percent accumulation used for knockback scaling
-- pickups and timed buffs
-- procedural music loop and hit / UI / KO tones
-- moving platforms with horizontal motion and final-phase vertical motion
-- final minute trigger with main-platform split
-- KO by ring-out and timed respawn with invulnerability
-- stock-based win condition plus timeout resolution
-- end scene with winner animation and announcement
+### End-of-Match Flow
+- Ring-out removes a stock immediately and triggers VFX/SFX feedback.
+- If the defeated player still has lives remaining, they respawn with reset combat state and temporary invulnerability.
+- If a player reaches zero lives, the other player wins and `EndScene` is shown.
+- Timeout resolution is deterministic:
+  - more lives wins
+  - if tied on lives, higher stamina wins
+  - if tied on stamina, lower percent wins
+  - if still tied, the game returns to the menu as a draw
 
-## UI / Visual State
-
-### Current HUD Logic
-
-- built in `GameScene.makeHud()`
-- updated through `hudDirty` and `refreshHud()`
-- player panels are mirrored left/right
-- percent is large and color-escalated
-- timer is centered and framed
-- stamina is segmented and secondary
-- buffs are represented by compact graphic icons
-- special cooldown and fatigue state are shown in a small text line
-
-### Current Menu / Select / End Quality
-
-- menu flow is complete and readable
-- character select is functional, but text encoding artifacts still appear in some labels
-- controls and credits are serviceable, not premium
-- end scene has a stronger celebration than the original version, but still relies on text + tween choreography rather than a dedicated presentation layer
-
-### Current Stage Art Direction
-
-- desert sunset palette with parallax clouds, skyline silhouettes, ruins, dunes, dust, and wind streaks
-- stage now points toward a buried temple / ruined city direction instead of a flat neon grid-only arena
-- gameplay stage and background are visually separate, but the platform art and background fiction are still not fully unified
-
-### Current Pickup Icon Approach
-
-- pickups are drawn in `drawPickupIcon()`
-- each pickup is a small code-built icon inside a reusable container
-- glow + outline + highlight support readability
-- shield / speed / power / recovery / regen are all distinct in intent, but tiny size still limits instant recognition under action
-
-### Current Character Art Approach
-
-- all fighters are built in `buildFighter()` from rectangles only
-- silhouettes now target karateka / boxer / sumo
-- identity is stronger than the earliest abstract versions, but animation bandwidth is limited by the primitive-only compact build
-
-## Character Design System
+## 4. Character Identity
 
 ### PULSE
-
-Role:
-
-- space-control all-rounder
-
-Silhouette goals:
-
-- karateka
-- cleaner torso
-- gi-like outfit
-- disciplined stance
-
-Attack fantasy:
-
-- sharp martial strikes
-- clean circular shockwave special
-
-Movement fantasy:
-
-- balanced and composed
-- controlled rather than explosive
-
-VFX identity:
-
-- thin white / cyan strike trails
-- clean circular pulse rings
+- Read as the balanced martial-artist character.
+- Visual identity leans karateka / disciplined fighter.
+- Special identity is shockwave-based space control.
+- Hit presentation uses cleaner white/cyan accents.
 
 ### VOLT
-
-Role:
-
-- punch-first anti-air launcher
-
-Silhouette goals:
-
-- boxer
-- high guard
-- visible gloves
-- stronger upper-body emphasis
-
-Attack fantasy:
-
-- compact punches
-- fast uppercut punish
-
-Movement fantasy:
-
-- direct
-- reactive
-- tight pressure windows
-
-VFX identity:
-
-- yellow / orange punch flashes
-- electric-feeling sharp sparks
+- Read as the boxer / launcher.
+- Visual identity emphasizes gloves and upper-body pressure.
+- Special identity is uppercut-style vertical punishment.
+- Hit presentation leans yellow/orange with sharper spark language.
 
 ### CRUSH
+- Read as the heavier close-range bruiser.
+- Visual identity leans sumo / body-weight pressure.
+- Special identity is ground slam with landing burst.
+- Hit presentation emphasizes dust, heavier impact, and broader contact FX.
 
-Role:
+These identities are currently implemented through special behavior, move feel, silhouette cues, and FX treatment rather than through separate movement stats.
 
-- heavy platform bully and slam threat
+## 5. Visual / UX Direction
+- The project aims for arcade readability first.
+- It is not trying to imitate full sprite-based fighting-game production; it is using primitive-generated art under contest constraints.
+- The visual language is pixel-art-adjacent in silhouette and contrast, but technically built from Phaser primitives rather than imported pixel assets.
+- Current UI hierarchy in gameplay is:
+  1. percent
+  2. lives
+  3. timer
+  4. stamina
+  5. cooldown / fatigue
+  6. buffs
+- Background depth should support match atmosphere without obscuring the players or hit feedback.
+- Pickup readability depends on bold silhouette and color separation, not on small detail.
+- Non-gameplay scenes still lag behind the gameplay HUD in polish consistency.
 
-Silhouette goals:
+## 6. Technical Constraints
+- Phaser 3 only.
+- No external assets for gameplay visuals or audio.
+- No external URLs and no network calls in the game runtime.
+- Code-generated visuals and procedural audio only.
+- Strong size pressure: the contest build must remain under the minified size limit.
+- The gameplay implementation is intentionally concentrated in `game.js` to reduce indirection and byte overhead.
+- Reuse matters both for performance and for final bundle size.
+- `npm run check-restrictions` is the required safety check for contest constraints.
 
-- sumo
-- large torso mass
-- lower center of gravity
-- mawashi-like cue
+Contest-safe implementation principles:
 
-Attack fantasy:
+- prefer shared helpers over repeated one-off drawing/effect code
+- treat duplicate logic as a maintenance risk and a size risk
+- avoid adding systems that need large data blobs or external resources
+- prefer replacing weak code paths over stacking new layers on top of them
 
-- body-weight impact
-- slam pressure
-- high-contact hits
+## 7. Known Risks / Weak Areas
 
-Movement fantasy:
+### Code Structure Risks
+- `GameScene` still concentrates many responsibilities in one file and one scene, so regressions can cascade across combat, UI, stage, and pickup changes.
+- Commented / stale code paths still exist in places and can confuse future maintenance if treated as active behavior.
+- The project is already far enough along that “small” helper additions can have real size impact.
 
-- committed and forceful
-- less elegant, more weighty
+### Gameplay Regression Risks
+- Final-phase mutation touches timer, HUD, platform state, and movement/platform speed multipliers at once.
+- KO / respawn flow resets many player fields together; it is easy to miss one when changing combat state.
+- Shield, guard, stamina, fatigue, percent, and combo logic all meet inside hit resolution, so combat changes should be treated as high-risk.
+- Pickup timing and buff expiration can affect HUD, aura, stamina behavior, and combat modifiers simultaneously.
 
-VFX identity:
+### UI / UX Weak Areas
+- Some non-gameplay labels still contain encoding artifacts.
+- Menu, controls, credits, and character select are functional but not as visually disciplined as the gameplay HUD.
+- The gameplay HUD path is cleaner than before, but the codebase still contains a commented legacy HUD block that should not remain indefinitely.
 
-- dust
-- wider ground impact
-- heavier impact rings and bursts
+### Visual Risks
+- Fighter silhouettes are readable for the current constraint set, but still limited by rectangle-only construction and compact scale.
+- Pickup icons remain small under match pressure and can regress quickly if they gain detail instead of stronger shape reads.
+- Background direction is established, but stage fiction and platform art still have less cohesion than the rest of the gameplay presentation.
 
-## Art Direction Rules
-
-- primitive-only rendering
-- strong silhouette first
-- readable low-detail forms
-- avoid noisy micro-detail
-- background depth should not reduce player readability
-- pickups must be recognizable at gameplay scale
-- HUD must prioritize status readability over decoration
-- percent must remain the dominant danger indicator
-- stamina must remain secondary in the hierarchy
-- effects should reinforce attack identity, not obscure player position
-
-## Performance / Size Rules
-
-Future contributors must avoid:
-
-- large repeated `Graphics` drawing blocks without reuse
-- adding separate helpers for tiny one-off VFX that could reuse existing primitives
-- expanding icon maps into large hardcoded pixel arrays
-- adding many concurrent long-lived tweens per hit
-- overgrowing `buildFighter()` and `createDesertBackground()` with decorative detail that does not improve readability
-- duplicating whole HUD methods or old implementations in the file
-- large menu / scene text rewrites that add bytes without changing play quality
-
-High-risk growth areas:
-
-- background art layers
-- fighter construction blocks
-- per-character VFX in `hitPlayer()`
-- duplicated HUD code
-- extra scene-specific presentation logic
-
-## Known Issues / Open Improvements
-
-Major visual debt:
-
-- scene-level typography and alignment still vary between menu, select, gameplay, and end screen
-- some labels still show encoding artifacts
-- background direction is improved but not yet iconic
-
-UI debt:
-
-- HUD logic currently exists twice in `GameScene`, which is a maintenance and size risk
-- menu and character select still feel closer to debug utility screens than a polished arcade front-end
-- cooldown / buff readability is improved in gameplay but not matched elsewhere
-
-Character readability debt:
-
-- silhouettes are clearer than before, but still constrained by tiny body scale and rectangle-only construction
-- attack poses are mostly implied by FX rather than by body deformation
-
-Pickup readability debt:
-
-- icons are improved, but shield / power / speed still compete with match chaos at distance
-- no pickup has enough dedicated screen time to rely on detail; silhouette must stay extremely simple
-
-Size / bloat risks:
-
-- gameplay source is already large in raw bytes
-- duplicated or stale implementations should be removed before adding more visual systems
-- future polish should prefer replacing weak code, not layering new code on top of it
-
-## Safe Next Steps
-
-1. remove duplicated / stale HUD implementation and encoding-corrupted text with no gameplay changes
-2. tighten menu, controls, credits, and character-select typography/layout for visual consistency
-3. simplify pickup silhouettes further toward stronger single-shape reads
-4. unify stage platform art with the ruined-desert background fiction
-5. compress repeated VFX logic where possible before adding new visual features
+## 8. Safe Next Steps
+- Remove dead or commented legacy code paths that are no longer part of the active runtime behavior.
+- Fix remaining text-encoding issues in menu, select, controls, and related UI labels.
+- Continue maintenance refactors that reduce duplication in `GameScene` without changing values, timing, controls, or stage layout.
+- Tighten non-gameplay scene typography and spacing so front-end screens match the quality level of the current gameplay HUD.
+- Keep documenting regression-sensitive behavior in `docs/` before changing combat, HUD, pickup, or final-phase systems.
+- Add focused playtest notes for:
+  - KO / respawn
+  - timeout resolution
+  - final phase transition
+  - pickup/buff expiration
+  - HUD state changes under combat stress

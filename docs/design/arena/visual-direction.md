@@ -1,35 +1,52 @@
 # Arena Visual Direction
 
-## Current Direction
+## Overview
+This document defines the live visual direction of the arena specifically, not the whole game.
 
-The live background now targets:
+## Scope
+This document owns:
 
-- desert sunset
-- buried ruins
-- ruined skyline
-- semi-buried temple / city fragments
-- drifting dust and wind
+- stage backdrop theme
+- arena layer order
+- rules for keeping the arena behind gameplay
 
-## Current Layering
+This document does not own:
 
-- sky color bands
-- sun disc
-- cloud layer
-- far skyline silhouettes
-- mid ruin layer
-- dune layers
-- drifting dust / wind streaks
+- global art rules in `docs/design/visual/current-state.md`
+- fighter-specific visual reads in `docs/design/characters/visual-language.md`
+- platform layout in `docs/design/arena/main-stage.md`
 
-## Current Visual Goal
+## Current Implementation
+- The current arena reads as a desert sunset with ruins and buried city/temple fragments.
+- The live layered stack is:
+  - sky color bands
+  - sun disc
+  - cloud layer
+  - far skyline silhouettes
+  - mid ruin layer
+  - dune layers
+  - drifting dust and wind streaks
+- Platforms use simple ship-like containers with emissive accents rather than abstract flat blocks.
 
-Background should feel like a place with history, but must stay behind:
+## Design Intent
+- Give the match a distinct place without stealing focus from the fighters.
+- Use depth and atmosphere to support motion, not to create visual noise.
+- Make the arena feel intentional within contest-safe procedural constraints.
 
-- fighters
-- pickups
-- platform edges
-- hit effects
+## Rules / Constraints
+- Background layers must stay behind fighters, pickups, platform edges, and hit effects.
+- Arena detail should improve mood, not compete with gameplay clarity.
+- Platform silhouettes must remain readable against the backdrop.
 
-## Current Weakness
+## Technical Notes
+- The arena background is fully procedural and built with `Graphics`, shapes, and lightweight animated particles.
+- Parallax and ambient particles are updated continuously during gameplay.
 
-The scene is improved, but still not fully iconic.
-It reads as “good ruined desert layers” more than “one unforgettable arena.”
+## Known Issues
+- The arena is materially stronger than an early graybox, but it is still more “good layered desert scene” than one singular iconic location.
+- Scene-level visual consistency outside gameplay still lags behind the quality of the arena and HUD.
+
+## Safe Iteration Guidelines
+- If new detail weakens contrast behind fighters or pickups, remove it.
+- Strengthen shape language before increasing particle count.
+- Keep global rendering principles in the visual doc and arena-specific direction here.
