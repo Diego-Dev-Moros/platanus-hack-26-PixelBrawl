@@ -703,12 +703,9 @@ class CreditsScene extends Phaser.Scene {
     bindKeys(this);
     drawBg(this, 'CREDITS');
     const cx = W / 2, cy = H / 2;
-    addLabelC(this, cx, cy - 108, 'PLATANUS HACK 26', 22, C.text);
-    addLabelC(this, cx, cy -  72, 'BA',     18, C.dim);
-    addLabelC(this, cx, cy -  42, 'ARCADE', 18, C.dim);
-    addLabelC(this, cx, cy +  10, 'BY', 12, C.dim);
-    addLabelC(this, cx, cy +  50, 'DIEGO MOROS',         22, '#fff0aa');
-    addLabelC(this, cx, cy +  84, 'ALEJANDRO BIARRIETA', 22, '#fff0aa');
+    addLabelC(this, cx, cy - 36, 'PIXEL BRAWL BY', 24, C.text);
+    addLabelC(this, cx, cy +  6, 'DIEGO MOROS, ALEJANDRO BIARRIETA', 16, '#fff0aa');
+    addLabelC(this, cx, cy + 64, 'AGRADECIMIENTOS: PLATANUS HACK 2026', 14, C.dim);
     addLabelC(this, cx, H - 30,   'PRESS ENTER', 13, C.dim);
   }
   update() {
