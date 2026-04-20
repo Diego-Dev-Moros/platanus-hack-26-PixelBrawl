@@ -39,8 +39,8 @@ const STAGE_PLATS = [
   { x: 400, y: 270, w: 100, h: 18, type: 'top',  speed: 0.6, range: 28, phase: 0,        vRange: 14, vSpeed: 0.5, vPhase: 0 },
 ];
 const FINAL_PLATS = [
-  { x: 280, y: 470, w: 180, h: 28, type: 'side', speed: 1.2, range: 90, phase: 0,       vRange: 16, vSpeed: 0.8, vPhase: 0 },
-  { x: 520, y: 470, w: 180, h: 28, type: 'side', speed: 1.2, range: 90, phase: Math.PI, vRange: 16, vSpeed: 0.8, vPhase: Math.PI },
+  { x: 280, y: 470, w: 180, h: 28, type: 'side', speed: 1.35, range: 108, phase: 0,       vRange: 22, vSpeed: 1, vPhase: 0 },
+  { x: 520, y: 470, w: 180, h: 28, type: 'side', speed: 1.35, range: 108, phase: Math.PI, vRange: 22, vSpeed: 1, vPhase: Math.PI },
 ];
 const BUFF_BADGES = {
   power: [[-2, -1, 5, 3], [0, -4, 3, 3]],
@@ -725,8 +725,8 @@ class GameScene extends Phaser.Scene {
 
   create() {
     bindKeys(this);
-    this.over = 0; this.matchTime = 180000; this.finalPhase = false;
-    this.platSpeedMul = 1; this.moveSpeedMul = 1;
+    this.over = 0; this.matchTime = 180000; this.finalPhase = false; this.midPhase = false;
+    this.platSpeedMul = 1; this.moveSpeedMul = 1.08; this.atkCdMul = 0.94;
     this.ready = false;
     this.hudDirty = false;
     this._fzEnd = 0; this._fzToken = 0;
@@ -760,6 +760,7 @@ class GameScene extends Phaser.Scene {
     this.platData = [];
     this.movingPlats = [];
     for (const d of STAGE_PLATS) addStagePlatform(this, d);
+    this.mainPlat = this.platData[0] || null;
     this.plats.refresh();
   }
 
@@ -797,7 +798,7 @@ class GameScene extends Phaser.Scene {
       idx, char: ch, body, visual, overlay, aura,
       lives: LIVES, alive: 1, face, jumps: 2,
       stamina: 100, staminaMax: 100, percent: 0, invuln: 0, fatigue: 0, stun: 0,
-      atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, slam: 0,
+      atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, atkChain: 0, atkChainT: 0, atkQueue: 0, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0, guard: 0 }, _auraType: null, recovering: false,
       canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0, _recoilT: 0, _atkPoseT: 0,
       keys: PLAYER_KEYS[idx],
@@ -824,13 +825,26 @@ class GameScene extends Phaser.Scene {
   updateMatchTimer(dt) {
     if (this.over || !this.ready) return;
     this.matchTime -= dt;
+    if (!this.midPhase && this.matchTime <= 120000) this.triggerMidPhase();
     if (!this.finalPhase && this.matchTime <= 60000) this.triggerFinalPhase();
+    this.updatePace();
     if (this.matchTime <= 0) { this.endMatch(); return; }
     const s = Math.max(0, Math.ceil(this.matchTime / 1000));
     if (s !== this._hudTimerS || this.finalPhase !== this._hudTimerFinal) {
       setHudLabel(this.hudTimer, ~~(s / 60) + ':' + String(s % 60).padStart(2, '0'), this.finalPhase ? '#ff4444' : C.text);
       this._hudTimerS = s; this._hudTimerFinal = this.finalPhase;
     }
+  }
+
+  updatePace() {
+    const t = Math.max(0, this.matchTime), r = 1 - t / 180000;
+    this.moveSpeedMul = 1.08 + r * 0.14 + (this.finalPhase ? 0.03 : 0);
+    this.atkCdMul = (0.94 - r * 0.12) * (this.finalPhase ? 0.9 : 1);
+    if (this.finalPhase) return;
+    if (!this.midPhase) { this.platSpeedMul = 1 + r * 0.16; return; }
+    const p = Math.min(1, (120000 - t) / 60000), mp = this.mainPlat;
+    this.platSpeedMul = 1.12 + p * 0.38;
+    if (mp) { mp.range = 30 + p * 54; mp.speed = 0.52 + p * 0.58; }
   }
 
   tickPlayer(p, foe, dt) {
@@ -916,10 +930,12 @@ class GameScene extends Phaser.Scene {
     p.dashT = down(p.dashT, dt);
     tickBuffs(p.buffs, dt);
     if (p.atk) { p.atk.t -= dt; if (p.atk.t <= 0) p.atk = null; }
+    if (p.atkChainT > 0) { p.atkChainT = down(p.atkChainT, dt); if (!p.atkChainT) { p.atkChain = 0; p.atkQueue = 0; } }
     if (p.comboT > 0) { p.comboT = down(p.comboT, dt); if (!p.comboT) p.comboHits = 0; }
     p._recoilT = down(p._recoilT, dt);
     p._atkPoseT = down(p._atkPoseT, dt);
     p.fatigue = down(p.fatigue, dt);
+    if (p.stun > 0 || p.fatigue > 0) { p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0; }
     if (wasExh && !p.fatigue) this.finishFatigue(p);
     if (p.fatigue <= 0 && p.stamina < p.staminaMax) {
       if (p.buffs.regen > 0)
@@ -972,7 +988,11 @@ class GameScene extends Phaser.Scene {
     if (!this.ready || p.stun > 0 || p.fatigue > 0 || p.shielding) return;
     const k = p.keys, held = this.ctrl.held, pressed = this.ctrl.pressed;
     const moving = held[k.left] || held[k.right];
-    if (pressed[k.attack] && p.atkCd <= 0) this.basicAttack(p, b);
+    if (p.atkQueue && p.atkCd <= 0 && p.atkChainT > 0) { p.atkQueue = 0; this.basicAttack(p, b); }
+    if (pressed[k.attack]) {
+      if (p.atkCd <= 0) this.basicAttack(p, b);
+      else if (p.atkChainT > 0) p.atkQueue = 1;
+    }
     if (pressed[k.alt]) this.handleAltAction(p, b, moving);
   }
 
@@ -989,17 +1009,21 @@ class GameScene extends Phaser.Scene {
   }
 
   basicAttack(p, b) {
-    const gr = grounded(b), m = MOVESET[p.char.id], fx = m.bf;
-    p.atkCd = m.bc;
-    this.setAttack(p, 'basic', m.b[gr ? 0 : 1], p.face);
-    this.flash(p.body.x + p.face * fx[0], p.body.y + (gr ? fx[1] : 14), 30, 20, fx[2], 85);
-    tone(this, p.idx ? 300 : 260, 'square', 0.07, 0.06);
+    const gr = grounded(b), m = MOVESET[p.char.id], fx = m.bf, c = p.atkChainT > 0 ? (p.atkChain + 1) % 3 : 0;
+    p.atkChain = c; p.atkChainT = 250; p.atkQueue = 0;
+    p.atkCd = m.bc * (this.atkCdMul || 1) * (c ? (c === 2 ? 0.52 : 0.66) : 1);
+    const spec = m.b[gr ? 0 : 1], dmg = spec[5] + (c ? c + 1 : 0);
+    this.setAttack(p, 'basic', spec, p.face, dmg);
+    if (c) b.setVelocityX(b.velocity.x + p.face * (c === 2 ? 72 : 42));
+    this.flash(p.body.x + p.face * (fx[0] + c * 5), p.body.y + (gr ? fx[1] : 14), 30 + c * 6, 20, fx[2], 85);
+    tone(this, (p.idx ? 300 : 260) + c * 46, 'square', 0.07, c ? 0.07 : 0.06);
   }
 
   doDash(p) {
     const b = p.body.body, id = p.char.id, m = MOVESET[id], dir = p.face || (p.idx ? -1 : 1);
+    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
     // Per-character dash cooldown
-    p.dashCd = m.dc;
+    p.dashCd = m.dc * (this.atkCdMul || 1);
     p.dashT = m.dt;
     if (id === 'pulse') {
       // Flying kick: long forward reach, moderate launch, upward angle
@@ -1018,9 +1042,10 @@ class GameScene extends Phaser.Scene {
 
   doAirDodge(p, b) {
     const dir = this.ctrl.held[p.keys.left] ? -1 : 1;
+    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
     p.canAirDodge = false;
     p.invuln = Math.max(p.invuln, 160);
-    p.dashCd = DASH_CD * 0.7;
+    p.dashCd = DASH_CD * 0.7 * (this.atkCdMul || 1);
     b.setVelocity(dir * 370, -60);
     this.flash(p.body.x, p.body.y, 34, 34, p.char.color, 130);
     tone(this, 480, 'triangle', 0.04, 0.10);
@@ -1028,7 +1053,8 @@ class GameScene extends Phaser.Scene {
 
   doSpecial(p) {
     const m = MOVESET[p.char.id];
-    p.spCd = p.char.sp;
+    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
+    p.spCd = p.char.sp * (this.atkCdMul || 1);
     if (m.sp) {
       this.setAttack(p, m.sk, m.sp, p.face, p.char.sd);
       if (p.char.id === 'pulse') {
@@ -1105,6 +1131,7 @@ class GameScene extends Phaser.Scene {
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
+    t.atkChain = 0; t.atkChainT = 0; t.atkQueue = 0;
     t.comboHits++; t.comboT = 1800;
     if (t.comboHits === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
     else if (t.comboHits === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
@@ -1181,6 +1208,7 @@ class GameScene extends Phaser.Scene {
     p.alive = 0;
     p.lives--;
     p.atk = null;
+    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
     p.slam = 0;
     clearBuffs(p.buffs);
     p._auraType = null; p.shielding = false; p._recoilT = 0; p._atkPoseT = 0;
@@ -1228,6 +1256,7 @@ class GameScene extends Phaser.Scene {
     p.fatigue = 0;
     p.stun = 0;
     p.atk = null;
+    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
     p.slam = 0;
     p.lastHitTime = 0;
     clearBuffs(p.buffs);
@@ -1299,6 +1328,21 @@ class GameScene extends Phaser.Scene {
     p.overlay.setPosition(p.body.x, p.body.y);
   }
 
+  triggerMidPhase() {
+    this.midPhase = true;
+    const mp = this.mainPlat;
+    if (mp) {
+      mp.speed = 0.52; mp.range = 30; mp.phase = Math.PI * 0.5;
+      if (this.movingPlats.indexOf(mp) < 0) this.movingPlats.push(mp);
+    }
+    const txt = this.add.text(W / 2, H / 2 - 24, 'STAGE SHIFT', {
+      fontFamily: 'monospace', fontSize: '34px', fontStyle: 'bold', color: '#ff8a3d',
+    }).setOrigin(0.5).setDepth(20);
+    this.tweens.add({ targets: txt, alpha: 0, y: H / 2 - 64, duration: 1200, onComplete: () => txt.destroy() });
+    this.cameras.main.shake(88, 0.0057);
+    tone(this, 740, 'square', 0.09, 0.16);
+  }
+
   triggerFinalPhase() {
     this.finalPhase = true;
     this.platSpeedMul = 1.6; this.moveSpeedMul = 1.18;
@@ -1310,8 +1354,8 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.shake(132, 0.0078);
     tone(this, 880, 'square', 0.12, 0.28);
     this.time.delayedCall(300, ()=>tone(this, 660, 'square', 0.10, 0.28));
-    const mp = this.platData[0];
-    setStagePlatformPos(mp, -2000, -2000); mp.visual.setVisible(false);
+    const mp = this.mainPlat || this.platData[0];
+    if (mp) { setStagePlatformPos(mp, -2000, -2000); mp.visual.setVisible(false); }
     for (const d of FINAL_PLATS) addStagePlatform(this, d);
     this.plats.refresh();
   }
