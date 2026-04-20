@@ -312,6 +312,9 @@ function wrapLayer(node, speed, s) {
 }
 
 function drawBuffBadges(g, buffs, x, y, dir) {
+  const mask = buffMask(buffs);
+  if (g._mask === mask) return;
+  g._mask = mask;
   g.clear();
   eachBuff(buffs, (type, i) => {
     const bx = x + dir * i * 16, col = PICKUP_CFG[type].col;
@@ -321,6 +324,46 @@ function drawBuffBadges(g, buffs, x, y, dir) {
     for (const p of BUFF_BADGES[type]) g.fillRect(bx + p[0], y + p[1], p[2], p[3]);
   });
 }
+
+function drawHudFrame(g, finalPhase) {
+  if (g._finalPhase === finalPhase) return;
+  g._finalPhase = finalPhase;
+  g.clear();
+  g.fillStyle(0x07121c, 0.56);
+  g.fillRoundedRect(14, 10, 224, 76, 10);
+  g.fillRoundedRect(W - 238, 10, 224, 76, 10);
+  g.fillStyle(0x081722, 0.72);
+  g.fillRoundedRect(W / 2 - 78, 10, 156, 36, 10);
+  g.lineStyle(1, 0x295374, 0.70);
+  g.strokeRoundedRect(14, 10, 224, 76, 10);
+  g.strokeRoundedRect(W - 238, 10, 224, 76, 10);
+  g.strokeRoundedRect(W / 2 - 78, 10, 156, 36, 10);
+  g.lineStyle(2, 0x143245, 0.85);
+  g.lineBetween(22, 60, 230, 60);
+  g.lineBetween(W - 230, 60, W - 22, 60);
+  g.fillStyle(finalPhase ? 0x742a2a : 0x11293b, 0.90);
+  g.fillRoundedRect(W / 2 - 34, 53, 68, 22, 8);
+  g.lineStyle(1, finalPhase ? 0xff6f6f : 0x5bc6f0, 0.90);
+  g.strokeRoundedRect(W / 2 - 34, 53, 68, 22, 8);
+}
+
+function drawHudBar(g, seg, x) {
+  if (g._seg === seg) return;
+  g._seg = seg;
+  g.clear();
+  const c = seg >= 7 ? 0x32e3ff : seg >= 4 ? 0xffcf45 : 0xff5668;
+  for (let i = 0; i < 10; i++) {
+    g.fillStyle(i < seg ? c : 0x1a2a3a, i < seg ? 1 : .25);
+    g.fillRect(x + i * 10, 63, 8, 6);
+  }
+}
+
+function setHudLabel(node, text, color) {
+  if (node._text !== text) { node.setText(text); node._text = text; }
+  if (color && node._color !== color) { node.setColor(color); node._color = color; }
+}
+
+function hudPctColor(v, base) { return v >= 150 ? '#ff6d78' : v >= 80 ? '#ffd25a' : base; }
 
 function createDesertBackground(scene) {
   const sky = scene.add.graphics();
@@ -734,6 +777,8 @@ class GameScene extends Phaser.Scene {
     this.hudBuff1 = this.add.graphics();
     this.hudBuff2 = this.add.graphics();
     this.hudBar1.setDepth(11); this.hudBar2.setDepth(11); this.hudBuff1.setDepth(11); this.hudBuff2.setDepth(11);
+    this._hudTimerS = -1; this._hudTimerFinal = null;
+    drawHudFrame(this.hudFrame, this.finalPhase);
   }
 
   makePlayer(idx, id) {
@@ -782,7 +827,10 @@ class GameScene extends Phaser.Scene {
     if (!this.finalPhase && this.matchTime <= 60000) this.triggerFinalPhase();
     if (this.matchTime <= 0) { this.endMatch(); return; }
     const s = Math.max(0, Math.ceil(this.matchTime / 1000));
-    this.hudTimer.setText(~~(s / 60) + ':' + String(s % 60).padStart(2, '0')).setColor(this.finalPhase ? '#ff4444' : C.text);
+    if (s !== this._hudTimerS || this.finalPhase !== this._hudTimerFinal) {
+      setHudLabel(this.hudTimer, ~~(s / 60) + ':' + String(s % 60).padStart(2, '0'), this.finalPhase ? '#ff4444' : C.text);
+      this._hudTimerS = s; this._hudTimerFinal = this.finalPhase;
+    }
   }
 
   tickPlayer(p, foe, dt) {
@@ -1254,6 +1302,7 @@ class GameScene extends Phaser.Scene {
   triggerFinalPhase() {
     this.finalPhase = true;
     this.platSpeedMul = 1.6; this.moveSpeedMul = 1.18;
+    drawHudFrame(this.hudFrame, true);
     const txt = this.add.text(W/2, H/2, 'FINAL MINUTE', {
       fontFamily:'monospace', fontSize:'46px', fontStyle:'bold', color:'#ff4444'
     }).setOrigin(0.5).setDepth(20);
@@ -1484,7 +1533,7 @@ class GameScene extends Phaser.Scene {
     // Placeholder for dedicated pickup collection SFX.
   }
 
-  refreshHudLegacy() {
+  /* refreshHudLegacy() {
     const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
     const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP OK';
     const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('POW'); if(p.buffs.speed>0)b.push('SPD'); if(p.buffs.regen>0)b.push('REG'); if(p.buffs.guard>0)b.push('GRD'); return b.join(' '); };
@@ -1517,47 +1566,22 @@ class GameScene extends Phaser.Scene {
     this.hudPct2.setText(p2._hud.pct + '%').setColor(p2._hud.pct >= 150 ? '#ff6d78' : p2._hud.pct >= 80 ? '#ffd25a' : C.p2);
     this.hudS1.setText(cool(p1) + (p1.fatigue > 0 ? '  EXH' : '') + (bufStr(p1) ? '  ' + bufStr(p1) : ''));
     this.hudS2.setText(cool(p2) + (p2.fatigue > 0 ? '  EXH' : '') + (bufStr(p2) ? '  ' + bufStr(p2) : ''));
-  }
+  } */
 
   refreshHud() {
     const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
     const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP OK';
     const p1 = this.players[0], p2 = this.players[1];
-    const frame = this.hudFrame;
-    frame.clear();
-    frame.fillStyle(0x07121c, 0.56);
-    frame.fillRoundedRect(14, 10, 224, 76, 10);
-    frame.fillRoundedRect(W - 238, 10, 224, 76, 10);
-    frame.fillStyle(0x081722, 0.72);
-    frame.fillRoundedRect(W / 2 - 78, 10, 156, 36, 10);
-    frame.lineStyle(1, 0x295374, 0.70);
-    frame.strokeRoundedRect(14, 10, 224, 76, 10);
-    frame.strokeRoundedRect(W - 238, 10, 224, 76, 10);
-    frame.strokeRoundedRect(W / 2 - 78, 10, 156, 36, 10);
-    frame.lineStyle(2, 0x143245, 0.85);
-    frame.lineBetween(22, 60, 230, 60);
-    frame.lineBetween(W - 230, 60, W - 22, 60);
-    frame.fillStyle(this.finalPhase ? 0x742a2a : 0x11293b, 0.90);
-    frame.fillRoundedRect(W / 2 - 34, 53, 68, 22, 8);
-    frame.lineStyle(1, this.finalPhase ? 0xff6f6f : 0x5bc6f0, 0.90);
-    frame.strokeRoundedRect(W / 2 - 34, 53, 68, 22, 8);
-    const dB = (g, p, x) => {
-      g.clear();
-      const c = p._hud.seg >= 7 ? 0x32e3ff : p._hud.seg >= 4 ? 0xffcf45 : 0xff5668;
-      for (let i = 0; i < 10; i++) {
-        g.fillStyle(i < p._hud.seg ? c : 0x1a2a3a, i < p._hud.seg ? 1 : .25);
-        g.fillRect(x + i * 10, 63, 8, 6);
-      }
-    };
-    dB(this.hudBar1, p1, 24); dB(this.hudBar2, p2, W - 122);
+    drawHudFrame(this.hudFrame, this.finalPhase);
+    drawHudBar(this.hudBar1, p1._hud.seg, 24); drawHudBar(this.hudBar2, p2._hud.seg, W - 122);
     drawBuffBadges(this.hudBuff1, p1.buffs, 188, 74, 1);
     drawBuffBadges(this.hudBuff2, p2.buffs, W - 188, 74, -1);
-    this.hudP1.setText('P1  ' + p1.char.name + '  ' + dots(p1.lives));
-    this.hudP2.setText('P2  ' + p2.char.name + '  ' + dots(p2.lives));
-    this.hudPct1.setText(p1._hud.pct + '%').setColor(p1._hud.pct >= 150 ? '#ff6d78' : p1._hud.pct >= 80 ? '#ffd25a' : C.p1);
-    this.hudPct2.setText(p2._hud.pct + '%').setColor(p2._hud.pct >= 150 ? '#ff6d78' : p2._hud.pct >= 80 ? '#ffd25a' : C.p2);
-    this.hudS1.setText(cool(p1) + (p1.fatigue > 0 ? '  EXH' : ''));
-    this.hudS2.setText(cool(p2) + (p2.fatigue > 0 ? '  EXH' : ''));
+    setHudLabel(this.hudP1, 'P1  ' + p1.char.name + '  ' + dots(p1.lives));
+    setHudLabel(this.hudP2, 'P2  ' + p2.char.name + '  ' + dots(p2.lives));
+    setHudLabel(this.hudPct1, p1._hud.pct + '%', hudPctColor(p1._hud.pct, C.p1));
+    setHudLabel(this.hudPct2, p2._hud.pct + '%', hudPctColor(p2._hud.pct, C.p2));
+    setHudLabel(this.hudS1, cool(p1) + (p1.fatigue > 0 ? '  EXH' : ''));
+    setHudLabel(this.hudS2, cool(p2) + (p2.fatigue > 0 ? '  EXH' : ''));
   }
 }
 
