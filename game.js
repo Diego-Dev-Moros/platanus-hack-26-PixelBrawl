@@ -39,8 +39,8 @@ const STAGE_PLATS = [
   { x: 400, y: 270, w: 100, h: 18, type: 'top',  speed: 0.6, range: 28, phase: 0,        vRange: 14, vSpeed: 0.5, vPhase: 0 },
 ];
 const FINAL_PLATS = [
-  { x: 280, y: 470, w: 180, h: 28, type: 'side', speed: 1.35, range: 108, phase: 0,       vRange: 22, vSpeed: 1, vPhase: 0 },
-  { x: 520, y: 470, w: 180, h: 28, type: 'side', speed: 1.35, range: 108, phase: Math.PI, vRange: 22, vSpeed: 1, vPhase: Math.PI },
+  { x: 280, y: 470, w: 180, h: 28, type: 'side', speed: 1.2, range: 94, phase: 0,       vRange: 18, vSpeed: 0.9, vPhase: 0 },
+  { x: 520, y: 470, w: 180, h: 28, type: 'side', speed: 1.2, range: 94, phase: Math.PI, vRange: 18, vSpeed: 0.9, vPhase: Math.PI },
 ];
 const BUFF_BADGES = {
   power: [[-2, -1, 5, 3], [0, -4, 3, 3]],
@@ -724,7 +724,7 @@ class GameScene extends Phaser.Scene {
   create() {
     bindKeys(this);
     this.over = 0; this.matchTime = 180000; this.finalPhase = false; this.midPhase = false;
-    this.platSpeedMul = 1; this.moveSpeedMul = 1.08; this.atkCdMul = 0.94;
+    this.platSpeedMul = 1; this.moveSpeedMul = 1.06; this.atkCdMul = 0.95;
     this.ready = false;
     this.hudDirty = false;
     this._fzEnd = 0; this._fzToken = 0;
@@ -738,7 +738,7 @@ class GameScene extends Phaser.Scene {
     this.players = [this.makePlayer(0, this.picks[0]), this.makePlayer(1, this.picks[1])];
     this.refreshHud();
     this.pickup = null;
-    this.scheduleNextPickup();
+    this.pickupTimer = 4300 + Math.random() * 1800;
     this.startCountdown();
     startMusic(this);
   }
@@ -835,14 +835,26 @@ class GameScene extends Phaser.Scene {
   }
 
   updatePace() {
-    const t = Math.max(0, this.matchTime), r = 1 - t / 180000;
-    this.moveSpeedMul = 1.08 + r * 0.14 + (this.finalPhase ? 0.03 : 0);
-    this.atkCdMul = (0.94 - r * 0.12) * (this.finalPhase ? 0.9 : 1);
-    if (this.finalPhase) return;
-    if (!this.midPhase) { this.platSpeedMul = 1 + r * 0.16; return; }
-    const p = Math.min(1, (120000 - t) / 60000), mp = this.mainPlat;
-    this.platSpeedMul = 1.12 + p * 0.38;
-    if (mp) { mp.range = 30 + p * 54; mp.speed = 0.52 + p * 0.58; }
+    const t = Math.max(0, this.matchTime), mp = this.mainPlat;
+    if (!this.midPhase) {
+      const q = Math.min(1, (180000 - t) / 60000);
+      this.moveSpeedMul = 1.06 + q * 0.02;
+      this.atkCdMul = 0.95 - q * 0.01;
+      this.platSpeedMul = 1 + q * 0.03;
+      return;
+    }
+    if (!this.finalPhase) {
+      const q = Math.min(1, (120000 - t) / 60000);
+      this.moveSpeedMul = 1.08 + q * 0.04;
+      this.atkCdMul = 0.94 - q * 0.03;
+      this.platSpeedMul = 1.03 + q * 0.22;
+      if (mp) { mp.range = 18 + q * 30; mp.speed = 0.34 + q * 0.34; }
+      return;
+    }
+    const q = Math.min(1, (60000 - t) / 60000);
+    this.moveSpeedMul = 1.12 + q * 0.03;
+    this.atkCdMul = 0.91 - q * 0.03;
+    this.platSpeedMul = 1.25 + q * 0.11;
   }
 
   tickPlayer(p, foe, dt) {
@@ -1008,11 +1020,11 @@ class GameScene extends Phaser.Scene {
 
   basicAttack(p, b) {
     const gr = grounded(b), m = MOVESET[p.char.id], fx = m.bf, c = p.atkChainT > 0 ? (p.atkChain + 1) % 3 : 0;
-    p.atkChain = c; p.atkChainT = 250; p.atkQueue = 0;
-    p.atkCd = m.bc * (this.atkCdMul || 1) * (c ? (c === 2 ? 0.52 : 0.66) : 1);
-    const spec = m.b[gr ? 0 : 1], dmg = spec[5] + (c ? c + 1 : 0);
+    p.atkChain = c; p.atkChainT = 300; p.atkQueue = 0;
+    p.atkCd = m.bc * (this.atkCdMul || 1) * (c ? (c === 2 ? 0.66 : 0.78) : 1);
+    const spec = m.b[gr ? 0 : 1], dmg = spec[5] + c;
     this.setAttack(p, 'basic', spec, p.face, dmg);
-    if (c) b.setVelocityX(b.velocity.x + p.face * (c === 2 ? 72 : 42));
+    if (c) b.setVelocityX(b.velocity.x + p.face * (c === 2 ? 56 : 34));
     this.flash(p.body.x + p.face * (fx[0] + c * 5), p.body.y + (gr ? fx[1] : 14), 30 + c * 6, 20, fx[2], 85);
     tone(this, (p.idx ? 300 : 260) + c * 46, 'square', 0.07, c ? 0.07 : 0.06);
   }
@@ -1117,8 +1129,16 @@ class GameScene extends Phaser.Scene {
     const sweet = Number.isFinite(a._sweet) ? a._sweet : 1.0;
     const shld  = blocked ? 0.30 : t.buffs.guard > 0 ? 0.76 : 1;
     const dir  = p.body.x <= t.body.x ? 1 : -1;
+    let chain = 1;
+    if (!blocked) {
+      t.comboHits = t.comboT > 0 ? t.comboHits + 1 : 1;
+      t.comboT = 520;
+      chain = t.comboHits;
+    } else { t.comboHits = 0; t.comboT = 0; }
+    const comboKb = chain >= 4 ? 1.12 : chain === 3 ? 1.07 : chain === 2 ? 1.03 : 1;
     let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * shld;
     let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * shld;
+    if (!blocked) { vx *= comboKb; vy *= comboKb; }
     if (dash) vy = -95 * mul * pwr * sweet * rage * shld;
     const held = this.ctrl.held;
     if (held[t.keys.left]) vx -= 80;
@@ -1130,11 +1150,10 @@ class GameScene extends Phaser.Scene {
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
     t.atkChain = 0; t.atkChainT = 0; t.atkQueue = 0;
-    t.comboHits++; t.comboT = 1800;
-    if (t.comboHits === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
-    else if (t.comboHits === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
+    if (!blocked && chain === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
+    else if (!blocked && chain === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
     t.stun = (basic ? 110 : dash ? 130 : 150)
-      * Math.max(0.60, 1 - (t.comboHits - 1) * 0.10);
+      * Math.max(0.60, 1 - (chain - 1) * 0.10);
     if (this.finalPhase) { vx *= 1.18; vy *= 1.18; }
     // VOLT bonus vs airborne targets
     if (p.char.id === 'volt' && !grounded(t.body.body)) { vx *= 1.22; vy *= 1.22; }
@@ -1150,10 +1169,13 @@ class GameScene extends Phaser.Scene {
     if (blocked && p.body.body) p.body.body.velocity.x -= dir * (dash ? 92 : 58);
     if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
     if (heavy || sweet > 1.1) this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : 6);
-    else this.spark(t.body.x, t.body.y - 8, p.char.accent, 3);
+    else this.spark(t.body.x, t.body.y - 8, p.char.accent, chain > 3 ? 5 : chain > 1 ? 4 : 3);
     if (bloodLv && !blocked) this.bloodImpact(t.body.x, t.body.y - 8, bloodLv, killish, dir);
     if (heavy && !blocked && t.percent > 100) this.flash(t.body.x, t.body.y - 10, 40, 60, 0xff1a1a, t.percent > 160 ? 80 : 55);
     this.flash(t.body.x, t.body.y - 6, killish ? 56 : heavy ? 42 : 24, killish ? 34 : 24, p.char.accent, killish ? 135 : 90);
+    if (!blocked && chain > 1) {
+      showPickupText(this, t.body.x, t.body.y - 8, chain + ' HIT', '#fe7');
+    }
     if (!blocked) {
       if (p.char.id === 'pulse') {
         this.flash(t.body.x - dir * 10, t.body.y - 10, killish ? 56 : 42, 5, 0xffffff, 100);
@@ -1330,7 +1352,7 @@ class GameScene extends Phaser.Scene {
     this.midPhase = true;
     const mp = this.mainPlat;
     if (mp) {
-      mp.speed = 0.52; mp.range = 30; mp.phase = Math.PI * 0.5;
+      mp.speed = 0.34; mp.range = 18; mp.phase = Math.PI * 0.5;
       if (this.movingPlats.indexOf(mp) < 0) this.movingPlats.push(mp);
     }
     const txt = this.add.text(W / 2, H / 2 - 24, 'STAGE SHIFT', {
@@ -1343,7 +1365,7 @@ class GameScene extends Phaser.Scene {
 
   triggerFinalPhase() {
     this.finalPhase = true;
-    this.platSpeedMul = 1.6; this.moveSpeedMul = 1.18;
+    this.platSpeedMul = 1.25; this.moveSpeedMul = 1.12;
     drawHudFrame(this.hudFrame, true);
     const txt = this.add.text(W/2, H/2, 'FINAL MINUTE', {
       fontFamily:'monospace', fontSize:'46px', fontStyle:'bold', color:'#ff4444'
