@@ -4,6 +4,7 @@ const W = 800, H = 600;
 const GRAVITY = 980, SPEED = 220, JUMP = -420, LIVES = 3;
 const DASH_CD = 900, FATIGUE_MS = 1000, INVULN_MS = 1200, EXHAUST_RECOVER = 35;
 const BUFF_POWER_DUR = 10000, BUFF_SPEED_DUR = 10000, BUFF_REGEN_DUR = 8000, BUFF_GUARD_DUR = 9000;
+const SQ = 'square', TR = 'triangle', SW = 'sawtooth', FM = 'monospace';
 const MATCH_TIME_MS = 180000;
 const SPEED_TIME_BOOST_RATE = 0.00000145, SPEED_TIME_BOOST_MAX = 0.34, SPEED_TIME_BOOST_FINAL_BONUS = 0.05;
 
@@ -12,11 +13,11 @@ const AURA_KEYS = ['guard', 'power', 'speed', 'regen'];
 const PICKUP_SPAWN = [4, 22, 1.7, 190], PICKUP_TAKE = [6, 46];
 const PICKUP_IDLE = [2.8, 0.0055, 0.035, 0.0062, 0.21, 0.06, 0.09, 0.03, 0.18, 0.04, 0, 0.022, 0, 0.0046, 1.18, 110];
 const PICKUP_CFG = {
-  recovery: { col: 0xff5f77, txt: 'STAMINA +35', tc: '#ff8094', s: [660, 'triangle', 0.18], heal: 35 },
-  power:    { col: 0xff7a45, txt: 'POWER UP!',   tc: '#ff9f75', s: [880, 'square',   0.12], buff: 'power', dur: BUFF_POWER_DUR, spawn: [5, 26, 1.95, 230], take: [8, 56], idle: [2.8, 0.0055, 0.06, 0.0105, 0.28, 0.09, 0.12, 0.05, 0.24, 0.06, 0, 0.022, 0.03, 0.007, 1.28, 90], shake: 0.0035 },
-  speed:    { col: 0xffd54a, txt: 'SPEED UP!',   tc: '#ffe37b', s: [660, 'square',   0.10], buff: 'speed', dur: BUFF_SPEED_DUR, take: [7, 46], idle: [3.2, 0.0082, 0.045, 0.009, 0.24, 0.07, 0.1, 0.035, 0.2, 0.05, 0.8, 0.022, 0.012, 0.008, 1.22, 100] },
-  regen:    { col: 0x00d7c7, txt: 'REGEN UP!',   tc: '#00d7c7', s: [550, 'triangle', 0.14], buff: 'regen', dur: BUFF_REGEN_DUR, idle: [2.4, 0.0046, 0.03, 0.0045, 0.19, 0.05, 0.08, 0.028, 0.16, 0.03, 0, 0.022, 0, 0.0046, 1.18, 110] },
-  guard:    { col: 0x57c9ff, txt: 'SHIELD UP!',  tc: '#9ce5ff', s: [490, 'square',   0.15], buff: 'guard', dur: BUFF_GUARD_DUR, idle: [1.7, 0.0041, 0.024, 0.0048, 0.16, 0.04, 0.06, 0.02, 0.14, 0.02, 0, 0.022, 0, 0.0046, 1.18, 110] },
+  recovery: { col: 0xff5f77, txt: 'STA +35', tc: '#ff8094', s: [660, TR, 0.18], h: 35 },
+  power:    { col: 0xff7a45, txt: 'POWER',   tc: '#ff9f75', s: [880, SQ, 0.12], b: 'power', d: BUFF_POWER_DUR, p: [5, 26, 1.95, 230], t: [8, 56], i: [2.8, 0.0055, 0.06, 0.0105, 0.28, 0.09, 0.12, 0.05, 0.24, 0.06, 0, 0.022, 0.03, 0.007, 1.28, 90], k: 0.0035 },
+  speed:    { col: 0xffd54a, txt: 'SPEED',   tc: '#ffe37b', s: [660, SQ, 0.10], b: 'speed', d: BUFF_SPEED_DUR, t: [7, 46], i: [3.2, 0.0082, 0.045, 0.009, 0.24, 0.07, 0.1, 0.035, 0.2, 0.05, 0.8, 0.022, 0.012, 0.008, 1.22, 100] },
+  regen:    { col: 0x00d7c7, txt: 'REGEN',   tc: '#00d7c7', s: [550, TR, 0.14], b: 'regen', d: BUFF_REGEN_DUR, i: [2.4, 0.0046, 0.03, 0.0045, 0.19, 0.05, 0.08, 0.028, 0.16, 0.03, 0, 0.022, 0, 0.0046, 1.18, 110] },
+  guard:    { col: 0x57c9ff, txt: 'SHIELD',  tc: '#9ce5ff', s: [490, SQ, 0.15], b: 'guard', d: BUFF_GUARD_DUR, i: [1.7, 0.0041, 0.024, 0.0048, 0.16, 0.04, 0.06, 0.02, 0.14, 0.02, 0, 0.022, 0, 0.0046, 1.18, 110] },
 };
 const BASE_KB_X = 240, BASE_KB_Y = 155;
 const KB_PERCENT_CAP = 190, KB_PERCENT_DIV = 172, KB_PERCENT_GAIN = 0.46;
@@ -28,9 +29,9 @@ const C = {
 };
 
 const CHARS = [
-  { id: 'pulse', name: 'PULSE', color: 0x00e5ff, accent: 0xffffff, line: 'Karateka / shockwave', head: 0, sp: 2200, sd: 12 },
-  { id: 'volt', name: 'VOLT', color: 0xffdd00, accent: 0xff7a00, line: 'Boxer / uppercut', head: 1, sp: 2000, sd: 14 },
-  { id: 'crush', name: 'CRUSH', color: 0xff3cac, accent: 0xff5a36, line: 'Sumo / ground slam', head: 0, sp: 2400, sd: 15 },
+  { id: 'pulse', name: 'PULSE', color: 0x00e5ff, accent: 0xffffff, line: 'Shockwave', head: 0, sp: 2200, sd: 12 },
+  { id: 'volt', name: 'VOLT', color: 0xffdd00, accent: 0xff7a00, line: 'Uppercut', head: 1, sp: 2000, sd: 14 },
+  { id: 'crush', name: 'CRUSH', color: 0xff3cac, accent: 0xff5a36, line: 'Slam', head: 0, sp: 2400, sd: 15 },
 ];
 
 const SPAWNS = [{ x: 320, y: 300 }, { x: 480, y: 300 }];
@@ -56,9 +57,8 @@ const MOVESET = {
   crush: { bc:330, b:[[106,50,32,20,2,10,1.20,0.40],[98,40,36,16,16,8,0.92,0.78]], bf:[18,2,0xff8844], dc:1000,dt:108,d:[108,48,40,12,4,13,1.24,0.30], slam:[90,130,60,0,6,0,1.08,0.78] },
 };
 
-const NOTES = { A2:110.0, C3:130.8, G3:196.0, C5:523.3, D5:587.3, E5:659.3, G5:784.0, A5:880.0 };
-const MELODY = ['E5',null,'G5','A5','E5','D5','E5',null,'C5',null,'E5','G5','A5',null,'E5',null];
-const BASS   = ['A2',null,null,null,'A2',null,'G3',null,'A2',null,null,null,'C3',null,'A2',null];
+const MELODY = [659.3,0,784,880,659.3,587.3,659.3,0,523.3,0,659.3,784,880,0,659.3,0];
+const BASS   = [110,0,0,0,110,0,196,0,110,0,0,0,130.8,0,110,0];
 const RHYTHM = [1,0,1,1,0,1,0,1];
 
 // DO NOT replace existing keys - they match the physical arcade cabinet wiring.
@@ -128,9 +128,10 @@ function flush(scene) {
 
 function addLabel(scene, x, y, text, size, color, align) {
   return scene.add.text(x, y, text, {
-    fontFamily: 'monospace', fontSize: size + 'px', fontStyle: 'bold', color, align: align || 'left',
+    fontFamily: FM, fontSize: size + 'px', fontStyle: 'bold', color, align: align || 'left',
   });
 }
+function addLabelC(scene, x, y, text, size, color) { return addLabel(scene, x, y, text, size, color, 'center').setOrigin(.5); }
 
 function anyOf(scene, codes) {
   const pressed = scene.ctrl.pressed;
@@ -144,7 +145,7 @@ function drawBg(scene, title) {
   for (let x = 0; x <= W; x += 40) g.lineBetween(x, 0, x, H);
   for (let y = 0; y <= H; y += 40) g.lineBetween(0, y, W, y);
   g.lineStyle(2, C.frame, 0.8).strokeRect(28, 28, W - 56, H - 56);
-  if (title) addLabel(scene, W / 2, 52, title, 30, C.text, 'center').setOrigin(0.5);
+  if (title) addLabelC(scene, W / 2, 52, title, 30, C.text);
 }
 
 function buildFighter(scene, x, y, ch, s) {
@@ -214,8 +215,8 @@ function eachBuff(buffs, fn) {
 }
 
 function applyPickupToPlayer(p, cfg) {
-  if (cfg.buff) p.buffs[cfg.buff] = cfg.dur;
-  else { p.stamina = Math.min(p.staminaMax, p.stamina + cfg.heal); p.lastHitTime = 0; }
+  if (cfg.b) p.buffs[cfg.b] = cfg.d;
+  else { p.stamina = Math.min(p.staminaMax, p.stamina + cfg.h); p.lastHitTime = 0; }
 }
 
 function makeAttack(kind, spec, dir, dmg) {
@@ -241,9 +242,9 @@ function startMusic(scene) {
       const ctx = scene.sound && scene.sound.context;
       if (!ctx || ctx.state !== 'running') return;
       const t = ctx.currentTime + 0.005;
-      const m = MELODY[step % 16];  if (m) playNote(ctx, NOTES[m], 'square',   t, 0.14, 0.038);
-      const b = BASS[step % 16];    if (b) playNote(ctx, NOTES[b], 'square',   t, 0.20, 0.028);
-      if (RHYTHM[step % 8])               playNote(ctx, 220,       'triangle', t, 0.05, 0.018);
+      const m = MELODY[step % 16];  if (m) playNote(ctx, m, SQ, t, 0.14, 0.038);
+      const b = BASS[step % 16];    if (b) playNote(ctx, b, SQ, t, 0.20, 0.028);
+      if (RHYTHM[step % 8])               playNote(ctx, 220, TR, t, 0.05, 0.018);
       step++;
     },
   });
@@ -256,41 +257,38 @@ function stopMusic(scene) {
 
 function showPickupText(scene, x, y, text, color) {
   const t = scene.add.text(x, y - 24, text, {
-    fontFamily: 'monospace', fontSize: '15px', fontStyle: 'bold', color,
+    fontFamily: FM, fontSize: '15px', fontStyle: 'bold', color,
   }).setOrigin(0.5).setDepth(15);
   fxGone(scene, t, { y: y - 62, alpha: 0, duration: 950 });
 }
 
-function fxTween(scene, cfg, fail) {
-  try { return scene.tweens.add(cfg); } catch (_) { if (fail) fail(); }
-  return null;
-}
-
-function fxGone(scene, node, cfg, fail) {
-  const done = cfg.onComplete, out = { ...cfg, targets: node, onComplete: () => { if (done) done(); node.destroy(); } };
-  return fxTween(scene, out, fail || (() => node.destroy()));
+function fxGone(scene, node, cfg) {
+  const done = cfg.onComplete;
+  cfg.targets = node;
+  cfg.onComplete = () => { if (done) done(); node.destroy(); };
+  return scene.tweens.add(cfg);
 }
 
 function emitRects(scene, x, y, n, o) {
   for (let i = 0; i < n; i++) {
-    const a = o.ang ? o.ang(i, n) : Math.random() * Math.PI * 2;
-    const w = Phaser.Math.Between(o.w0, o.w1), h = Phaser.Math.Between(o.h0 == null ? o.w0 : o.h0, o.h1 == null ? (o.h0 == null ? o.w1 : o.h0) : o.h1);
-    const r = scene.add.rectangle(x, y, w, h, o.col(i), o.alpha == null ? 0.95 : o.alpha);
-    if (o.depth != null) r.setDepth(o.depth);
+    const a = o.a ? o.a(i, n) : Math.random() * Math.PI * 2;
+    const w = Phaser.Math.Between(o.w0, o.w1), h = Phaser.Math.Between(o.h0, o.h1);
+    const r = scene.add.rectangle(x, y, w, h, o.c(i), o.p == null ? 0.95 : o.p);
+    if (o.z != null) r.setDepth(o.z);
     const d = Phaser.Math.Between(o.d0, o.d1);
-    const tw = { x: x + Math.cos(a) * (o.dx ? o.dx(i, d) : d), y: y + Math.sin(a) * (o.dy ? o.dy(i, d) : d) + (o.yb || 0), alpha: 0, duration: o.t0 + Math.random() * ((o.t1 == null ? o.t0 : o.t1) - o.t0) };
-    if (o.spin) tw.angle = Phaser.Math.Between(o.spin[0], o.spin[1]);
+    const tw = { x: x + Math.cos(a) * d, y: y + Math.sin(a) * (o.y ? o.y(i, d) : d) + (o.b || 0), alpha: 0, duration: o.t0 + Math.random() * ((o.t1 == null ? o.t0 : o.t1) - o.t0) };
+    if (o.sp) tw.angle = Phaser.Math.Between(o.sp[0], o.sp[1]);
     if (o.sx != null) tw.scaleX = o.sx;
     if (o.sy != null) tw.scaleY = o.sy;
-    if (o.ease) tw.ease = o.ease;
+    if (o.e) tw.ease = o.e;
     fxGone(scene, r, tw);
   }
 }
 
 function burst(scene, x, y, color, n) {
   emitRects(scene, x, y, n, {
-    ang: i => (Math.PI * 2 * i) / n + Math.random() * 0.4,
-    col: () => color, alpha: 1, w0: 5, w1: 5, h0: 5, h1: 5, d0: 38, d1: 100, t0: 350, t1: 430, sx: 0.2, sy: 0.2,
+    a: i => (Math.PI * 2 * i) / n + Math.random() * 0.4,
+    c: () => color, p: 1, w0: 5, w1: 5, h0: 5, h1: 5, d0: 38, d1: 100, t0: 350, t1: 430, sx: 0.2, sy: 0.2,
   });
 }
 
@@ -537,27 +535,21 @@ function updatePlatforms(scene) {
   scene.plats.refresh();
 }
 
-class BootScene extends Phaser.Scene {
-  constructor() { super('Boot'); }
-  create() { this.scene.start('Menu'); }
-}
-
 class MenuScene extends Phaser.Scene {
-  constructor() { super('Menu'); }
+  constructor() { super('M'); }
   create() {
     bindKeys(this);
     this.sel = 0;
     this.OPTS = ['PLAY', 'CONTROLS', 'CREDITS', 'EXIT'];
     drawBg(this, 'PIXEL BRAWL');
-    addLabel(this, W / 2, 92, 'LOCAL ARCADE PLATFORM FIGHTER', 13, C.dim, 'center').setOrigin(0.5);
+    addLabelC(this, W / 2, 92, 'BRAWLER', 13, C.dim);
     buildFighter(this, W / 2 - 82, 202, CHARS[0], 1);
     buildFighter(this, W / 2,      194, CHARS[1], 1.1);
     buildFighter(this, W / 2 + 82, 202, CHARS[2], 1);
     this.items = this.OPTS.map((t, i) =>
-      addLabel(this, W / 2, 312 + i * 48, t, 26, C.dim, 'center').setOrigin(0.5)
+      addLabelC(this, W / 2, 312 + i * 48, t, 26, C.dim)
     );
-    this.note = addLabel(this, W / 2, H - 50, '', 12, '#ff7a7a', 'center').setOrigin(0.5);
-    addLabel(this, W / 2, H - 28, 'W/S  ·  ARROWS = NAVIGATE     ENTER = SELECT', 12, C.dim, 'center').setOrigin(0.5);
+    addLabelC(this, W / 2, H - 28, 'W/S · ENTER', 12, C.dim);
     this.refresh();
   }
   update() {
@@ -568,12 +560,12 @@ class MenuScene extends Phaser.Scene {
     flush(this);
   }
   confirm() {
-    tone(this, 420, 'square', 0.05, 0.07);
+    tone(this, 420, SQ, 0.05, 0.07);
     const opt = this.OPTS[this.sel];
-    if (opt === 'PLAY') this.scene.start('Select');
-    else if (opt === 'CONTROLS') this.scene.start('Controls');
-    else if (opt === 'CREDITS') this.scene.start('Credits');
-    else { this.note.setText('EXIT NOT AVAILABLE IN BROWSER'); try { window.close(); } catch (_) {} }
+    if (opt === 'PLAY') this.scene.start('S');
+    else if (opt === 'CONTROLS') this.scene.start('C');
+    else if (opt === 'CREDITS') this.scene.start('R');
+    else return;
   }
   refresh() {
     for (let i = 0; i < this.items.length; i++) {
@@ -585,40 +577,40 @@ class MenuScene extends Phaser.Scene {
 }
 
 class CharacterSelectScene extends Phaser.Scene {
-  constructor() { super('Select'); }
+  constructor() { super('S'); }
   create() {
     bindKeys(this);
     this.sel = [0, 1];
     this.lock = [0, 0];
     this.cards = [];
-    drawBg(this, 'SELECT YOUR BRAWLER');
+    drawBg(this, 'SELECT');
     for (let i = 0; i < 3; i++) {
       const ch = CHARS[i], x = 160 + i * 240, y = 290;
       const box = this.add.rectangle(x, y, 186, 256, 0x0c1b2e).setStrokeStyle(2, 0x1e3a58);
       buildFighter(this, x, y, ch, 1);
-      addLabel(this, x, y - 112, ch.name, 18, '#ffffff', 'center').setOrigin(0.5);
-      addLabel(this, x, y + 90,  ch.line, 11, C.dim,     'center').setOrigin(0.5);
-      const mark = addLabel(this, x, y + 114, '', 12, '#ffffff', 'center').setOrigin(0.5);
+      addLabelC(this, x, y - 112, ch.name, 18, '#ffffff');
+      addLabelC(this, x, y + 90,  ch.line, 11, C.dim);
+      const mark = addLabelC(this, x, y + 114, '', 12, '#ffffff');
       this.cards.push({ box, mark });
     }
-    this.status = addLabel(this, W / 2, H - 68, '', 16, C.text, 'center').setOrigin(0.5);
-    addLabel(this, W / 2, H - 42, 'P1: A/D + F TO LOCK   ·   P2: ARROWS + K TO LOCK   ·   ENTER = START', 11, C.dim, 'center').setOrigin(0.5);
+    this.status = addLabelC(this, W / 2, H - 68, '', 16, C.text);
+    addLabelC(this, W / 2, H - 42, 'P1 A/D+F · P2 ARROWS+K', 11, C.dim);
     this.refresh();
   }
   update() {
     if (!this.lock[0]) {
       if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
       if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
-      if (this.ctrl.pressed.P2_4) { this.lock[0] = 1; tone(this, 480, 'square', 0.06, 0.08); }
+      if (this.ctrl.pressed.P2_4) { this.lock[0] = 1; tone(this, 480, SQ, 0.06, 0.08); }
     }
     if (!this.lock[1]) {
       if (this.ctrl.pressed.P2_L) this.sel[1] = (this.sel[1] + 2) % 3;
       if (this.ctrl.pressed.P2_R) this.sel[1] = (this.sel[1] + 1) % 3;
-      if (this.ctrl.pressed.P1_5) { this.lock[1] = 1; tone(this, 620, 'square', 0.06, 0.08); }
+      if (this.ctrl.pressed.P1_5) { this.lock[1] = 1; tone(this, 620, SQ, 0.06, 0.08); }
     }
     if (this.lock[0] && this.lock[1] && anyOf(this, START_KEYS)) {
-      tone(this, 700, 'square', 0.06, 0.1);
-      this.scene.start('Game', { picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
+      tone(this, 700, SQ, 0.06, 0.1);
+      this.scene.start('G', { picks: [CHARS[this.sel[0]].id, CHARS[this.sel[1]].id] });
       return;
     }
     this.refresh();
@@ -633,66 +625,66 @@ class CharacterSelectScene extends Phaser.Scene {
       if (p1 && this.lock[0]) { stroke = 0x00ffcc; fill = 0x0f2e1e; mark = 'P1 LOCKED'; }
       if (p2 && this.lock[1]) {
         stroke = 0xff88bb; fill = 0x2a1020;
-        mark = (p1 && this.lock[0]) ? 'P1 LOCKED / P2 LOCKED' : 'P2 LOCKED';
+        mark = (p1 && this.lock[0]) ? 'P1+P2 LOCK' : 'P2 LOCKED';
       }
       this.cards[i].box.setFillStyle(fill).setStrokeStyle(2, stroke);
       this.cards[i].mark.setText(mark);
     }
     const both = this.lock[0] && this.lock[1];
-    const p1s = this.lock[0] ? 'P1 LOCKED' : 'WAITING FOR P1';
-    const p2s = this.lock[1] ? 'P2 LOCKED' : 'WAITING FOR P2';
-    this.status.setText(both ? 'PRESS ENTER TO START' : p1s + '   ·   ' + p2s).setColor(both ? C.text : C.dim);
+    const p1s = this.lock[0] ? 'P1 LOCK' : 'P1 WAIT';
+    const p2s = this.lock[1] ? 'P2 LOCK' : 'P2 WAIT';
+    this.status.setText(both ? 'PRESS ENTER' : p1s + ' · ' + p2s).setColor(both ? C.text : C.dim);
   }
 }
 
 class ControlsScene extends Phaser.Scene {
-  constructor() { super('Controls'); }
+  constructor() { super('C'); }
   create() {
     bindKeys(this);
     drawBg(this, 'CONTROLS');
     const cx = W / 2;
-    addLabel(this, cx - 200, 148, 'PLAYER 1', 20, C.p1, 'center').setOrigin(0.5);
-    [['A / D', 'MOVE'], ['W', 'JUMP  (double jump)'], ['F', 'ATTACK'], ['G', 'DASH + SPECIAL']].forEach(([k, v], i) => {
+    addLabelC(this, cx - 200, 148, 'PLAYER 1', 20, C.p1);
+    [['A / D', 'MOVE'], ['W', 'JUMP x2'], ['F', 'ATTACK'], ['G', 'DASH/SPECIAL']].forEach(([k, v], i) => {
       addLabel(this, cx - 296, 194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
       addLabel(this, cx - 196, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
     });
     this.add.graphics().lineStyle(1, C.grid, 0.5).lineBetween(cx, 138, cx, 360);
-    addLabel(this, cx + 200, 148, 'PLAYER 2', 20, C.p2, 'center').setOrigin(0.5);
-    [['← / →', 'MOVE'], ['↑', 'JUMP  (double jump)'], ['K', 'ATTACK'], ['L', 'DASH + SPECIAL']].forEach(([k, v], i) => {
+    addLabelC(this, cx + 200, 148, 'PLAYER 2', 20, C.p2);
+    [['← / →', 'MOVE'], ['↑', 'JUMP x2'], ['K', 'ATTACK'], ['L', 'DASH/SPECIAL']].forEach(([k, v], i) => {
       addLabel(this, cx + 40,  194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
       addLabel(this, cx + 140, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
     });
-    addLabel(this, cx, 400, 'WIN BY KNOCKING YOUR RIVAL OUT OF BOUNDS.', 13, C.dim, 'center').setOrigin(0.5);
-    addLabel(this, cx, H - 30, 'PRESS ENTER TO RETURN', 13, '#fff0aa', 'center').setOrigin(0.5);
+    addLabelC(this, cx, 400, 'RING OUT.', 13, C.dim);
+    addLabelC(this, cx, H - 30, 'PRESS ENTER', 13, '#fff0aa');
   }
   update() {
-    if (anyOf(this, BACK_KEYS)) this.scene.start('Menu');
+    if (anyOf(this, BACK_KEYS)) this.scene.start('M');
     flush(this);
   }
 }
 
 class CreditsScene extends Phaser.Scene {
-  constructor() { super('Credits'); }
+  constructor() { super('R'); }
   create() {
     bindKeys(this);
     drawBg(this, 'CREDITS');
     const cx = W / 2, cy = H / 2;
-    addLabel(this, cx, cy - 108, 'PLATANUS HACK 26', 22, C.text,   'center').setOrigin(0.5);
-    addLabel(this, cx, cy -  72, 'BUENOS AIRES',     18, C.dim,    'center').setOrigin(0.5);
-    addLabel(this, cx, cy -  42, 'ARCADE CHALLENGE', 18, C.dim,    'center').setOrigin(0.5);
-    addLabel(this, cx, cy +  10, 'DEVELOPED BY',     12, C.dim,    'center').setOrigin(0.5);
-    addLabel(this, cx, cy +  50, 'ALEJANDRO BIARRIETA', 22, '#fff0aa', 'center').setOrigin(0.5);
-    addLabel(this, cx, cy +  84, 'DIEGO MOROS',         22, '#fff0aa', 'center').setOrigin(0.5);
-    addLabel(this, cx, H - 30,   'PRESS ENTER TO RETURN', 13, C.dim, 'center').setOrigin(0.5);
+    addLabelC(this, cx, cy - 108, 'HACK 26', 22, C.text);
+    addLabelC(this, cx, cy -  72, 'BA',     18, C.dim);
+    addLabelC(this, cx, cy -  42, 'ARCADE', 18, C.dim);
+    addLabelC(this, cx, cy +  10, 'BY', 12, C.dim);
+    addLabelC(this, cx, cy +  50, 'ALEJANDRO BIARRIETA', 22, '#fff0aa');
+    addLabelC(this, cx, cy +  84, 'DIEGO MOROS',         22, '#fff0aa');
+    addLabelC(this, cx, H - 30,   'PRESS ENTER', 13, C.dim);
   }
   update() {
-    if (anyOf(this, BACK_KEYS)) this.scene.start('Menu');
+    if (anyOf(this, BACK_KEYS)) this.scene.start('M');
     flush(this);
   }
 }
 
 class GameScene extends Phaser.Scene {
-  constructor() { super('Game'); }
+  constructor() { super('G'); }
   init(data) { this.picks = data.picks || ['pulse', 'volt']; }
 
   create() {
@@ -783,7 +775,7 @@ class GameScene extends Phaser.Scene {
     updatePlatforms(this);
     this.updatePickup(dt);
     if (this.over) {
-      if (anyOf(this, START_KEYS)) this.scene.start('Menu');
+      if (anyOf(this, START_KEYS)) this.scene.start('M');
       flush(this); return;
     }
     const p1 = this.players[0], p2 = this.players[1];
@@ -928,7 +920,7 @@ class GameScene extends Phaser.Scene {
     p.stamina = Math.min(p.staminaMax, p.stamina + EXHAUST_RECOVER);
     p.recovering = true;
     this.time.delayedCall(220, () => { p.recovering = false; });
-    tone(this, 500, 'triangle', 0.06, 0.18);
+    tone(this, 500, TR, 0.06, 0.18);
   }
 
   updateHudState(p) {
@@ -959,7 +951,7 @@ class GameScene extends Phaser.Scene {
     if (this.ctrl.pressed[k.up] && p.jumps > 0) {
       b.setVelocityY(JUMP);
       p.jumps--;
-      tone(this, p.idx ? 390 : 330, 'square', 0.05, 0.07);
+      tone(this, p.idx ? 390 : 330, SQ, 0.05, 0.07);
     }
   }
 
@@ -995,7 +987,7 @@ class GameScene extends Phaser.Scene {
     this.setAttack(p, 'basic', spec, p.face, dmg);
     if (c) b.setVelocityX(b.velocity.x + p.face * (c === 2 ? 56 : 34));
     this.flash(p.body.x + p.face * (fx[0] + c * 5), p.body.y + (gr ? fx[1] : 14), 30 + c * 6, 20, fx[2], 85);
-    tone(this, (p.idx ? 300 : 260) + c * 46, 'square', 0.07, c ? 0.07 : 0.06);
+    tone(this, (p.idx ? 300 : 260) + c * 46, SQ, 0.07, c ? 0.07 : 0.06);
   }
 
   doDash(p) {
@@ -1017,7 +1009,7 @@ class GameScene extends Phaser.Scene {
     }
     b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500) * (this.finalPhase ? 1.15 : 1) * dashBoost);
     this.flash(p.body.x, p.body.y, 44, 20, p.char.color, 110);
-    tone(this, 90, 'sawtooth', 0.06, 0.14);
+    tone(this, 90, SW, 0.06, 0.14);
   }
 
   doAirDodge(p, b) {
@@ -1028,7 +1020,7 @@ class GameScene extends Phaser.Scene {
     p.dashCd = DASH_CD * 0.7 * (this.atkCdMul || 1);
     b.setVelocity(dir * 370, -60);
     this.flash(p.body.x, p.body.y, 34, 34, p.char.color, 130);
-    tone(this, 480, 'triangle', 0.04, 0.10);
+    tone(this, 480, TR, 0.04, 0.10);
   }
 
   doSpecial(p) {
@@ -1040,11 +1032,11 @@ class GameScene extends Phaser.Scene {
       if (p.char.id === 'pulse') {
         this.ring(p.body.x, p.body.y, 16, 4, p.char.color, 140);
         this.spark(p.body.x, p.body.y, 0xffffff, 7);
-        tone(this, 260, 'triangle', 0.06, 0.14);
+        tone(this, 260, TR, 0.06, 0.14);
       } else {
         this.flash(p.body.x + p.face * 10, p.body.y - 38, 24, 64, p.char.accent, 120);
         this.spark(p.body.x + p.face * 10, p.body.y - 24, 0xffdd00, 6);
-        tone(this, 360, 'square', 0.06, 0.12);
+        tone(this, 360, SQ, 0.06, 0.12);
       }
     } else {
       p.slam = 1;
@@ -1052,7 +1044,7 @@ class GameScene extends Phaser.Scene {
       p.invuln = Math.max(p.invuln, 380);
       p.body.body.setVelocityY(600);
       this.flash(p.body.x, p.body.y + 10, 28, 34, p.char.color, 120);
-      tone(this, 120, 'sawtooth', 0.06, 0.12);
+      tone(this, 120, SW, 0.06, 0.12);
     }
   }
 
@@ -1065,7 +1057,7 @@ class GameScene extends Phaser.Scene {
       this.ring(p.body.x, p.body.y + 12, 12, 5.5, p.char.accent, 140);
       this.flash(p.body.x, p.body.y + 10, 90, 22, p.char.accent, 120);
       this.cameras.main.shake(90, 0.009);
-      tone(this, 100, 'square', 0.08, 0.16);
+      tone(this, 100, SQ, 0.08, 0.16);
       this.updateAttack(p, foe);
     }
   }
@@ -1167,20 +1159,20 @@ class GameScene extends Phaser.Scene {
     this.hitFreeze(84);
     this.flash(W / 2, H / 2, W, H, 0xffffff, 85);
     const kt = this.add.text(kox, koy - 28, 'RING OUT!', {
-      fontFamily:'monospace', fontSize:'36px', fontStyle:'bold', color:'#ff2233'
+      fontFamily:FM, fontSize:'36px', fontStyle:'bold', color:'#ff2233'
     }).setOrigin(0.5).setDepth(20);
     this.tweens.add({ targets: kt, y: koy - 85, alpha: 0, duration: 860, onComplete: () => kt.destroy() });
     p.body.body.enable = false;
     p.body.setPosition(-500, -500);
     p.visual.setVisible(false);
     p.overlay.setVisible(false);
-    tone(this, 90, 'sawtooth', 0.22, 0.5);
+    tone(this, 90, SW, 0.22, 0.5);
     this.hudDirty = true;
     if (p.lives <= 0) {
       this.over = 1;
       const win = this.players[1 - p.idx];
       this.time.delayedCall(600, () => {
-        if (this.sys.isActive()) this.scene.start('End', { winner: win.idx + 1, char: win.char });
+        if (this.sys.isActive()) this.scene.start('E', { winner: win.idx + 1, char: win.char });
       });
       return;
     }
@@ -1215,7 +1207,7 @@ class GameScene extends Phaser.Scene {
     this.syncHead(p);
     this.hudDirty = true;
     burst(this, s.x, s.y, p.char.accent, 5);
-    tone(this, 520, 'triangle', 0.08, 0.12);
+    tone(this, 520, TR, 0.08, 0.12);
   }
 
   syncHead(p) {
@@ -1278,23 +1270,23 @@ class GameScene extends Phaser.Scene {
       this.movingPlats.push(mp);
     }
     const txt = this.add.text(W / 2, H / 2 - 24, 'STAGE SHIFT', {
-      fontFamily: 'monospace', fontSize: '34px', fontStyle: 'bold', color: '#ff8a3d',
+      fontFamily: FM, fontSize: '34px', fontStyle: 'bold', color: '#ff8a3d',
     }).setOrigin(0.5).setDepth(20);
     this.tweens.add({ targets: txt, alpha: 0, y: H / 2 - 64, duration: 1200, onComplete: () => txt.destroy() });
     this.cameras.main.shake(88, 0.0057);
-    tone(this, 740, 'square', 0.09, 0.16);
+    tone(this, 740, SQ, 0.09, 0.16);
   }
 
   triggerFinalPhase() {
     this.finalPhase = true;
     drawHudFrame(this.hudFrame, true);
     const txt = this.add.text(W/2, H/2, 'FINAL MINUTE', {
-      fontFamily:'monospace', fontSize:'46px', fontStyle:'bold', color:'#ff4444'
+      fontFamily:FM, fontSize:'46px', fontStyle:'bold', color:'#ff4444'
     }).setOrigin(0.5).setDepth(20);
     this.tweens.add({ targets:txt, alpha:0, y:H/2-80, duration:2000, onComplete:()=>txt.destroy() });
     this.cameras.main.shake(132, 0.0078);
-    tone(this, 880, 'square', 0.12, 0.28);
-    this.time.delayedCall(300, ()=>tone(this, 660, 'square', 0.10, 0.28));
+    tone(this, 880, SQ, 0.12, 0.28);
+    this.time.delayedCall(300, ()=>tone(this, 660, SQ, 0.10, 0.28));
     const mp = this.mainPlat;
     if (mp) {
       let i = this.movingPlats.indexOf(mp); if (~i) this.movingPlats.splice(i, 1);
@@ -1313,20 +1305,20 @@ class GameScene extends Phaser.Scene {
               p1.stamina>p2.stamina?p1 : p2.stamina>p1.stamina?p2 :
               p1.percent<p2.percent?p1 : p2.percent<p1.percent?p2 : null;
     this.add.text(W/2, H/2, w?'TIME!':'DRAW!', {
-      fontFamily:'monospace', fontSize:'62px', fontStyle:'bold', color:w?(w.idx?C.p2:C.p1):'#fff0aa'
+      fontFamily:FM, fontSize:'62px', fontStyle:'bold', color:w?(w.idx?C.p2:C.p1):'#fff0aa'
     }).setOrigin(0.5).setDepth(20);
-    tone(this, 660, 'square', 0.08, 0.5);
+    tone(this, 660, SQ, 0.08, 0.5);
     this.time.delayedCall(700, ()=>w
-      ? this.scene.start('End',{winner:w.idx+1,char:w.char})
-      : this.scene.start('Menu'));
+      ? this.scene.start('E',{winner:w.idx+1,char:w.char})
+      : this.scene.start('M'));
   }
 
   bloodImpact(x,y,l,h,dir=1){
     const n=l===2?(h?10:8):(h?7:6), s=l===2?(h?46:36):(h?32:22);
     emitRects(this, x, y, n, {
-      ang: () => -Math.PI/2 + (Math.random() - .5) * Math.PI * .9 + dir * (0.28 + Math.random() * 0.22),
-      col: i => i % 3 === 0 ? 0xff6b6b : i % 3 === 1 ? 0xff2020 : 0xff4747,
-      depth: 18, w0: 3, w1: 6, h0: 3, h1: 6, d0: 14, d1: s, dy: () => Phaser.Math.Between(10, s), yb: 12, t0: 330, t1: 460,
+      a: () => -Math.PI/2 + (Math.random() - .5) * Math.PI * .9 + dir * (0.28 + Math.random() * 0.22),
+      c: i => i % 3 === 0 ? 0xff6b6b : i % 3 === 1 ? 0xff2020 : 0xff4747,
+      z: 18, w0: 3, w1: 6, h0: 3, h1: 6, d0: 14, d1: s, y: () => Phaser.Math.Between(10, s), b: 12, t0: 330, t1: 460,
     });
   }
 
@@ -1351,21 +1343,21 @@ class GameScene extends Phaser.Scene {
 
   spark(x, y, color, n) {
     emitRects(this, x, y, n, {
-      ang: i => (Math.PI * 2 * i) / n + Math.random() * 0.6,
-      col: () => color, w0: 2, w1: 5, h0: 2, h1: 2, d0: 10, d1: 30, t0: 60, t1: 140,
+      a: i => (Math.PI * 2 * i) / n + Math.random() * 0.6,
+      c: () => color, w0: 2, w1: 5, h0: 2, h1: 2, d0: 10, d1: 30, t0: 60, t1: 140,
     });
   }
 
   startCountdown() {
     const txt = this.add.text(W / 2, H / 2 - 30, '', {
-      fontFamily: 'monospace', fontSize: '90px', fontStyle: 'bold', color: '#ffffff',
+      fontFamily: FM, fontSize: '90px', fontStyle: 'bold', color: '#ffffff',
     }).setOrigin(0.5).setDepth(20);
     const steps = [['3','#ff6040',330],['2','#ff9020',440],['1','#ffe060',550],['BRAWL!','#ffffff',880]];
     steps.forEach(([s,c,f],i)=>{
       this.time.delayedCall(i * 900, () => {
         txt.setText(s).setColor(c).setScale(1.8).setAlpha(1);
         this.tweens.add({ targets: txt, scaleX: 1, scaleY: 1, duration: 500, ease: 'Power2.easeOut' });
-        tone(this, f, 'square', 0.12, i === 3 ? 0.28 : 0.14);
+        tone(this, f, SQ, 0.12, i === 3 ? 0.28 : 0.14);
         if (i === steps.length - 1) {
           this.time.delayedCall(600, () => {
             this.tweens.add({ targets: txt, alpha: 0, duration: 280, onComplete: () => txt.destroy() });
@@ -1387,28 +1379,28 @@ class GameScene extends Phaser.Scene {
       return;
     }
     const p = this.pickup;
-    if (!p.plat || !p.plat.hitbox || !p.orb || !p.orb.active) {
+    if (!p.p || !p.p.hitbox || !p.o || !p.o.active) {
       this.stopPickupTweens(p);
-      if (p.orb && p.orb.active) p.orb.destroy();
+      if (p.o && p.o.active) p.o.destroy();
       this.pickup = null;
       this.scheduleNextPickup();
       return;
     }
-    const nx = p.plat.hitbox.x + p.offX, ny = p.plat.hitbox.y - 22;
-    const now = this.time.now, bob = Math.sin(now * p.floatSpd + p.seed) * p.floatAmp;
-    const drift = p.jitterAmp ? Math.sin(now * p.jitterSpd + p.seed * 2.1) * p.jitterAmp : 0;
-    const pulse = 1 + Math.sin(now * p.pulseSpd + p.seed * 1.4) * p.pulseAmp;
-    const glowBeat = Math.sin(now * p.glowSpd + p.seed * 0.8);
-    const ringBeat = Math.sin(now * p.ringSpd + p.seed + 1.2);
-    p.orb.setPosition(nx + drift, ny + bob);
+    const nx = p.p.hitbox.x + p.ox, ny = p.p.hitbox.y - 22, now = this.time.now, i = p.i;
+    const bob = Math.sin(now * i[1] + p.sd) * i[0];
+    const drift = i[10] ? Math.sin(now * i[11] + p.sd * 2.1) * i[10] : 0;
+    const pulse = Math.sin(now * i[3] + p.sd * 1.4);
+    const glowBeat = Math.sin(now * i[3] * 0.7 + p.sd * 0.8);
+    const ringBeat = Math.sin(now * i[3] * 0.8 + p.sd + 1.2);
+    p.o.setPosition(nx + drift, ny + bob);
     p.x = nx; p.y = ny; p.vx = drift; p.vy = bob;
-    if (p.body && p.body.active) p.body.setScale(pulse).setRotation(p.rotAmp ? Math.sin(now * p.rotSpd + p.seed) * p.rotAmp : 0);
-    if (p.glow && p.glow.active) p.glow.setAlpha(p.glowBase + glowBeat * p.glowAmp).setScale(1.02 + glowBeat * 0.08);
-    if (p.halo && p.halo.active) p.halo.setAlpha(p.haloBase + glowBeat * p.haloAmp).setScale(1.08 + glowBeat * 0.12);
-    if (p.ring && p.ring.active) p.ring.setAlpha(p.ringBase + ringBeat * p.ringAmp).setScale(0.98 + ringBeat * 0.06);
-    if ((p.life -= dt) <= 0) {
+    if (p.b && p.b.active) p.b.setScale(1 + pulse * i[2]).setRotation(i[12] ? Math.sin(now * i[13] + p.sd) * i[12] : 0);
+    if (p.g && p.g.active) p.g.setAlpha(i[4] + glowBeat * i[5]).setScale(1.02 + glowBeat * 0.08);
+    if (p.h && p.h.active) p.h.setAlpha(i[6] + glowBeat * i[7]).setScale(1.08 + glowBeat * 0.12);
+    if (p.r && p.r.active) p.r.setAlpha(i[8] + ringBeat * i[9]).setScale(0.98 + ringBeat * 0.06);
+    if ((p.l -= dt) <= 0) {
       this.stopPickupTweens(p);
-      if (p.orb && p.orb.active) p.orb.destroy();
+      if (p.o && p.o.active) p.o.destroy();
       this.pickup = null;
       this.scheduleNextPickup();
     }
@@ -1420,24 +1412,22 @@ class GameScene extends Phaser.Scene {
     const rnd = Math.random();
     const type = rnd<0.30?'recovery':rnd<0.50?'power':rnd<0.70?'speed':rnd<0.88?'regen':'guard';
     const cfg = PICKUP_CFG[type];
-    const spawn = cfg.spawn || PICKUP_SPAWN, idle = cfg.idle || PICKUP_IDLE;
-    const [floatAmp, floatSpd, pulseAmp, pulseSpd, glowBase, glowAmp, haloBase, haloAmp, ringBase, ringAmp, jitterAmp, jitterSpd, rotAmp, rotSpd, peak, popDur] = idle;
+    const spawn = cfg.p || PICKUP_SPAWN, idle = cfg.i || PICKUP_IDLE;
     const ox = pl.hitbox.x + offX, oy = pl.hitbox.y - 22;
-    const orb = this.add.container(ox, oy).setDepth(6);
-    const shell = this.add.container(0, 0).setScale(0.2).setAlpha(0);
-    const halo = this.add.circle(0, 0, 24, cfg.col, 0.08);
-    const glow = this.add.circle(0, 0, 18, cfg.col, 0.18);
-    const ring = this.add.circle(0, 0, 22, cfg.col, 0).setStrokeStyle(2, cfg.col, 0.24);
+    const o = this.add.container(ox, oy).setDepth(6);
+    const s = this.add.container(0, 0).setScale(0.2).setAlpha(0);
+    const h = this.add.circle(0, 0, 24, cfg.col, 0.08);
+    const g = this.add.circle(0, 0, 18, cfg.col, 0.18);
+    const r = this.add.circle(0, 0, 22, cfg.col, 0).setStrokeStyle(2, cfg.col, 0.24);
     const body = this.add.container(0, 0);
     body.add(drawPickupIcon(this, type, cfg.col));
-    shell.add([halo, glow, ring, body]); orb.add(shell);
+    s.add([h, g, r, body]); o.add(s);
     const pickup = {
-      orb, shell, halo, glow, ring, body, type, x: ox, y: oy, vx: 0, vy: 0, plat: pl, offX, life: 5500,
-      seed: Math.random() * Math.PI * 2, floatAmp, floatSpd, pulseAmp, pulseSpd, glowBase, glowAmp, haloBase, haloAmp,
-      ringBase, ringAmp, ringSpd: pulseSpd * 0.8, jitterAmp, jitterSpd, rotAmp, rotSpd,
+      o, s, h, g, r, b: body, t: type, x: ox, y: oy, vx: 0, vy: 0, p: pl, ox: offX, l: 5500,
+      sd: Math.random() * Math.PI * 2, i: idle,
     };
     this.pickup = pickup;
-    this.startPickupSpawnTween(pickup, peak, popDur);
+    this.startPickupSpawnTween(pickup, idle[14], idle[15]);
     const pop = this.add.circle(ox, oy, 10, cfg.col, 0.18).setStrokeStyle(2, 0xffffff, 0.75).setDepth(7);
     fxGone(this, pop, { scaleX: spawn[2], scaleY: spawn[2], alpha: 0, duration: spawn[3] });
     this.pickupBits(ox, oy, cfg.col, spawn[0], 10, spawn[1], 180, 8);
@@ -1447,21 +1437,21 @@ class GameScene extends Phaser.Scene {
     if (!this.pickup) return;
     const dx = p.body.x - this.pickup.x, dy = p.body.y - this.pickup.y;
     if (dx * dx + dy * dy > 24 * 24) return;
-    const pk = this.pickup, { type, x, y, orb } = pk;
+    const pk = this.pickup, { t, x, y, o } = pk;
     const ox = x + pk.vx, oy = y + pk.vy;
     this.stopPickupTweens(pk);
-    if (orb && orb.active) orb.setPosition(ox, oy);
+    if (o && o.active) o.setPosition(ox, oy);
     this.pickup = null;
     this.scheduleNextPickup();
-    const cfg = PICKUP_CFG[type];
-    const take = cfg.take || PICKUP_TAKE, snd = cfg.s;
-    if (orb && orb.active)
-      fxGone(this, orb, { scaleX: 1.14, scaleY: 1.14, alpha: 0, duration: 95, ease: 'Quad.easeOut' });
+    const cfg = PICKUP_CFG[t];
+    const take = cfg.t || PICKUP_TAKE, snd = cfg.s;
+    if (o && o.active)
+      fxGone(this, o, { scaleX: 1.14, scaleY: 1.14, alpha: 0, duration: 95, ease: 'Quad.easeOut' });
     this.pickupBits(ox, oy, cfg.col, take[0], 18, take[1], 250, 8);
     this.pickupFlash(ox, oy, cfg.col);
     showPickupText(this, ox, oy, cfg.txt, cfg.tc);
     tone(this, snd[0], snd[1], 0.07, snd[2]);
-    if (cfg.shake) this.cameras.main.shake(70, cfg.shake);
+    if (cfg.k) this.cameras.main.shake(70, cfg.k);
     applyPickupToPlayer(p, cfg);
     this.hudDirty = true;
   }
@@ -1476,36 +1466,32 @@ class GameScene extends Phaser.Scene {
     fxGone(this, circ, { scaleX: endScale, scaleY: endScale, alpha: 0, duration: dur });
   }
 
-  pickupTween(cfg, fail) {
-    return fxTween(this, cfg, fail);
-  }
-
   stopPickupTweens(p) {
     if (!p) return;
-    if (p.orb) this.tweens.killTweensOf(p.orb);
-    if (p.shell) this.tweens.killTweensOf(p.shell);
-    if (p.glow) this.tweens.killTweensOf(p.glow);
-    if (p.halo) this.tweens.killTweensOf(p.halo);
-    if (p.ring) this.tweens.killTweensOf(p.ring);
+    if (p.o) this.tweens.killTweensOf(p.o);
+    if (p.s) this.tweens.killTweensOf(p.s);
+    if (p.g) this.tweens.killTweensOf(p.g);
+    if (p.h) this.tweens.killTweensOf(p.h);
+    if (p.r) this.tweens.killTweensOf(p.r);
   }
 
   startPickupSpawnTween(p, peak, popDur) {
-    const sh = p && p.shell;
+    const sh = p && p.s;
     if (!sh || !sh.active) return;
     sh.setScale(0.2).setAlpha(0);
-    this.pickupTween({
+    this.tweens.add({
       targets: sh, scaleX: peak, scaleY: peak, alpha: 1, duration: popDur, ease: 'Back.Out',
       onComplete: () => {
         if (this.pickup !== p || !sh.active) return;
-        this.pickupTween({ targets: sh, scaleX: 1, scaleY: 1, duration: 95, ease: 'Quad.easeOut' }, () => sh.active && sh.setScale(1));
+        this.tweens.add({ targets: sh, scaleX: 1, scaleY: 1, duration: 95, ease: 'Quad.easeOut' });
       },
-    }, () => sh.active && sh.setScale(1).setAlpha(1));
+    });
   }
 
   pickupBits(x, y, col, n, minDist, maxDist, dur, depth) {
     emitRects(this, x, y, n, {
-      col: i => i % 3 ? col : 0xffffff, alpha: 0.95, depth, w0: 3, w1: 5, h0: 3, h1: 5, d0: minDist, d1: maxDist,
-      t0: dur, t1: dur + 60, sx: 0.25, sy: 0.25, ease: 'Quad.easeOut', spin: [-80, 80],
+      c: i => i % 3 ? col : 0xffffff, p: 0.95, z: depth, w0: 3, w1: 5, h0: 3, h1: 5, d0: minDist, d1: maxDist,
+      t0: dur, t1: dur + 60, sx: 0.25, sy: 0.25, e: 'Quad.easeOut', sp: [-80, 80],
     });
   }
 
@@ -1534,7 +1520,7 @@ class GameScene extends Phaser.Scene {
 }
 
 class EndScene extends Phaser.Scene {
-  constructor() { super('End'); }
+  constructor() { super('E'); }
   init(data) { this.winner = data.winner || 1; this.char = data.char || null; }
   create() {
     bindKeys(this);
@@ -1547,28 +1533,21 @@ class EndScene extends Phaser.Scene {
     if (ch) {
       const fig = buildFighter(this, W / 2, 344, ch, 1.45);
       fig.setDepth(5);
-      const ttl = addLabel(this, W / 2, 168, ch.name + ' WINS', 52, col, 'center').setOrigin(0.5).setAlpha(0);
-      const sub = addLabel(this, W / 2, 214, 'DOMINATES THE DUNES', 15, C.dim, 'center').setOrigin(0.5).setAlpha(0);
-      this.tweens.add({ targets: fig, y: 196, duration: 280, ease: 'Cubic.easeOut',
-        onComplete: () => this.tweens.add({ targets: fig, angle: fig.scaleX < 0 ? -420 : 420, y: 292, duration: 460, ease: 'Cubic.easeIn',
-          onComplete: () => this.tweens.add({ targets: fig, y: 336, scaleX: fig.scaleX * 1.08, scaleY: 1.34, angle: 0, duration: 120,
-            onComplete: () => this.tweens.add({ targets: fig, y: 320, scaleX: fig.scaleX, scaleY: 1.45, duration: 210, ease: 'Bounce.easeOut',
-              onComplete: () => this.tweens.add({ targets: fig, y: 314, duration: 240, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 }) }) }) }) });
-      this.time.delayedCall(840, () => {
-        this.tweens.add({ targets: [ttl, sub], alpha: 1, duration: 220 });
-        this.cameras.main.shake(150, 0.006);
-      });
+      this.tweens.add({ targets: fig, y: 308, duration: 320, ease: 'Back.Out' });
+      this.tweens.add({ targets: fig, y: 300, duration: 520, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: 360 });
+      this.tweens.add({ targets: fig, angle: 6, duration: 260, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: 360 });
+      addLabelC(this, W / 2, 168, ch.name + ' WINS', 52, col);
+      addLabelC(this, W / 2, 214, 'CHAMPION', 15, C.dim);
+      this.cameras.main.shake(140, 0.0056);
     } else {
-      addLabel(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col, 'center').setOrigin(0.5);
+      addLabelC(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col);
     }
-    addLabel(this, W / 2, 400, 'PRESS START  ·  RETURN TO SELECT', 14, C.dim, 'center').setOrigin(0.5);
-    const win = this;
-    [0, 100, 200, 350].forEach((delay, i) => {
-      win.time.delayedCall(300 + delay, () => tone(win, [440, 554, 660, 880][i], 'square', 0.07, i === 3 ? 0.3 : 0.12));
-    });
+    addLabelC(this, W / 2, 400, 'PRESS START', 14, C.dim);
+    tone(this, 660, SQ, 0.08, 0.2);
+    this.time.delayedCall(260, () => tone(this, 880, SQ, 0.08, 0.24));
   }
   update() {
-    if (anyOf(this, START_KEYS)) this.scene.start('Menu');
+    if (anyOf(this, START_KEYS)) this.scene.start('M');
     flush(this);
   }
 }
@@ -1581,7 +1560,7 @@ const config = {
   backgroundColor: '#08111f',
   physics: { default: 'arcade', arcade: { gravity: { y: GRAVITY }, debug: false } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, MenuScene, CharacterSelectScene, ControlsScene, CreditsScene, GameScene, EndScene],
+  scene: [MenuScene, CharacterSelectScene, ControlsScene, CreditsScene, GameScene, EndScene],
 };
 
 new Phaser.Game(config);
