@@ -5,7 +5,7 @@ const GRAVITY = 980, SPEED = 220, JUMP = -420, LIVES = 3;
 const DASH_CD = 900, FATIGUE_MS = 1000, INVULN_MS = 1200, EXHAUST_RECOVER = 35;
 const BUFF_POWER_DUR = 10000, BUFF_SPEED_DUR = 10000, BUFF_REGEN_DUR = 8000, BUFF_GUARD_DUR = 9000;
 const SQ = 'square', TR = 'triangle', SW = 'sawtooth', FM = 'monospace';
-const MATCH_TIME_MS = 180000;
+const MATCH_TIME_MS = 180000, PRE_SPLIT_TIME_MS = 135000, MID_PHASE_TIME_MS = 120000, FINAL_PHASE_TIME_MS = 60000;
 const SPEED_TIME_BOOST_RATE = 0.00000145, SPEED_TIME_BOOST_MAX = 0.34, SPEED_TIME_BOOST_FINAL_BONUS = 0.05;
 
 const BUFF_KEYS = ['power', 'speed', 'regen', 'guard'];
@@ -20,7 +20,7 @@ const PICKUP_CFG = {
   guard:    { col: 0x57c9ff, txt: 'SHIELD',  tc: '#9ce5ff', s: [490, SQ, 0.15], b: 'guard', d: BUFF_GUARD_DUR, i: [1.7, 0.0041, 0.024, 0.0048, 0.16, 0.04, 0.06, 0.02, 0.14, 0.02, 0, 0.022, 0, 0.0046, 1.18, 110] },
 };
 const BASE_KB_X = 240, BASE_KB_Y = 155;
-const KB_PERCENT_CAP = 190, KB_PERCENT_DIV = 172, KB_PERCENT_GAIN = 0.46;
+const KB_PERCENT_CAP = 720, KB_PERCENT_DIV = 80, KB_PERCENT_GAIN = 0.24;
 const DEATH_X = 80, DEATH_Y = 680;
 
 const C = {
@@ -221,6 +221,15 @@ function applyPickupToPlayer(p, cfg) {
 
 function makeAttack(kind, spec, dir, dmg) {
   return { kind, t: spec[0], hit: 0, w: spec[1], h: spec[2], ox: dir * spec[3], oy: spec[4], dmg: dmg ?? spec[5], fx: spec[6], fy: spec[7] };
+}
+
+function percentKbScale(percent) {
+  const p = Math.min(KB_PERCENT_CAP, percent);
+  let s = 1 + Math.pow(Math.min(p, 80) / KB_PERCENT_DIV, 1.16) * KB_PERCENT_GAIN;
+  if (p > 80) s += Math.pow((Math.min(p, 180) - 80) / 100, 1.06) * 0.5;
+  if (p > 180) s += Math.pow((Math.min(p, 300) - 180) / 120, 1.02) * 0.66;
+  if (p > 300) s += Math.pow((p - 300) / (KB_PERCENT_CAP - 300), 0.94) * 1.5;
+  return s;
 }
 
 function playNote(ctx, freq, type, startTime, dur, vol) {
@@ -503,36 +512,68 @@ function buildPlatShip(scene, w, h, type) {
   return c;
 }
 
-function addStagePlatform(scene, d) {
+function addStagePlatform(scene, d, moving) {
   const hitbox = scene.add.rectangle(d.x, d.y, d.w, d.h, 0x000000, 0);
   scene.plats.add(hitbox);
   const visual = buildPlatShip(scene, d.w, d.h, d.type);
   visual.setPosition(d.x, d.y);
   const p = {
     hitbox, visual, baseX: d.x, baseY: d.y, speed: d.speed, range: d.range, phase: d.phase,
-    vRange: d.vRange, vSpeed: d.vSpeed, vPhase: d.vPhase, halfW: d.w / 2, snapTop: d.y - 10,
+    vRange: d.vRange, vSpeed: d.vSpeed, vPhase: d.vPhase, baseW: d.w, w: d.w, h: d.h, halfW: d.w / 2, snapTop: d.y - 10,
   };
   scene.platData.push(p);
-  if (d.speed || d.vRange) scene.movingPlats.push(p);
+  if (moving !== 0 && (d.speed || d.vRange)) scene.movingPlats.push(p);
   return p;
 }
 
-function setStagePlatformPos(p, x, y) {
+function setStagePlatformPos(p, x, y, w) {
   p.hitbox.x = x; p.hitbox.y = y;
   p.visual.x = x; p.visual.y = y;
+  if (w && w !== p.w) {
+    p.w = w; p.halfW = w / 2;
+    p.hitbox.width = w; p.hitbox.displayWidth = w;
+    p.visual.setScale(w / p.baseW, 1);
+  }
   p.snapTop = y - 10;
 }
 
+function removeStagePlatform(scene, p) {
+  if (!p) return;
+  let i = scene.movingPlats.indexOf(p); if (~i) scene.movingPlats.splice(i, 1);
+  i = scene.platData.indexOf(p); if (~i) scene.platData.splice(i, 1);
+  scene.plats.remove(p.hitbox, true, true);
+  if (p.visual && p.visual.active) p.visual.destroy();
+  p.hitbox = 0; p.visual = 0;
+}
+
 function updatePlatforms(scene) {
-  const plats = scene.movingPlats;
-  if (!plats || !plats.length) return;
   const t = scene.time.now * 0.001, sp = scene.platSpeedMul || 1, fy = scene.finalPhase;
+  let dirty = 0;
+  if (scene.splitPlats) {
+    const q = scene.splitProg * scene.splitProg * (3 - scene.splitProg * 2);
+    const drift = scene.midPhase && !fy ? Math.min(1, (MID_PHASE_TIME_MS - scene.matchTime) / (MID_PHASE_TIME_MS - FINAL_PHASE_TIME_MS)) : 0;
+    for (const p of scene.splitPlats) {
+      let nx = p.startX + (p.baseX - p.startX) * q, ny = p.baseY;
+      const w = p.startW + (p.baseW - p.startW) * q;
+      if (fy) {
+        nx += Math.sin(t * p.speed * sp + p.phase) * p.range;
+        ny += Math.sin(t * p.vSpeed + p.vPhase) * p.vRange;
+      } else if (drift > 0) {
+        nx += Math.sin(t * (0.34 + drift * 0.22) + p.phase) * (4 + drift * 8);
+        ny += Math.sin(t * (0.48 + drift * 0.18) + p.vPhase) * (1.5 + drift * 3);
+      }
+      setStagePlatformPos(p, nx, ny, w);
+    }
+    dirty = 1;
+  }
+  const plats = scene.movingPlats;
   for (const p of plats) {
     const nx = p.baseX + Math.sin(t * p.speed * sp + p.phase) * p.range;
     const ny = p.baseY + (fy && p.vRange ? Math.sin(t * p.vSpeed + p.vPhase) * p.vRange : 0);
     setStagePlatformPos(p, nx, ny);
+    dirty = 1;
   }
-  scene.plats.refresh();
+  if (dirty) scene.plats.refresh();
 }
 
 class MenuScene extends Phaser.Scene {
@@ -724,6 +765,7 @@ class GameScene extends Phaser.Scene {
   create() {
     bindKeys(this);
     this.over = 0; this.matchTime = MATCH_TIME_MS; this.speedTimeBoost = 0; this.finalPhase = false; this.midPhase = false;
+    this.preSplit = false; this.splitProg = 0; this.splitPlats = null;
     this.platSpeedMul = 1; this.moveSpeedMul = 1.06; this.atkCdMul = 0.95;
     this.ready = false;
     this.hudDirty = false;
@@ -879,8 +921,9 @@ class GameScene extends Phaser.Scene {
   updateMatchTimer(dt) {
     if (this.over || !this.ready) return;
     this.matchTime -= dt;
-    if (!this.midPhase && this.matchTime <= 120000) this.triggerMidPhase();
-    if (!this.finalPhase && this.matchTime <= 60000) this.triggerFinalPhase();
+    if (!this.preSplit && this.matchTime <= PRE_SPLIT_TIME_MS) this.triggerPreSplit();
+    if (!this.midPhase && this.matchTime <= MID_PHASE_TIME_MS) this.triggerMidPhase();
+    if (!this.finalPhase && this.matchTime <= FINAL_PHASE_TIME_MS) this.triggerFinalPhase();
     this.updatePace();
     if (this.matchTime <= 0) { this.endMatch(); return; }
     const s = Math.max(0, Math.ceil(this.matchTime / 1000));
@@ -892,25 +935,26 @@ class GameScene extends Phaser.Scene {
 
   updatePace() {
     const t = Math.max(0, this.matchTime), mp = this.mainPlat;
+    this.splitProg = this.preSplit ? Math.min(1, Math.max(0, (PRE_SPLIT_TIME_MS - t) / (PRE_SPLIT_TIME_MS - FINAL_PHASE_TIME_MS))) : 0;
     let speedTimeBoost = (MATCH_TIME_MS - t) * SPEED_TIME_BOOST_RATE;
     if (this.finalPhase) speedTimeBoost += SPEED_TIME_BOOST_FINAL_BONUS;
     this.speedTimeBoost = Math.min(SPEED_TIME_BOOST_MAX, speedTimeBoost);
     if (!this.midPhase) {
-      const q = Math.min(1, (MATCH_TIME_MS - t) / 60000);
+      const q = Math.min(1, (MATCH_TIME_MS - t) / (MATCH_TIME_MS - MID_PHASE_TIME_MS));
       this.moveSpeedMul = 1.06 + q * 0.02;
       this.atkCdMul = 0.95 - q * 0.01;
       this.platSpeedMul = 1 + q * 0.03;
       return;
     }
     if (!this.finalPhase) {
-      const q = Math.min(1, (120000 - t) / 60000);
+      const q = Math.min(1, (MID_PHASE_TIME_MS - t) / (MID_PHASE_TIME_MS - FINAL_PHASE_TIME_MS));
       this.moveSpeedMul = 1.08 + q * 0.04;
       this.atkCdMul = 0.94 - q * 0.03;
       this.platSpeedMul = 1.03 + q * 0.22;
       if (mp) { mp.range = 18 + q * 30; mp.speed = 0.34 + q * 0.34; }
       return;
     }
-    const q = Math.min(1, (60000 - t) / 60000);
+    const q = Math.min(1, (FINAL_PHASE_TIME_MS - t) / FINAL_PHASE_TIME_MS);
     this.moveSpeedMul = 1.12 + q * 0.03;
     this.atkCdMul = 0.91 - q * 0.03;
     this.platSpeedMul = 1.25 + q * 0.11;
@@ -1173,7 +1217,7 @@ class GameScene extends Phaser.Scene {
     const b = t.body.body;
     const kind = a.kind || 'basic', basic = kind === 'basic', dash = kind === 'dash';
     const ratio = t.stamina / t.staminaMax;
-    const pct  = 1 + Math.pow(Math.min(KB_PERCENT_CAP, t.percent) / KB_PERCENT_DIV, 1.16) * KB_PERCENT_GAIN;
+    const pct  = percentKbScale(t.percent);
     const mul  = (1 + (1 - ratio) * 0.62) * pct;
     const pwr  = p.buffs.power > 0 ? 1.40 : 1;
     const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
@@ -1352,6 +1396,25 @@ class GameScene extends Phaser.Scene {
     p.overlay.setPosition(p.body.x, p.body.y);
   }
 
+  triggerPreSplit() {
+    if (this.preSplit || !this.mainPlat) return;
+    this.preSplit = true;
+    const startW = STAGE_PLATS[0].w * 0.5, shift = STAGE_PLATS[0].w * 0.25;
+    const left = addStagePlatform(this, FINAL_PLATS[0], 0), right = addStagePlatform(this, FINAL_PLATS[1], 0);
+    left.startX = STAGE_PLATS[0].x - shift; right.startX = STAGE_PLATS[0].x + shift;
+    left.startW = right.startW = startW;
+    setStagePlatformPos(left, left.startX, STAGE_PLATS[0].y, startW);
+    setStagePlatformPos(right, right.startX, STAGE_PLATS[0].y, startW);
+    this.splitPlats = [left, right];
+    if (this.pickup && this.pickup.p === this.mainPlat) {
+      this.pickup.p = this.pickup.x < W / 2 ? left : right;
+      this.pickup.ox = Phaser.Math.Clamp(this.pickup.x - this.pickup.p.hitbox.x, 14 - startW * 0.5, startW * 0.5 - 14);
+    }
+    removeStagePlatform(this, this.mainPlat);
+    this.mainPlat = 0;
+    this.plats.refresh();
+  }
+
   triggerMidPhase() {
     this.midPhase = true;
     const mp = this.mainPlat;
@@ -1377,13 +1440,8 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.shake(132, 0.0078);
     tone(this, 880, SQ, 0.12, 0.28);
     this.time.delayedCall(300, ()=>tone(this, 660, SQ, 0.10, 0.28));
-    const mp = this.mainPlat;
-    if (mp) {
-      let i = this.movingPlats.indexOf(mp); if (~i) this.movingPlats.splice(i, 1);
-      i = this.platData.indexOf(mp); if (~i) this.platData.splice(i, 1);
-      mp.hitbox.body.enable = 0; mp.visual.visible = 0; this.mainPlat = 0;
-    }
-    for (const d of FINAL_PLATS) addStagePlatform(this, d);
+    if (!this.splitPlats) this.triggerPreSplit();
+    this.splitProg = 1;
     this.plats.refresh();
   }
 
