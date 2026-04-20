@@ -1353,7 +1353,7 @@ class GameScene extends Phaser.Scene {
     const mp = this.mainPlat;
     if (mp) {
       mp.speed = 0.34; mp.range = 18; mp.phase = Math.PI * 0.5;
-      if (this.movingPlats.indexOf(mp) < 0) this.movingPlats.push(mp);
+      this.movingPlats.push(mp);
     }
     const txt = this.add.text(W / 2, H / 2 - 24, 'STAGE SHIFT', {
       fontFamily: 'monospace', fontSize: '34px', fontStyle: 'bold', color: '#ff8a3d',
@@ -1365,7 +1365,6 @@ class GameScene extends Phaser.Scene {
 
   triggerFinalPhase() {
     this.finalPhase = true;
-    this.platSpeedMul = 1.25; this.moveSpeedMul = 1.12;
     drawHudFrame(this.hudFrame, true);
     const txt = this.add.text(W/2, H/2, 'FINAL MINUTE', {
       fontFamily:'monospace', fontSize:'46px', fontStyle:'bold', color:'#ff4444'
@@ -1374,8 +1373,12 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.shake(132, 0.0078);
     tone(this, 880, 'square', 0.12, 0.28);
     this.time.delayedCall(300, ()=>tone(this, 660, 'square', 0.10, 0.28));
-    const mp = this.mainPlat || this.platData[0];
-    if (mp) { setStagePlatformPos(mp, -2000, -2000); mp.visual.setVisible(false); }
+    const mp = this.mainPlat;
+    if (mp) {
+      let i = this.movingPlats.indexOf(mp); if (~i) this.movingPlats.splice(i, 1);
+      i = this.platData.indexOf(mp); if (~i) this.platData.splice(i, 1);
+      mp.hitbox.body.enable = 0; mp.visual.visible = 0; this.mainPlat = 0;
+    }
     for (const d of FINAL_PLATS) addStagePlatform(this, d);
     this.plats.refresh();
   }
