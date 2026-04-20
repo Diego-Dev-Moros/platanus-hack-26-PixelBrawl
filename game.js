@@ -4,6 +4,8 @@ const W = 800, H = 600;
 const GRAVITY = 980, SPEED = 220, JUMP = -420, LIVES = 3;
 const DASH_CD = 900, FATIGUE_MS = 1000, INVULN_MS = 1200, EXHAUST_RECOVER = 35;
 const BUFF_POWER_DUR = 10000, BUFF_SPEED_DUR = 10000, BUFF_REGEN_DUR = 8000, BUFF_GUARD_DUR = 9000;
+const MATCH_TIME_MS = 180000;
+const SPEED_TIME_BOOST_RATE = 0.00000145, SPEED_TIME_BOOST_MAX = 0.34, SPEED_TIME_BOOST_FINAL_BONUS = 0.05;
 
 const BUFF_KEYS = ['power', 'speed', 'regen', 'guard'];
 const AURA_KEYS = ['guard', 'power', 'speed', 'regen'];
@@ -695,7 +697,7 @@ class GameScene extends Phaser.Scene {
 
   create() {
     bindKeys(this);
-    this.over = 0; this.matchTime = 180000; this.finalPhase = false; this.midPhase = false;
+    this.over = 0; this.matchTime = MATCH_TIME_MS; this.speedTimeBoost = 0; this.finalPhase = false; this.midPhase = false;
     this.platSpeedMul = 1; this.moveSpeedMul = 1.06; this.atkCdMul = 0.95;
     this.ready = false;
     this.hudDirty = false;
@@ -808,8 +810,11 @@ class GameScene extends Phaser.Scene {
 
   updatePace() {
     const t = Math.max(0, this.matchTime), mp = this.mainPlat;
+    let speedTimeBoost = (MATCH_TIME_MS - t) * SPEED_TIME_BOOST_RATE;
+    if (this.finalPhase) speedTimeBoost += SPEED_TIME_BOOST_FINAL_BONUS;
+    this.speedTimeBoost = Math.min(SPEED_TIME_BOOST_MAX, speedTimeBoost);
     if (!this.midPhase) {
-      const q = Math.min(1, (180000 - t) / 60000);
+      const q = Math.min(1, (MATCH_TIME_MS - t) / 60000);
       this.moveSpeedMul = 1.06 + q * 0.02;
       this.atkCdMul = 0.95 - q * 0.01;
       this.platSpeedMul = 1 + q * 0.03;
@@ -951,12 +956,14 @@ class GameScene extends Phaser.Scene {
   movePlayer(p, b) {
     if (!this.ready) return;
     const k = p.keys, held = this.ctrl.held;
-    if (grounded(b)) { p.jumps = 2; p.canAirDodge = true; p.canEdgeSnap = true; }
+    const gr = grounded(b);
+    if (gr) { p.jumps = 2; p.canAirDodge = true; p.canEdgeSnap = true; }
     if (p.stun > 0 || p.dashT > 0) return;
     if (p.shielding) { b.setVelocityX(0); return; }
     const left = held[k.left], right = held[k.right];
     const dir = right ? 1 : left ? -1 : 0;
-    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * this.moveSpeedMul;
+    const boost = 1 + this.speedTimeBoost * (gr ? 1 : 0.55);
+    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * this.moveSpeedMul * boost;
     if (dir) p.face = dir;
     b.setVelocityX(dir * spd);
     if (this.ctrl.pressed[k.up] && p.jumps > 0) {
@@ -1003,6 +1010,7 @@ class GameScene extends Phaser.Scene {
 
   doDash(p) {
     const b = p.body.body, id = p.char.id, m = MOVESET[id], dir = p.face || (p.idx ? -1 : 1);
+    const dashBoost = 1 + this.speedTimeBoost * 0.55;
     p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
     // Per-character dash cooldown
     p.dashCd = m.dc * (this.atkCdMul || 1);
@@ -1017,7 +1025,7 @@ class GameScene extends Phaser.Scene {
       // Charging body press: widest hitbox, highest damage, pure horizontal push
       this.setAttack(p, 'dash', m.d, dir);
     }
-    b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500) * (this.finalPhase ? 1.15 : 1));
+    b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500) * (this.finalPhase ? 1.15 : 1) * dashBoost);
     this.flash(p.body.x, p.body.y, 44, 20, p.char.color, 110);
     tone(this, 90, 'sawtooth', 0.06, 0.14);
   }
