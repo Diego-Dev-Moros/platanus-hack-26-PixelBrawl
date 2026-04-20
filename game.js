@@ -549,6 +549,7 @@ class MenuScene extends Phaser.Scene {
     this.items = this.OPTS.map((t, i) =>
       addLabelC(this, W / 2, 312 + i * 48, t, 26, C.dim)
     );
+    this.cursor = addLabelC(this, W / 2 - 156, 312, '▶', 28, C.text);
     addLabelC(this, W / 2, H - 28, 'W/S · ENTER', 12, C.dim);
     this.refresh();
   }
@@ -571,9 +572,10 @@ class MenuScene extends Phaser.Scene {
   refresh() {
     for (let i = 0; i < this.items.length; i++) {
       const on = i === this.sel;
-      this.items[i].setText((on ? '▶  ' : '   ') + this.OPTS[i])
+      this.items[i].setText(this.OPTS[i])
         .setColor(on ? C.text : C.dim).setFontSize(on ? '28px' : '24px');
     }
+    this.cursor.setY(312 + this.sel * 48);
   }
 }
 
