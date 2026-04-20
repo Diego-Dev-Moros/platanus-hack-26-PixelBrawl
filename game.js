@@ -455,51 +455,23 @@ function updateBackground(scene, delta) {
 }
 
 function drawPickupIcon(scene, type, col) {
-  const c = scene.add.container(0, 0), g = scene.add.graphics();
-  const fill = (cc, parts, a) => { g.fillStyle(cc, a == null ? 1 : a); for (const p of parts) g.fillRect(p[0], p[1], p[2], p[3]); };
-  const off = (parts, ox, oy) => parts.map(p => [p[0] + ox, p[1] + oy, p[2], p[3]]);
-  const stroke = (parts, cc, a) => {
-    fill(cc, off(parts, -1, -1), a); fill(cc, off(parts, 0, -1), a); fill(cc, off(parts, 1, -1), a);
-    fill(cc, off(parts, -1, 0), a);                                   fill(cc, off(parts, 1, 0), a);
-    fill(cc, off(parts, -1, 1), a);  fill(cc, off(parts, 0, 1), a);  fill(cc, off(parts, 1, 1), a);
-  };
-  let hi = 0xffd8de, base, light;
-
+  const c = scene.add.container(0,0), g = scene.add.graphics(); c.add(g);
+  g.fillStyle(0x07121c,0.96).fillRoundedRect(-15,-15,30,30,6);
+  g.fillStyle(col,0.16).fillRoundedRect(-15,-15,30,30,6);
+  g.lineStyle(2,0x03070b,0.95).strokeRoundedRect(-15,-15,30,30,6);
+  g.fillStyle(col,1);
   if (type === 'recovery') {
-    hi = 0xffd7de;
-    base = [[-9,-8,7,7],[2,-8,7,7],[-12,-3,26,8],[-8,5,18,6],[-4,11,10,5]];
-    light = [[-8,-7,3,2],[-11,-2,6,2],[-7,6,3,2]];
+    g.fillRect(-3,-10,6,20); g.fillRect(-10,-3,20,6);
   } else if (type === 'power') {
-    hi = 0xffd39e;
-    base = [[-10,-10,4,5],[-5,-11,4,6],[0,-11,4,6],[5,-10,4,5],[-10,-5,16,11],[5,-1,7,6],[-4,6,9,6]];
-    light = [[-9,-9,2,2],[-4,-10,2,2],[-9,-4,5,2]];
+    g.fillTriangle(-10,-1,-2,-11,8,-1); g.fillRect(-4,-1,8,12);
   } else if (type === 'speed') {
-    hi = 0xfff0af;
-    base = [[-10,-11,13,4],[-1,-7,8,6],[-6,-2,10,6],[1,4,8,8]];
-    light = [[-9,-10,6,1],[0,-6,3,2],[-5,-1,4,1]];
+    g.fillTriangle(-10,-7,2,-7,-4,1); g.fillTriangle(-3,1,9,1,0,11);
   } else if (type === 'regen') {
-    hi = 0xbefcf7;
-    base = [[-4,-12,8,4],[-7,-8,14,4],[-10,-4,20,12],[-8,8,16,5]];
-    light = [[-3,-11,3,2],[-6,-7,4,2],[-9,-3,3,6]];
-  } else if (type === 'guard') {
-    hi = 0xdaf8ff;
-    base = [[-9,-10,18,5],[-12,-5,24,7],[-10,2,20,6],[-7,8,14,5],[-3,13,6,4]];
-    light = [[-8,-9,8,2],[-11,-4,5,2],[-9,3,4,2]];
+    g.fillEllipse(0,0,16,20); g.fillStyle(0x0b1720,0.7).fillEllipse(4,0,5,10);
   } else {
-    base = [[-8,-8,16,16]];
-    light = [[-7,-7,5,2],[-7,-5,2,5]];
+    g.fillRoundedRect(-9,-10,18,16,4); g.fillStyle(0x0b1720,0.7).fillRect(-3,-10,6,16);
   }
-  const shadow = off(base, 2, 2);
-  c.add(g);
-  fill(0x04080d, [[-17,-17,34,34]], 0.92);
-  fill(0x10202c, [[-15,-15,30,30]], 0.98);
-  fill(0x1d3344, [[-15,-15,30,2],[-15,-13,2,28]], 0.92);
-  fill(0x061019, [[-15,13,30,2],[13,-15,2,30]], 0.95);
-  fill(col, [[-15,-15,30,30]], 0.10);
-  fill(0x050a10, shadow, 0.55);
-  stroke(base, 0x03070b, 0.98);
-  fill(col, base);
-  fill(hi, light);
+  g.fillStyle(0xffffff,0.25).fillRect(-10,-10,8,3);
   return c;
 }
 
