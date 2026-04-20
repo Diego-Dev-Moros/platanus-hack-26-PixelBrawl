@@ -75,8 +75,8 @@ const NAV_UP_KEYS = ['P1_U', 'P2_U'], NAV_DOWN_KEYS = ['P1_D', 'P2_D'];
 const START_KEYS = ['START1', 'START2'], MENU_CONFIRM_KEYS = ['START1', 'START2', 'P2_4', 'P1_5'];
 const BACK_KEYS = ['START1', 'START2', 'P1_1', 'P2_1'];
 const PLAYER_KEYS = [
-  { left: 'P1_L', right: 'P1_R', up: 'P1_U', attack: 'P2_4', alt: 'P2_5', shield: 'P1_4' },
-  { left: 'P2_L', right: 'P2_R', up: 'P2_U', attack: 'P1_5', alt: 'P1_6', shield: 'P2_6' },
+  { left: 'P1_L', right: 'P1_R', up: 'P1_U', attack: 'P2_4', alt: 'P2_5' },
+  { left: 'P2_L', right: 'P2_R', up: 'P2_U', attack: 'P1_5', alt: 'P1_6' },
 ];
 
 function nk(k) { return k === ' ' ? 'space' : k.length === 1 ? k.toLowerCase() : k; }
@@ -772,7 +772,7 @@ class GameScene extends Phaser.Scene {
       stamina: 100, staminaMax: 100, percent: 0, invuln: 0, fatigue: 0, stun: 0,
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, atkChain: 0, atkChainT: 0, atkQueue: 0, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0, guard: 0 }, _auraType: null, recovering: false,
-      canAirDodge: true, canEdgeSnap: true, shielding: false, comboHits: 0, comboT: 0, _recoilT: 0, _atkPoseT: 0,
+      canAirDodge: true, canEdgeSnap: true, comboHits: 0, comboT: 0, _recoilT: 0, _atkPoseT: 0,
       keys: PLAYER_KEYS[idx],
       _hud: { seg: 10, sp: -1, bk: 0, fat: false, pct: 0 }, _lastAlpha: -1, _lastOvAlpha: -1, _lastOvColor: -1, _lastSx: 0,
     };
@@ -838,7 +838,6 @@ class GameScene extends Phaser.Scene {
     if (!p.alive) return;
     const now = this.time.now, b = p.body.body;
     this.tickTimers(p, dt, now);
-    this.updateShield(p, dt);
     if (this.ready && (p.body.x < -DEATH_X || p.body.x > W + DEATH_X || p.body.y > DEATH_Y)) { this.killPlayer(p); return; }
     this.movePlayer(p, b);
     this.handleActions(p, b);
@@ -850,14 +849,6 @@ class GameScene extends Phaser.Scene {
     this.updatePlayerAlpha(p, now);
     this.tryEdgeSnap(p, b);
     this.updateOverlay(p);
-  }
-
-  updateShield(p, dt) {
-    const held = this.ctrl.held;
-    p.shielding = p.fatigue <= 0 && p.stun <= 0 && p.stamina > 0 && !!held[p.keys.shield];
-    if (!p.shielding) return;
-    p.stamina = Math.max(0, p.stamina - dt * 0.025);
-    if (p.stamina <= 0) { p.fatigue = FATIGUE_MS * 0.6; p.shielding = false; }
   }
 
   updateAura(p, now) {
@@ -899,8 +890,8 @@ class GameScene extends Phaser.Scene {
   }
 
   updateOverlay(p) {
-    const no = p.shielding ? 0.45 : p.fatigue > 0 ? 0.5 : 0;
-    const nc = p.shielding ? 0x4488ff : 0xff4400;
+    const no = p.fatigue > 0 ? 0.5 : 0;
+    const nc = 0xff4400;
     if (no !== p._lastOvAlpha || nc !== p._lastOvColor) {
       p.overlay.setFillStyle(nc).setAlpha(no);
       p._lastOvAlpha = no; p._lastOvColor = nc;
@@ -959,7 +950,6 @@ class GameScene extends Phaser.Scene {
     const gr = grounded(b);
     if (gr) { p.jumps = 2; p.canAirDodge = true; p.canEdgeSnap = true; }
     if (p.stun > 0 || p.dashT > 0) return;
-    if (p.shielding) { b.setVelocityX(0); return; }
     const left = held[k.left], right = held[k.right];
     const dir = right ? 1 : left ? -1 : 0;
     const boost = 1 + this.speedTimeBoost * (gr ? 1 : 0.55);
@@ -974,7 +964,7 @@ class GameScene extends Phaser.Scene {
   }
 
   handleActions(p, b) {
-    if (!this.ready || p.stun > 0 || p.fatigue > 0 || p.shielding) return;
+    if (!this.ready || p.stun > 0 || p.fatigue > 0) return;
     const k = p.keys, held = this.ctrl.held, pressed = this.ctrl.pressed;
     const moving = held[k.left] || held[k.right];
     if (p.atkQueue && p.atkCd <= 0 && p.atkChainT > 0) { p.atkQueue = 0; this.basicAttack(p, b); }
@@ -1099,7 +1089,7 @@ class GameScene extends Phaser.Scene {
     if (!t || !p || !a || !t.alive || !p.alive) return;
     if (!t.body || !p.body || !t.body.body || !p.body.body) return;
     const b = t.body.body;
-    const kind = a.kind || 'basic', basic = kind === 'basic', dash = kind === 'dash', blocked = t.shielding;
+    const kind = a.kind || 'basic', basic = kind === 'basic', dash = kind === 'dash';
     const ratio = t.stamina / t.staminaMax;
     const pct  = 1 + Math.pow(Math.min(KB_PERCENT_CAP, t.percent) / KB_PERCENT_DIV, 1.16) * KB_PERCENT_GAIN;
     const mul  = (1 + (1 - ratio) * 0.62) * pct;
@@ -1107,19 +1097,15 @@ class GameScene extends Phaser.Scene {
     const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
       ? 1 + (1 - p.stamina / p.staminaMax) * 0.30 : 1;
     const sweet = Number.isFinite(a._sweet) ? a._sweet : 1.0;
-    const shld  = blocked ? 0.30 : t.buffs.guard > 0 ? 0.76 : 1;
+    const guard = t.buffs.guard > 0 ? 0.76 : 1;
     const dir  = p.body.x <= t.body.x ? 1 : -1;
-    let chain = 1;
-    if (!blocked) {
-      t.comboHits = t.comboT > 0 ? t.comboHits + 1 : 1;
-      t.comboT = 520;
-      chain = t.comboHits;
-    } else { t.comboHits = 0; t.comboT = 0; }
+    t.comboHits = t.comboT > 0 ? t.comboHits + 1 : 1;
+    t.comboT = 520;
+    const chain = t.comboHits;
     const comboKb = chain >= 4 ? 1.12 : chain === 3 ? 1.07 : chain === 2 ? 1.03 : 1;
-    let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * shld;
-    let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * shld;
-    if (!blocked) { vx *= comboKb; vy *= comboKb; }
-    if (dash) vy = -95 * mul * pwr * sweet * rage * shld;
+    let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * guard * comboKb;
+    let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * guard * comboKb;
+    if (dash) vy = -95 * mul * pwr * sweet * rage * guard;
     const held = this.ctrl.held;
     if (held[t.keys.left]) vx -= 80;
     if (held[t.keys.right]) vx += 80;
@@ -1127,11 +1113,11 @@ class GameScene extends Phaser.Scene {
     t.lastHitTime = this.time.now;
     const pg = basic ? 0.98 : dash ? 1.10 : 1.22;
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
-    t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * shld);
+    t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * guard);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
     t.atkChain = 0; t.atkChainT = 0; t.atkQueue = 0;
-    if (!blocked && chain === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
-    else if (!blocked && chain === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
+    if (chain === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
+    else if (chain === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
     t.stun = (basic ? 110 : dash ? 130 : 150)
       * Math.max(0.60, 1 - (chain - 1) * 0.10);
     if (this.finalPhase) { vx *= 1.18; vy *= 1.18; }
@@ -1141,27 +1127,20 @@ class GameScene extends Phaser.Scene {
     const heavy = impact > 1.95 || kind === 'crush' || kind === 'volt';
     const killish = heavy && (t.percent > 160 || Math.abs(vx) > 560 || Math.abs(vy) > 380);
     const baseBld = impact > 2.25 || kind === 'crush' ? 2 : impact > 1.45 || dash || sweet > 1.15 ? 1 : 0;
-    const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy && !blocked ? 1 : 0));
-    if (blocked) { vx *= 0.88; vy *= 0.84; }
+    const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy ? 1 : 0));
     b.setVelocity(vx, vy);
-    p._recoilT = blocked ? 48 : killish ? 145 : heavy ? 95 : 58;
+    p._recoilT = killish ? 145 : heavy ? 95 : 58;
     p._atkPoseT = 0;  // hit connected — hand off to recoil pose
-    if (blocked && p.body.body) p.body.body.velocity.x -= dir * (dash ? 92 : 58);
     if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
     this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : heavy || sweet > 1.1 ? 6 : chain > 3 ? 5 : chain > 1 ? 4 : 3);
-    if (bloodLv && !blocked) this.bloodImpact(t.body.x, t.body.y - 8, bloodLv, killish, dir);
-    if (!blocked && heavy) this.ring(t.body.x, t.body.y + 14, 9, killish ? 3.6 : 2.6, 0xc59a63, 130);
+    if (bloodLv) this.bloodImpact(t.body.x, t.body.y - 8, bloodLv, killish, dir);
+    if (heavy) this.ring(t.body.x, t.body.y + 14, 9, killish ? 3.6 : 2.6, 0xc59a63, 130);
     this.flash(t.body.x, t.body.y - 6, killish ? 56 : heavy ? 42 : 24, killish ? 34 : 24, p.char.accent, killish ? 135 : 90);
-    if (!blocked && chain > 1) showPickupText(this, t.body.x, t.body.y - 8, chain + ' HIT', '#fe7');
-    this.cameras.main.shake(killish ? 96 : heavy ? 78 : dash ? 56 : 26, (killish ? 0.0100 : heavy ? 0.0070 : dash ? 0.0046 : 0.0018) * (blocked ? 0.35 : 1));
+    if (chain > 1) showPickupText(this, t.body.x, t.body.y - 8, chain + ' HIT', '#fe7');
+    this.cameras.main.shake(killish ? 96 : heavy ? 78 : dash ? 56 : 26, killish ? 0.0100 : heavy ? 0.0070 : dash ? 0.0046 : 0.0018);
     // Hit freeze — every hit type gets a freeze, strength-scaled, anti-stacking handled by hitFreeze()
     this.hitFreeze(killish ? 58 : heavy ? 50 : dash ? 36 : 20);
-    // Distinct sound per hit type + blocked VFX
-    if (blocked) {
-      this.flash(t.body.x, t.body.y - 8, 58, 58, 0xdff7ff, 110);
-      this.ring(t.body.x, t.body.y - 6, 12, 3.6, 0xaee6ff, 120);
-      tone(this, 360, 'triangle', 0.05, 0.08);
-    } else if (killish) {
+    if (killish) {
       tone(this, 88, 'sawtooth', 0.13, 0.16);
     } else if (kind === 'dash') {
       tone(this, 182, 'sawtooth', 0.09, 0.10);
@@ -1178,7 +1157,7 @@ class GameScene extends Phaser.Scene {
     p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
     p.slam = 0;
     clearBuffs(p.buffs);
-    p._auraType = null; p.shielding = false; p._recoilT = 0; p._atkPoseT = 0;
+    p._auraType = null; p._recoilT = 0; p._atkPoseT = 0;
     p.aura.setVisible(false);
     const kox = p.body.x, koy = p.body.y;
     burst(this, kox, koy, p.char.color, 24);
@@ -1225,7 +1204,7 @@ class GameScene extends Phaser.Scene {
     p.slam = 0;
     p.lastHitTime = 0;
     clearBuffs(p.buffs);
-    p._auraType = null; p.shielding = false; p.canAirDodge = true; p.canEdgeSnap = true; p.comboHits = 0; p.comboT = 0; p._recoilT = 0; p._atkPoseT = 0;
+    p._auraType = null; p.canAirDodge = true; p.canEdgeSnap = true; p.comboHits = 0; p.comboT = 0; p._recoilT = 0; p._atkPoseT = 0;
     p.aura.setVisible(false).setAngle(0);
     p.recovering = false;
     p._lastAlpha = -1; p._lastOvAlpha = -1; p._lastOvColor = -1;
