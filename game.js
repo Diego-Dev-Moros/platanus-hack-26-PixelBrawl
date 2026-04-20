@@ -19,8 +19,8 @@ const PICKUP_CFG = {
   regen:    { col: 0x00d7c7, txt: 'REGEN',   tc: '#00d7c7', s: [550, TR, 0.14], b: 'regen', d: BUFF_REGEN_DUR, i: [2.4, 0.0046, 0.03, 0.0045, 0.19, 0.05, 0.08, 0.028, 0.16, 0.03, 0, 0.022, 0, 0.0046, 1.18, 110] },
   guard:    { col: 0x57c9ff, txt: 'SHIELD',  tc: '#9ce5ff', s: [490, SQ, 0.15], b: 'guard', d: BUFF_GUARD_DUR, i: [1.7, 0.0041, 0.024, 0.0048, 0.16, 0.04, 0.06, 0.02, 0.14, 0.02, 0, 0.022, 0, 0.0046, 1.18, 110] },
 };
-const BASE_KB_X = 240, BASE_KB_Y = 155;
-const KB_PERCENT_CAP = 190, KB_PERCENT_DIV = 172, KB_PERCENT_GAIN = 0.46;
+const BASE_KB_X = 246, BASE_KB_Y = 160;
+const KB_PERCENT_CAP = 999, KB_PERCENT_DIV = 120, KB_PERCENT_GAIN = 0.60;
 const DEATH_X = 80, DEATH_Y = 680;
 
 const C = {
@@ -1173,8 +1173,12 @@ class GameScene extends Phaser.Scene {
     const b = t.body.body;
     const kind = a.kind || 'basic', basic = kind === 'basic', dash = kind === 'dash';
     const ratio = t.stamina / t.staminaMax;
-    const pct  = 1 + Math.pow(Math.min(KB_PERCENT_CAP, t.percent) / KB_PERCENT_DIV, 1.16) * KB_PERCENT_GAIN;
-    const mul  = (1 + (1 - ratio) * 0.62) * pct;
+    const pctv = Math.min(KB_PERCENT_CAP, t.percent);
+    // Launch stays playable early, then ramps hard once percent enters KO ranges.
+    const pct  = 1 + Math.pow(pctv / KB_PERCENT_DIV, 1.10) * KB_PERCENT_GAIN
+      + Math.max(0, pctv - 60) * 0.0034
+      + Math.max(0, pctv - 140) * 0.0048;
+    const mul  = (1 + (1 - ratio) * 0.38) * pct;
     const pwr  = p.buffs.power > 0 ? 1.40 : 1;
     const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
       ? 1 + (1 - p.stamina / p.staminaMax) * 0.30 : 1;
