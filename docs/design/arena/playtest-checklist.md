@@ -13,7 +13,7 @@ This document owns:
 This document does not own:
 
 - the live stage spec in `docs/design/arena/main-stage.md`
-- actual playtest notes, which belong in `docs/playtests/`
+- actual playtest notes, which belong in `docs/project-state.md`
 
 ## Current Implementation
 Use this checklist against the live arena with its moving platforms, final-phase mutation, edge pressure, and ring-out rules.
@@ -52,6 +52,6 @@ Specific prompts:
 - Arena readability can be weakened by both geometry changes and purely visual changes.
 
 ## Safe Iteration Guidelines
-- Record actual findings in `docs/playtests/`, not in this file.
+- Record actual findings in `docs/project-state.md`, not in this file.
 - Keep this checklist evergreen and domain-specific.
 - If a repeated failure shows up in testing, promote it into `layout-rules.md` or `main-stage.md` as a live rule.

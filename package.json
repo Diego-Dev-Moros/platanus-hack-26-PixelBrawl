@@ -1,7 +1,7 @@
 {
   "name": "platanus-hack-26-arcade",
   "version": "1.0.0",
-  "description": "Phaser arcade game challenge starter kit",
+  "description": "Pixel Brawl local 1v1 Phaser 3 platform fighter",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3001",

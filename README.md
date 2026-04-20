@@ -38,10 +38,6 @@ This repository is structured around contest limits, not around a large-engine p
 - `docs/design/stamina/`: stamina and fatigue system notes.
 - `docs/design/ui/`: current HUD and front-end UI state.
 - `docs/design/visual/`: current overall visual direction.
-- `docs/tasks/`: milestone/task tracking.
-- `docs/playtests/`: playtest notes as they are added.
-- `docs/research/`: research notes as they are added.
-- `docs/revisions/`: revision logs as they are added.
 - `docs/snippets/`: reusable snippets and reference fragments as they are added.
 
 ## Development Guardrails
@@ -57,4 +53,3 @@ This repository is structured around contest limits, not around a large-engine p
 - Fix remaining text-encoding issues in non-gameplay scene labels and related docs-facing strings.
 - Keep front-end scene typography and spacing aligned with the current gameplay HUD.
 - Continue consolidating repeated helpers only when behavior stays identical and the size budget remains healthy.
-- Add playtest and revision notes to the existing `docs/` folders instead of scattering project state across ad hoc files.

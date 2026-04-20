@@ -148,7 +148,6 @@ function drawBg(scene, title) {
 function buildFighter(scene, x, y, ch, s) {
   const c = scene.add.container(x, y).setScale(s);
   const P = {
-    // CHARACTER REDESIGN
     pulse: [
       [ 0,-19,12,11,0xf0c49a],[ 0,-24,12, 2,0x111111],[ 0,-16, 5, 2,0x4b2417],
       [ 0, -5,17,21,0xffffff],[ 0, -2,11,14,0xfaf6eb],[ 0,  7,16, 2,0x00c3df],[ 0, 10,18, 3,0x1a1a1a],
@@ -718,7 +717,6 @@ class CreditsScene extends Phaser.Scene {
   }
 }
 
-// REDESIGN AUDIT
 class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
   init(data) { this.picks = data.picks || ['pulse', 'volt']; }
@@ -1364,7 +1362,6 @@ class GameScene extends Phaser.Scene {
     if (this.over) return;
     this.over = 1;
     const [p1,p2] = this.players;
-    // REGRESSION FIXES
     const w = p1.lives>p2.lives?p1 : p2.lives>p1.lives?p2 :
               p1.stamina>p2.stamina?p1 : p2.stamina>p1.stamina?p2 :
               p1.percent<p2.percent?p1 : p2.percent<p1.percent?p2 : null;
@@ -1516,7 +1513,6 @@ class GameScene extends Phaser.Scene {
     this.pickupBits(ox, oy, cfg.col, take[0], 18, take[1], 250, 8);
     this.pickupFlash(ox, oy, cfg.col);
     showPickupText(this, ox, oy, cfg.txt, cfg.tc);
-    this.pickupSoundHook(type, ox, oy);
     tone(this, snd[0], snd[1], 0.07, snd[2]);
     if (cfg.shake) this.cameras.main.shake(70, cfg.shake);
     applyPickupToPlayer(p, cfg);
@@ -1573,45 +1569,6 @@ class GameScene extends Phaser.Scene {
     fxGone(this, core, { scaleX: 1.45, scaleY: 1.45, alpha: 0, duration: 95 });
   }
 
-  pickupSoundHook(type, x, y) {
-    // Placeholder for dedicated pickup collection SFX.
-  }
-
-  /* refreshHudLegacy() {
-    const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
-    const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP OK';
-    const bufStr = p => { const b=[]; if(p.buffs.power>0)b.push('POW'); if(p.buffs.speed>0)b.push('SPD'); if(p.buffs.regen>0)b.push('REG'); if(p.buffs.guard>0)b.push('GRD'); return b.join(' '); };
-    const p1 = this.players[0], p2 = this.players[1];
-    const frame = this.hudFrame;
-    frame.clear();
-    frame.fillStyle(0x07121c, 0.60);
-    frame.fillRoundedRect(14, 10, 236, 72, 12);
-    frame.fillRoundedRect(W - 250, 10, 236, 72, 12);
-    frame.fillRoundedRect(W / 2 - 74, 10, 148, 34, 10);
-    frame.lineStyle(1, 0x295374, 0.72);
-    frame.strokeRoundedRect(14, 10, 236, 72, 12);
-    frame.strokeRoundedRect(W - 250, 10, 236, 72, 12);
-    frame.strokeRoundedRect(W / 2 - 74, 10, 148, 34, 10);
-    frame.fillStyle(0x0d2131, 0.68);
-    frame.fillRoundedRect(22, 53, 104, 10, 5);
-    frame.fillRoundedRect(W - 126, 53, 104, 10, 5);
-    const dB = (g, p, x) => {
-      g.clear();
-      const c = p._hud.seg >= 7 ? 0x3de8ff : p._hud.seg >= 4 ? 0xffcf45 : 0xff5261;
-      for (let i = 0; i < 10; i++) {
-        g.fillStyle(i < p._hud.seg ? c : 0x1a2a3a, i < p._hud.seg ? 1 : .35);
-        g.fillRect(x + i * 9, 54, 7, 8);
-      }
-    };
-    dB(this.hudBar1, p1, 24); dB(this.hudBar2, p2, W - 121);
-    this.hudP1.setText('P1 ' + p1.char.name + '  ' + dots(p1.lives));
-    this.hudP2.setText('P2 ' + p2.char.name + '  ' + dots(p2.lives));
-    this.hudPct1.setText(p1._hud.pct + '%').setColor(p1._hud.pct >= 150 ? '#ff6d78' : p1._hud.pct >= 80 ? '#ffd25a' : C.p1);
-    this.hudPct2.setText(p2._hud.pct + '%').setColor(p2._hud.pct >= 150 ? '#ff6d78' : p2._hud.pct >= 80 ? '#ffd25a' : C.p2);
-    this.hudS1.setText(cool(p1) + (p1.fatigue > 0 ? '  EXH' : '') + (bufStr(p1) ? '  ' + bufStr(p1) : ''));
-    this.hudS2.setText(cool(p2) + (p2.fatigue > 0 ? '  EXH' : '') + (bufStr(p2) ? '  ' + bufStr(p2) : ''));
-  } */
-
   refreshHud() {
     const dots = n => '●'.repeat(n) + '○'.repeat(LIVES - n);
     const cool = p => p.spCd > 0 ? 'SP ' + Math.ceil(p.spCd / 1000) : 'SP OK';
@@ -1641,7 +1598,6 @@ class EndScene extends Phaser.Scene {
     const col = this.winner === 1 ? C.p1 : C.p2;
     const ch = this.char;
     if (ch) {
-      // VICTORY CELEBRATION REDESIGN
       const fig = buildFighter(this, W / 2, 344, ch, 1.45);
       fig.setDepth(5);
       const ttl = addLabel(this, W / 2, 168, ch.name + ' WINS', 52, col, 'center').setOrigin(0.5).setAlpha(0);
