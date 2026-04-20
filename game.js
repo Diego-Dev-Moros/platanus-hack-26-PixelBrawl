@@ -540,7 +540,7 @@ class MenuScene extends Phaser.Scene {
   create() {
     bindKeys(this);
     this.sel = 0;
-    this.OPTS = ['SOLO', 'VS', 'CONTROLS', 'CREDITS', 'EXIT'];
+    this.OPTS = ['SOLO', 'VERSUS', 'CONTROLS', 'CREDITS', 'EXIT'];
     drawBg(this, 'PIXEL BRAWL');
     addLabelC(this, W / 2, 92, 'BRAWLER', 13, C.dim);
     buildFighter(this, W / 2 - 82, 202, CHARS[0], 1);
@@ -563,7 +563,7 @@ class MenuScene extends Phaser.Scene {
     tone(this, 420, SQ, 0.05, 0.07);
     const opt = this.OPTS[this.sel];
     if (opt === 'SOLO') this.scene.start('S', { mode: 'solo' });
-    else if (opt === 'VS') this.scene.start('S', { mode: 'vs' });
+    else if (opt === 'VERSUS') this.scene.start('S', { mode: 'vs' });
     else if (opt === 'CONTROLS') this.scene.start('C');
     else if (opt === 'CREDITS') this.scene.start('R');
     else return;
@@ -701,12 +701,12 @@ class CreditsScene extends Phaser.Scene {
     bindKeys(this);
     drawBg(this, 'CREDITS');
     const cx = W / 2, cy = H / 2;
-    addLabelC(this, cx, cy - 108, 'HACK 26', 22, C.text);
+    addLabelC(this, cx, cy - 108, 'PLATANUS HACK 26', 22, C.text);
     addLabelC(this, cx, cy -  72, 'BA',     18, C.dim);
     addLabelC(this, cx, cy -  42, 'ARCADE', 18, C.dim);
     addLabelC(this, cx, cy +  10, 'BY', 12, C.dim);
-    addLabelC(this, cx, cy +  50, 'ALEJANDRO BIARRIETA', 22, '#fff0aa');
-    addLabelC(this, cx, cy +  84, 'DIEGO MOROS',         22, '#fff0aa');
+    addLabelC(this, cx, cy +  50, 'DIEGO MOROS',         22, '#fff0aa');
+    addLabelC(this, cx, cy +  84, 'ALEJANDRO BIARRIETA', 22, '#fff0aa');
     addLabelC(this, cx, H - 30,   'PRESS ENTER', 13, C.dim);
   }
   update() {
