@@ -41,10 +41,6 @@ const STAGE_PLATS = [
   { x: 560, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: Math.PI,  vRange: 18, vSpeed: 0.7, vPhase: Math.PI },
   { x: 400, y: 270, w: 100, h: 18, type: 'top',  speed: 0.6, range: 28, phase: 0,        vRange: 14, vSpeed: 0.5, vPhase: 0 },
 ];
-const FINAL_PLATS = [
-  { x: 280, y: 470, w: 180, h: 28, type: 'side', speed: 1.2, range: 94, phase: 0,       vRange: 18, vSpeed: 0.9, vPhase: 0 },
-  { x: 520, y: 470, w: 180, h: 28, type: 'side', speed: 1.2, range: 94, phase: Math.PI, vRange: 18, vSpeed: 0.9, vPhase: Math.PI },
-];
 const BUFF_BADGES = {
   power: [[-2, -1, 5, 3], [0, -4, 3, 3]],
   speed: [[-3, 0, 6, 2], [-1, -4, 3, 4]],
@@ -528,8 +524,18 @@ function updatePlatforms(scene) {
   if (!plats || !plats.length) return;
   const t = scene.time.now * 0.001, sp = scene.platSpeedMul || 1, fy = scene.finalPhase;
   for (const p of plats) {
-    const nx = p.baseX + Math.sin(t * p.speed * sp + p.phase) * p.range;
-    const ny = p.baseY + (fy && p.vRange ? Math.sin(t * p.vSpeed + p.vPhase) * p.vRange : 0);
+    let nx, ny;
+    if (p.split) {
+      let q = fy ? 1 : Math.min(1, Math.max(0, (75000 - scene.matchTime) / 15000));
+      q = q * q * (3 - 2 * q);
+      const ft = fy ? t - (p.finalT || t) : 0, bx = p.finalX ?? p.targetX, by = p.finalY ?? p.baseY;
+      nx = fy ? bx + Math.sin(ft * p.speed * sp) * p.range * p.split : p.baseX + (p.targetX - p.baseX) * q;
+      ny = fy ? by + Math.sin(ft * p.vSpeed + p.vPhase) * p.vRange : p.baseY;
+    } else {
+      const ft = fy ? t - (p.finalT || t) : t, bx = fy ? (p.finalX ?? p.baseX) : p.baseX, by = fy ? (p.finalY ?? p.baseY) : p.baseY;
+      nx = bx + Math.sin(ft * p.speed * sp * (fy ? 1.28 : 1) + (fy ? 0 : p.phase)) * p.range * (fy ? 1.2 * (p.phase ? -1 : 1) : 1);
+      ny = by + (fy && p.vRange ? Math.sin(ft * p.vSpeed * 1.45 + p.vPhase) * p.vRange * 1.35 : 0);
+    }
     setStagePlatformPos(p, nx, ny);
   }
   scene.plats.refresh();
@@ -723,7 +729,7 @@ class GameScene extends Phaser.Scene {
 
   create() {
     bindKeys(this);
-    this.over = 0; this.matchTime = MATCH_TIME_MS; this.speedTimeBoost = 0; this.finalPhase = false; this.midPhase = false;
+    this.over = 0; this.matchTime = MATCH_TIME_MS; this.speedTimeBoost = 0; this.finalPhase = false; this.midPhase = false; this.stagePhase = 0;
     this.platSpeedMul = 1; this.moveSpeedMul = 1.06; this.atkCdMul = 0.95;
     this.ready = false;
     this.hudDirty = false;
@@ -880,6 +886,7 @@ class GameScene extends Phaser.Scene {
     if (this.over || !this.ready) return;
     this.matchTime -= dt;
     if (!this.midPhase && this.matchTime <= 120000) this.triggerMidPhase();
+    if (!this.stagePhase && this.matchTime <= 75000) this.triggerPreFinalSplit();
     if (!this.finalPhase && this.matchTime <= 60000) this.triggerFinalPhase();
     this.updatePace();
     if (this.matchTime <= 0) { this.endMatch(); return; }
@@ -1371,7 +1378,25 @@ class GameScene extends Phaser.Scene {
     tone(this, 740, SQ, 0.09, 0.16);
   }
 
+  triggerPreFinalSplit() {
+    this.stagePhase = 1;
+    const mp = this.mainPlat;
+    if (!mp) return;
+    let i = this.movingPlats.indexOf(mp); if (~i) this.movingPlats.splice(i, 1);
+    i = this.platData.indexOf(mp); if (~i) this.platData.splice(i, 1);
+    const cx = mp.hitbox.x, y = mp.hitbox.y, w = mp.halfW, h = mp.hitbox.height || 28;
+    mp.hitbox.destroy(); mp.visual.destroy(); this.mainPlat = 0;
+    this.splitPlats = [-1, 1].map(s => {
+      const p = addStagePlatform(this, { x: cx + s * w / 2, y, w, h, type: 'side', speed: 1.25, range: 42, phase: 0, vRange: 22, vSpeed: 1.05, vPhase: s < 0 ? 0 : Math.PI });
+      p.split = s; p.targetX = W / 2 + s * (w / 2 + 55);
+      return p;
+    });
+    this.plats.refresh();
+  }
+
   triggerFinalPhase() {
+    if (!this.stagePhase) this.triggerPreFinalSplit();
+    this.stagePhase = 2;
     this.finalPhase = true;
     drawHudFrame(this.hudFrame, true);
     const txt = this.add.text(W/2, H/2, 'FINAL MINUTE', {
@@ -1381,13 +1406,11 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.shake(132, 0.0078);
     tone(this, 880, SQ, 0.12, 0.28);
     this.time.delayedCall(300, ()=>tone(this, 660, SQ, 0.10, 0.28));
-    const mp = this.mainPlat;
-    if (mp) {
-      let i = this.movingPlats.indexOf(mp); if (~i) this.movingPlats.splice(i, 1);
-      i = this.platData.indexOf(mp); if (~i) this.platData.splice(i, 1);
-      mp.hitbox.body.enable = 0; mp.visual.visible = 0; this.mainPlat = 0;
+    const ft = this.time.now * 0.001;
+    for (const p of this.movingPlats) {
+      if (p.split) setStagePlatformPos(p, p.targetX, p.baseY);
+      p.finalX = p.hitbox.x; p.finalY = p.hitbox.y; p.finalT = ft;
     }
-    for (const d of FINAL_PLATS) addStagePlatform(this, d);
     this.plats.refresh();
   }
 
