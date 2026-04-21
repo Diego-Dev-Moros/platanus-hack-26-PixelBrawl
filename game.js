@@ -34,7 +34,7 @@ const CHARS = [
   { id: 'crush', name: 'CRUSH', color: 0xff3cac, accent: 0xff5a36, line: 'Slam', head: 0, sp: 2400, sd: 15 },
 ];
 
-const SPAWNS = [{ x: 320, y: 300 }, { x: 480, y: 300 }];
+const SPAWNS = [{ x: 320, y: 155 }, { x: 480, y: 155 }];
 const STAGE_PLATS = [
   { x: 400, y: 470, w: 420, h: 28, type: 'main', speed: 0,   range: 0,  phase: 0 },
   { x: 240, y: 352, w: 120, h: 20, type: 'side', speed: 0.8, range: 44, phase: 0,        vRange: 18, vSpeed: 0.7, vPhase: 0 },
@@ -532,8 +532,10 @@ function updatePlatforms(scene) {
       nx = fy ? bx + Math.sin(ft * p.speed * sp) * p.range * p.split : p.baseX + (p.targetX - p.baseX) * q;
       ny = fy ? by + Math.sin(ft * p.vSpeed + p.vPhase) * p.vRange : p.baseY;
     } else {
+      let slow = p === scene.mainPlat ? Math.min(1, Math.max(0, (scene.matchTime - 75000) / 10000)) : 1;
+      slow = slow * slow * (3 - 2 * slow);
       const ft = fy ? t - (p.finalT || t) : t, bx = fy ? (p.finalX ?? p.baseX) : p.baseX, by = fy ? (p.finalY ?? p.baseY) : p.baseY;
-      nx = bx + Math.sin(ft * p.speed * sp * (fy ? 1.28 : 1) + (fy ? 0 : p.phase)) * p.range * (fy ? 1.2 * (p.phase ? -1 : 1) : 1);
+      nx = bx + Math.sin(ft * p.speed * sp * (fy ? 1.28 : 1) + (fy ? 0 : p.phase)) * p.range * (fy ? 1.2 * (p.phase ? -1 : 1) : slow);
       ny = by + (fy && p.vRange ? Math.sin(ft * p.vSpeed * 1.45 + p.vPhase) * p.vRange * 1.35 : 0);
     }
     setStagePlatformPos(p, nx, ny);
@@ -852,15 +854,25 @@ class GameScene extends Phaser.Scene {
     ai.pause = down(ai.pause, dt);
     ai.jumpCd = down(ai.jumpCd, dt);
     ai.actCd = down(ai.actCd, dt);
-    const dx = foe.body.x - p.body.x, dy = foe.body.y - p.body.y, adx = Math.abs(dx);
+    const dx = foe.body.x - p.body.x, dy = foe.body.y - p.body.y, adx = Math.abs(dx), split = this.stagePhase;
     const edge = p.body.x < 112 || p.body.x > W - 112;
+    let safe = 0, gap = split && p.body.y > 330 && Math.abs(p.body.x - W / 2) < (this.finalPhase ? 104 : 74);
+    if (split) {
+      let bd = 9999;
+      for (const pl of this.platData) {
+        const d = Math.abs(pl.hitbox.x - p.body.x) + Math.abs(pl.hitbox.y - p.body.y) * 0.25;
+        if (d < bd) { bd = d; safe = pl.hitbox.x; }
+      }
+    }
     if (ai.think <= 0) {
       ai.think = 85 + Math.random() * 140;
       let dir = dx > 18 ? 1 : dx < -18 ? -1 : 0;
+      if (split && safe && Math.abs(p.body.x - safe) > 28) dir = safe > p.body.x ? 1 : -1;
+      if (gap) dir = p.body.x < W / 2 ? -1 : 1;
       if (edge) dir = p.body.x < W * 0.5 ? 1 : -1;
-      if (Math.random() < 0.12) { ai.pause = 90 + Math.random() * 140; dir = 0; }
+      if (!split && Math.random() < 0.12) { ai.pause = 90 + Math.random() * 140; dir = 0; }
       ai.dir = dir;
-      if (ai.jumpCd <= 0 && ((dy < -40 && Math.random() < 0.46) || (edge && grounded(bb) && Math.random() < 0.42))) {
+      if (ai.jumpCd <= 0 && ((dy < -40 && Math.random() < 0.46) || (grounded(bb) && (edge && Math.random() < 0.42 || split && (gap || Math.abs(p.body.x - safe) > 90))))) {
         this.cpuPress(k.up);
         ai.jumpCd = 260 + Math.random() * 200;
       }
