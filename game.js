@@ -19,8 +19,8 @@ const PICKUP_CFG = {
   regen:    { col: 0x00d7c7, txt: 'REGEN',   tc: '#00d7c7', s: [550, TR, 0.14], b: 'regen', d: BUFF_REGEN_DUR, i: [2.4, 0.0046, 0.03, 0.0045, 0.19, 0.05, 0.08, 0.028, 0.16, 0.03, 0, 0.022, 0, 0.0046, 1.18, 110] },
   guard:    { col: 0x57c9ff, txt: 'SHIELD',  tc: '#9ce5ff', s: [490, SQ, 0.15], b: 'guard', d: BUFF_GUARD_DUR, i: [1.7, 0.0041, 0.024, 0.0048, 0.16, 0.04, 0.06, 0.02, 0.14, 0.02, 0, 0.022, 0, 0.0046, 1.18, 110] },
 };
-const BASE_KB_X = 246, BASE_KB_Y = 160;
-const KB_PERCENT_CAP = 999, KB_PERCENT_DIV = 120, KB_PERCENT_GAIN = 0.60;
+const BASE_KB_X = 252, BASE_KB_Y = 166;
+const KB_PERCENT_CAP = 999, KB_PERCENT_DIV = 105, KB_PERCENT_GAIN = 0.72;
 const DEATH_X = 80, DEATH_Y = 680;
 
 const C = {
@@ -1194,10 +1194,10 @@ class GameScene extends Phaser.Scene {
     const ratio = t.stamina / t.staminaMax;
     const pctv = Math.min(KB_PERCENT_CAP, t.percent);
     // Launch stays playable early, then ramps hard once percent enters KO ranges.
-    const pct  = 1 + Math.pow(pctv / KB_PERCENT_DIV, 1.10) * KB_PERCENT_GAIN
-      + Math.max(0, pctv - 60) * 0.0034
-      + Math.max(0, pctv - 140) * 0.0048;
-    const mul  = (1 + (1 - ratio) * 0.38) * pct;
+    const pct  = 1 + Math.pow(pctv / KB_PERCENT_DIV, 1.12) * KB_PERCENT_GAIN
+      + Math.max(0, pctv - 60) * 0.0045
+      + Math.max(0, pctv - 140) * 0.0065;
+    const mul  = (1 + (1 - ratio) * 0.46) * pct;
     const pwr  = p.buffs.power > 0 ? 1.40 : 1;
     const rage  = p.stamina > 0 && p.stamina < p.staminaMax * 0.4 && p.fatigue <= 0
       ? 1 + (1 - p.stamina / p.staminaMax) * 0.30 : 1;
@@ -1216,7 +1216,7 @@ class GameScene extends Phaser.Scene {
     if (held[t.keys.right]) vx += 80;
     if (held[t.keys.up]) vy -= 35;
     t.lastHitTime = this.time.now;
-    const pg = basic ? 0.98 : dash ? 1.10 : 1.22;
+    const pg = basic ? 1.05 : dash ? 1.20 : 1.35;
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * guard);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
@@ -1230,7 +1230,9 @@ class GameScene extends Phaser.Scene {
     if (p.char.id === 'volt' && !grounded(t.body.body)) { vx *= 1.22; vy *= 1.22; }
     const impact = Math.max(0.65, mul * sweet * (basic ? 1 : dash ? 1.15 : 1.30));
     const heavy = impact > 1.95 || kind === 'crush' || kind === 'volt';
-    const killish = heavy && (t.percent > 160 || Math.abs(vx) > 560 || Math.abs(vy) > 380);
+    const ko = t.percent > 180 && (kind === 'crush' || kind === 'volt' || dash && sweet > 1 || basic && sweet > 1.1 && impact > 3.35);
+    if (ko) { vx *= 1.35; vy *= 1.28; t.stun = 260; t.jumps = 0; t.canAirDodge = false; t.canEdgeSnap = false; }
+    const killish = ko || heavy && (t.percent > 145 || Math.abs(vx) > 520 || Math.abs(vy) > 350);
     const baseBld = impact > 2.25 || kind === 'crush' ? 2 : impact > 1.45 || dash || sweet > 1.15 ? 1 : 0;
     const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy ? 1 : 0));
     b.setVelocity(vx, vy);
@@ -1239,13 +1241,16 @@ class GameScene extends Phaser.Scene {
     if (heavy) this.spark(t.body.x, t.body.y, 0xff3300, killish ? 8 : 5);
     this.spark(t.body.x, t.body.y - 8, p.char.accent, killish ? 9 : heavy || sweet > 1.1 ? 6 : chain > 3 ? 5 : chain > 1 ? 4 : 3);
     if (bloodLv) this.bloodImpact(t.body.x, t.body.y - 8, bloodLv, killish, dir);
-    if (heavy) this.ring(t.body.x, t.body.y + 14, 9, killish ? 3.6 : 2.6, 0xc59a63, 130);
+    if (heavy) this.ring(t.body.x, t.body.y + 14, 9, ko ? 5.4 : killish ? 3.6 : 2.6, 0xc59a63, 130);
+    if (ko) { this.flash(W / 2, H / 2, W, H, 0xfff0c8, 70); showPickupText(this, t.body.x, t.body.y - 24, 'SMASH!', '#fff0aa'); }
     this.flash(t.body.x, t.body.y - 6, killish ? 56 : heavy ? 42 : 24, killish ? 34 : 24, p.char.accent, killish ? 135 : 90);
     if (chain > 1) showPickupText(this, t.body.x, t.body.y - 8, chain + ' HIT', '#fe7');
-    this.cameras.main.shake(killish ? 96 : heavy ? 78 : dash ? 56 : 26, killish ? 0.0100 : heavy ? 0.0070 : dash ? 0.0046 : 0.0018);
+    this.cameras.main.shake(ko ? 150 : killish ? 96 : heavy ? 78 : dash ? 56 : 26, ko ? 0.014 : killish ? 0.0100 : heavy ? 0.0070 : dash ? 0.0046 : 0.0018);
     // Hit freeze — every hit type gets a freeze, strength-scaled, anti-stacking handled by hitFreeze()
-    this.hitFreeze(killish ? 58 : heavy ? 50 : dash ? 36 : 20);
-    if (killish) {
+    this.hitFreeze(ko ? 82 : killish ? 58 : heavy ? 50 : dash ? 36 : 20);
+    if (ko) {
+      tone(this, 55, 'sawtooth', 0.16, 0.20);
+    } else if (killish) {
       tone(this, 88, 'sawtooth', 0.13, 0.16);
     } else if (kind === 'dash') {
       tone(this, 182, 'sawtooth', 0.09, 0.10);
