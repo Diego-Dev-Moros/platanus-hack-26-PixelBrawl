@@ -19,8 +19,8 @@ const PICKUP_CFG = {
   regen:    { col: 0x00d7c7, txt: 'REGEN',   tc: '#00d7c7', s: [550, TR, 0.14], b: 'regen', d: BUFF_REGEN_DUR, i: [2.4, 0.0046, 0.03, 0.0045, 0.19, 0.05, 0.08, 0.028, 0.16, 0.03, 0, 0.022, 0, 0.0046, 1.18, 110] },
   guard:    { col: 0x57c9ff, txt: 'SHIELD',  tc: '#9ce5ff', s: [490, SQ, 0.15], b: 'guard', d: BUFF_GUARD_DUR, i: [1.7, 0.0041, 0.024, 0.0048, 0.16, 0.04, 0.06, 0.02, 0.14, 0.02, 0, 0.022, 0, 0.0046, 1.18, 110] },
 };
-const BASE_KB_X = 252, BASE_KB_Y = 166;
-const KB_PERCENT_CAP = 999, KB_PERCENT_DIV = 105, KB_PERCENT_GAIN = 0.72;
+const BASE_KB_X = 262, BASE_KB_Y = 160;
+const KB_PERCENT_CAP = 999, KB_PERCENT_DIV = 98, KB_PERCENT_GAIN = 0.80;
 const DEATH_X = 80, DEATH_Y = 680;
 
 const C = {
@@ -1210,11 +1210,16 @@ class GameScene extends Phaser.Scene {
     const comboKb = chain >= 4 ? 1.12 : chain === 3 ? 1.07 : chain === 2 ? 1.03 : 1;
     let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * guard * comboKb;
     let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * guard * comboKb;
-    if (dash) vy = -95 * mul * pwr * sweet * rage * guard;
+    const xg = 1 + Math.max(0, pctv - 60) * 0.0007 + Math.max(0, pctv - 140) * 0.0011 + Math.max(0, pctv - 260) * 0.0015 + Math.max(0, pctv - 350) * 0.0017;
+    const yg = 1 + Math.max(0, pctv - 80) * 0.00045 + Math.max(0, pctv - 170) * 0.0008 + Math.max(0, pctv - 300) * 0.0012;
+    vx *= xg; vy *= yg;
+    if (dash) vy = -92 * mul * pwr * sweet * rage * guard * yg;
+    const rvx = vx, rvy = vy;
+    const di = Math.max(0.22, 1 - Math.max(0, pctv - 140) * 0.0022);
     const held = this.ctrl.held;
-    if (held[t.keys.left]) vx -= 80;
-    if (held[t.keys.right]) vx += 80;
-    if (held[t.keys.up]) vy -= 35;
+    if (held[t.keys.left]) vx -= 80 * di;
+    if (held[t.keys.right]) vx += 80 * di;
+    if (held[t.keys.up]) vy -= 35 * di;
     t.lastHitTime = this.time.now;
     const pg = basic ? 1.05 : dash ? 1.20 : 1.35;
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
@@ -1230,9 +1235,17 @@ class GameScene extends Phaser.Scene {
     if (p.char.id === 'volt' && !grounded(t.body.body)) { vx *= 1.22; vy *= 1.22; }
     const impact = Math.max(0.65, mul * sweet * (basic ? 1 : dash ? 1.15 : 1.30));
     const heavy = impact > 1.95 || kind === 'crush' || kind === 'volt';
-    const ko = t.percent > 180 && (kind === 'crush' || kind === 'volt' || dash && sweet > 1 || basic && sweet > 1.1 && impact > 3.35);
-    if (ko) { vx *= 1.35; vy *= 1.28; t.stun = 260; t.jumps = 0; t.canAirDodge = false; t.canEdgeSnap = false; }
-    const killish = ko || heavy && (t.percent > 145 || Math.abs(vx) > 520 || Math.abs(vy) > 350);
+    const edge = Math.max(0, Math.abs(t.body.x - W / 2) - 170) / 210, outward = dir * (t.body.x - W / 2) > 0;
+    if (outward && pctv > 120) vx *= 1 + Math.min(0.35, edge * 0.35 + Math.max(0, pctv - 220) * 0.0006);
+    const strongKo = kind === 'crush' || kind === 'volt' || dash && sweet > 1 || basic && sweet > 1.1 && impact > 3.2;
+    const ko = pctv > (outward ? 165 : 185) && strongKo && (impact > 2.3 - Math.min(0.22, edge * 0.22) || Math.abs(vx) > 560 || Math.abs(vy) > 400);
+    if (ko) {
+      vx = rvx + (vx - rvx) * 0.12; vy = rvy + (vy - rvy) * 0.12;
+      if ((a.fx || 1) >= (a.fy || 0.75)) { vx *= 1.68 * (outward ? 1.1 : 1); vy *= 1.12; }
+      else { vx *= 1.42 * (outward ? 1.08 : 1); vy *= 1.28; }
+      t.stun = 300; t.jumps = 0; t.canAirDodge = false; t.canEdgeSnap = false;
+    }
+    const killish = ko || heavy && (pctv > 130 || Math.abs(vx) > 470 || Math.abs(vy) > 320);
     const baseBld = impact > 2.25 || kind === 'crush' ? 2 : impact > 1.45 || dash || sweet > 1.15 ? 1 : 0;
     const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy ? 1 : 0));
     b.setVelocity(vx, vy);
