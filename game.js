@@ -1399,7 +1399,7 @@ class GameScene extends Phaser.Scene {
     const cx = mp.hitbox.x, y = mp.hitbox.y, w = mp.halfW, h = mp.hitbox.height || 28;
     mp.hitbox.destroy(); mp.visual.destroy(); this.mainPlat = 0;
     this.splitPlats = [-1, 1].map(s => {
-      const p = addStagePlatform(this, { x: cx + s * w / 2, y, w, h, type: 'side', speed: 1.25, range: 42, phase: 0, vRange: 22, vSpeed: 1.05, vPhase: s < 0 ? 0 : Math.PI });
+      const p = addStagePlatform(this, { x: cx + s * w / 2, y, w, h, type: 'main', speed: 1.25, range: 42, phase: 0, vRange: 22, vSpeed: 1.05, vPhase: s < 0 ? 0 : Math.PI });
       p.split = s; p.targetX = W / 2 + s * (w / 2 + 55);
       return p;
     });
