@@ -808,6 +808,7 @@ class GameScene extends Phaser.Scene {
       idx, char: ch, body, visual, overlay, aura,
       lives: LIVES, alive: 1, face, jumps: 2,
       stamina: 100, staminaMax: 100, percent: 0, invuln: 0, fatigue: 0, stun: 0,
+      slowT: 0, slowMul: 1,
       atkCd: 0, dashCd: 0, spCd: 0, dashT: 0, atk: null, atkChain: 0, atkChainT: 0, atkQueue: 0, slam: 0,
       lastHitTime: 0, buffs: { power: 0, speed: 0, regen: 0, guard: 0 }, _auraType: null, recovering: false,
       canAirDodge: true, canEdgeSnap: true, comboHits: 0, comboT: 0, _recoilT: 0, _atkPoseT: 0,
@@ -1017,6 +1018,8 @@ class GameScene extends Phaser.Scene {
     p._recoilT = down(p._recoilT, dt);
     p._atkPoseT = down(p._atkPoseT, dt);
     p.fatigue = down(p.fatigue, dt);
+    p.slowT = down(p.slowT, dt);
+    if (!p.slowT) p.slowMul = 1;
     if (p.stun > 0 || p.fatigue > 0) resetAtkFlow(p);
     if (wasExh && !p.fatigue) this.finishFatigue(p);
     if (p.fatigue <= 0 && p.stamina < p.staminaMax) {
@@ -1033,6 +1036,13 @@ class GameScene extends Phaser.Scene {
     p.recovering = true;
     this.time.delayedCall(220, () => { p.recovering = false; });
     tone(this, 500, TR, 0.06, 0.18);
+  }
+
+  applySlow(p, ms, mul) {
+    if (!p || ms <= 0) return;
+    if (p.slowT > 0) p.slowMul = Math.min(p.slowMul || 1, mul);
+    else p.slowMul = mul;
+    p.slowT = Math.max(p.slowT || 0, ms);
   }
 
   updateHudState(p) {
@@ -1057,7 +1067,7 @@ class GameScene extends Phaser.Scene {
     const left = held[k.left], right = held[k.right];
     const dir = right ? 1 : left ? -1 : 0;
     const boost = 1 + this.speedTimeBoost * (gr ? 1 : 0.55);
-    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * this.moveSpeedMul * boost;
+    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * this.moveSpeedMul * boost * (p.slowT > 0 ? p.slowMul : 1);
     if (dir) p.face = dir;
     b.setVelocityX(dir * spd);
     if (this.ctrl.pressed[k.up] && p.jumps > 0) {
@@ -1081,7 +1091,7 @@ class GameScene extends Phaser.Scene {
 
   handleAltAction(p, b, moving) {
     if (!grounded(b) && p.canAirDodge && moving) return this.doAirDodge(p, b);
-    if (moving && p.dashCd <= 0) return this.doDash(p);
+    if (moving && p.dashCd <= 0 && p.slowT <= 0) return this.doDash(p);
     if (p.spCd <= 0) return this.doSpecial(p);
     if (p.dashCd <= 0) this.doDash(p);
   }
@@ -1217,7 +1227,10 @@ class GameScene extends Phaser.Scene {
     const pg = basic ? 1.05 : dash ? 1.20 : 1.35;
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * guard);
-    if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
+    if (t.stamina <= 0) {
+      t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0;
+      this.applySlow(t, FATIGUE_MS + 260, 0.58);
+    }
     resetAtkFlow(t);
     if (chain === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
     else if (chain === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
@@ -1248,6 +1261,7 @@ class GameScene extends Phaser.Scene {
       t.stun = 300; t.jumps = 0; t.canAirDodge = false; t.canEdgeSnap = false;
     }
     const killish = ko || heavy && (pctv > 130 || Math.abs(vx) > 470 || Math.abs(vy) > 320);
+    if (heavy) this.applySlow(t, 360, 0.72);
     const baseBld = impact > 2.25 || kind === 'crush' ? 2 : impact > 1.45 || dash || sweet > 1.15 ? 1 : 0;
     const bloodLv = Math.min(2, baseBld + (t.percent > 130 && heavy ? 1 : 0));
     b.setVelocity(vx, vy);
@@ -1323,6 +1337,8 @@ class GameScene extends Phaser.Scene {
     p.percent = 0;
     p.invuln = INVULN_MS;
     p.fatigue = 0;
+    p.slowT = 0;
+    p.slowMul = 1;
     p.stun = 0;
     p.atk = null;
     resetAtkFlow(p);
