@@ -68,7 +68,7 @@ const CABINET_KEYS = {
   START1: ['Enter'], START2: ['2'],
 };
 const NAV_UP_KEYS = ['P1_U', 'P2_U'], NAV_DOWN_KEYS = ['P1_D', 'P2_D'];
-const P1_ATK = 'P1_4', P1_ALT = 'P1_5', P2_ATK = 'P2_4', P2_ALT = 'P2_5';
+const P1_ATK = 'P1_5', P1_ALT = 'P1_6', P2_ATK = 'P2_5', P2_ALT = 'P2_6';
 const START_KEYS = ['START1', 'START2'], MENU_CONFIRM_KEYS = ['START1', 'START2', P1_ATK, P2_ATK];
 const BACK_KEYS = ['START1', 'START2', 'P1_1', 'P2_1'];
 const PLAYER_KEYS = [
@@ -610,7 +610,7 @@ class CharacterSelectScene extends Phaser.Scene {
     }
     this.status = addLabelC(this, W / 2, H - 68, '', 16, C.text);
     this.cpuLabel = this.mode === 'solo' ? addLabelC(this, W / 2, H - 92, 'CPU: RANDOM', 12, C.dim) : null;
-    addLabelC(this, W / 2, H - 42, this.mode === 'solo' ? 'P1 A/D+J' : 'P1 A/D+J · P2 ARROWS+F', 11, C.dim);
+    addLabelC(this, W / 2, H - 42, this.mode === 'solo' ? 'P1 A/D+K' : 'P1 A/D+K · P2 ARROWS+G', 11, C.dim);
     this.refresh();
   }
   update() {
@@ -689,13 +689,13 @@ class ControlsScene extends Phaser.Scene {
     drawBg(this, 'CONTROLS');
     const cx = W / 2;
     addLabelC(this, cx - 200, 148, 'PLAYER 1', 20, C.p1);
-    [['A / D', 'MOVE'], ['W', 'JUMP x2'], ['J', 'ATTACK'], ['K', 'DASH/SPECIAL']].forEach(([k, v], i) => {
+    [['A / D', 'MOVE'], ['W', 'JUMP x2'], ['K', 'ATTACK'], ['L', 'DASH/SPECIAL']].forEach(([k, v], i) => {
       addLabel(this, cx - 296, 194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
       addLabel(this, cx - 196, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
     });
     this.add.graphics().lineStyle(1, C.grid, 0.5).lineBetween(cx, 138, cx, 360);
     addLabelC(this, cx + 200, 148, 'PLAYER 2', 20, C.p2);
-    [['← / →', 'MOVE'], ['↑', 'JUMP x2'], ['F', 'ATTACK'], ['G', 'DASH/SPECIAL']].forEach(([k, v], i) => {
+    [['← / →', 'MOVE'], ['↑', 'JUMP x2'], ['G', 'ATTACK'], ['H', 'DASH/SPECIAL']].forEach(([k, v], i) => {
       addLabel(this, cx + 40,  194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
       addLabel(this, cx + 140, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
     });
