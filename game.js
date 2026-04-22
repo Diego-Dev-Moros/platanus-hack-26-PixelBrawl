@@ -549,8 +549,7 @@ class MenuScene extends Phaser.Scene {
     this.sel = 0;
     this.OPTS = ['SOLO', 'VERSUS', 'CONTROLS', 'CREDITS', 'EXIT'];
     drawBg(this, 'PIXEL BRAWL');
-    addLabelC(this, W / 2, 92, 'BRAWLER', 13, C.dim);
-    addLabelC(this, W / 2, 116, 'DERRIBA A TU OPONENTE Y QUEDA EN PIE AL FINAL', 12, C.dim);
+    addLabelC(this, W / 2, 102, 'DERRIBA A TU OPONENTE Y QUEDA EN PIE AL FINAL', 14, C.dim);
     buildFighter(this, W / 2 - 82, 202, CHARS[0], 1);
     buildFighter(this, W / 2,      194, CHARS[1], 1.1);
     buildFighter(this, W / 2 + 82, 202, CHARS[2], 1);
@@ -558,7 +557,7 @@ class MenuScene extends Phaser.Scene {
       addLabelC(this, W / 2, 312 + i * 48, t, 26, C.dim)
     );
     this.cursor = addLabelC(this, W / 2 - 156, 312, '▶', 28, C.text);
-    addLabelC(this, W / 2, H - 28, 'W/S · ENTER', 12, C.dim);
+    addLabelC(this, W / 2, H - 42, 'W/S · ENTER', 12, C.dim);
     this.refresh();
   }
   update() {
