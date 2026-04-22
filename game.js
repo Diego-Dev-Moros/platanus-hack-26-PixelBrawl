@@ -1691,8 +1691,8 @@ class EndScene extends Phaser.Scene {
       this.tweens.add({ targets: fig, y: 308, duration: 320, ease: 'Back.Out' });
       this.tweens.add({ targets: fig, y: 300, duration: 520, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: 360 });
       this.tweens.add({ targets: fig, angle: 6, duration: 260, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: 360 });
-      addLabelC(this, W / 2, 168, ch.name + ' WINS', 52, col);
-      addLabelC(this, W / 2, 214, 'CHAMPION', 15, C.dim);
+      addLabelC(this, W / 2, 168, 'P' + this.winner + ' WINS', 52, col);
+      addLabelC(this, W / 2, 214, ch.name, 15, C.dim);
       this.cameras.main.shake(140, 0.0056);
     } else {
       addLabelC(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col);
