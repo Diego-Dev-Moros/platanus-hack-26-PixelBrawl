@@ -1241,14 +1241,15 @@ class GameScene extends Phaser.Scene {
     const heavy = impact > 1.95 || kind === 'crush' || kind === 'volt';
     if (heavy && (fx >= fy * 0.9 || dash || kind === 'crush')) {
       vx *= 1.24 + (dash ? 0.08 : 0) + (sweet > 1.1 ? 0.06 : 0);
-      vy *= 0.70;
+      vy *= 0.66;
+      if (pctv > 200) vy = Math.max(vy, -Math.abs(vx) * (pctv > 420 ? 0.10 : pctv > 300 ? 0.14 : 0.20));
     }
     const edge = Math.max(0, Math.abs(t.body.x - W / 2) - 170) / 210, outward = dir * (t.body.x - W / 2) > 0;
     if (outward && pctv > 120) vx *= 1 + Math.min(0.35, edge * 0.35 + Math.max(0, pctv - 220) * 0.0006);
     const strongKo = kind === 'crush' || kind === 'volt' || dash && sweet > 1 || basic && sweet > 1.1 && impact > 3.2;
     const ko = pctv > (outward ? 165 : 185) && strongKo && (impact > 2.3 - Math.min(0.22, edge * 0.22) || Math.abs(vx) > 560 || Math.abs(vy) > 400);
     if (ko) {
-      if (fx >= fy) { vx *= 2.05 * (outward ? 1.14 : 1); vy *= 0.45; }
+      if (fx >= fy) { vx *= 2.12 * (outward ? 1.16 : 1); vy *= 0.34; vy = Math.max(vy, -Math.abs(vx) * (pctv > 420 ? 0.07 : 0.10)); }
       else { vx *= 1.42 * (outward ? 1.08 : 1); vy *= 1.28; }
       t.stun = 300; t.jumps = 0; t.canAirDodge = false; t.canEdgeSnap = false;
     }
