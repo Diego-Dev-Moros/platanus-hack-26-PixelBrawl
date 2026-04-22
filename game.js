@@ -219,6 +219,8 @@ function makeAttack(kind, spec, dir, dmg) {
   return { kind, t: spec[0], hit: 0, w: spec[1], h: spec[2], ox: dir * spec[3], oy: spec[4], dmg: dmg ?? spec[5], fx: spec[6], fy: spec[7] };
 }
 
+function resetAtkFlow(p){ p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0; }
+
 function playNote(ctx, freq, type, startTime, dur, vol) {
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.connect(g); g.connect(ctx.destination);
@@ -1014,7 +1016,7 @@ class GameScene extends Phaser.Scene {
     p._recoilT = down(p._recoilT, dt);
     p._atkPoseT = down(p._atkPoseT, dt);
     p.fatigue = down(p.fatigue, dt);
-    if (p.stun > 0 || p.fatigue > 0) { p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0; }
+    if (p.stun > 0 || p.fatigue > 0) resetAtkFlow(p);
     if (wasExh && !p.fatigue) this.finishFatigue(p);
     if (p.fatigue <= 0 && p.stamina < p.staminaMax) {
       if (p.buffs.regen > 0)
@@ -1100,22 +1102,13 @@ class GameScene extends Phaser.Scene {
   }
 
   doDash(p) {
-    const b = p.body.body, id = p.char.id, m = MOVESET[id], dir = p.face || (p.idx ? -1 : 1);
+    const b = p.body.body, m = MOVESET[p.char.id], dir = p.face || (p.idx ? -1 : 1);
     const dashBoost = 1 + this.speedTimeBoost * 0.55;
-    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
+    resetAtkFlow(p);
     // Per-character dash cooldown
     p.dashCd = m.dc * (this.atkCdMul || 1);
     p.dashT = m.dt;
-    if (id === 'pulse') {
-      // Flying kick: long forward reach, moderate launch, upward angle
-      this.setAttack(p, 'dash', m.d, dir);
-    } else if (id === 'volt') {
-      // Cross punch: tight, high horizontal force, minimal vertical — ground pressure
-      this.setAttack(p, 'dash', m.d, dir);
-    } else {
-      // Charging body press: widest hitbox, highest damage, pure horizontal push
-      this.setAttack(p, 'dash', m.d, dir);
-    }
+    this.setAttack(p, 'dash', m.d, dir);
     b.setVelocityX(dir * (p.buffs.speed > 0 ? 600 : 500) * (this.finalPhase ? 1.15 : 1) * dashBoost);
     this.flash(p.body.x, p.body.y, 44, 20, p.char.color, 110);
     tone(this, 90, SW, 0.06, 0.14);
@@ -1123,7 +1116,7 @@ class GameScene extends Phaser.Scene {
 
   doAirDodge(p, b) {
     const dir = this.ctrl.held[p.keys.left] ? -1 : 1;
-    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
+    resetAtkFlow(p);
     p.canAirDodge = false;
     p.invuln = Math.max(p.invuln, 160);
     p.dashCd = DASH_CD * 0.7 * (this.atkCdMul || 1);
@@ -1134,7 +1127,7 @@ class GameScene extends Phaser.Scene {
 
   doSpecial(p) {
     const m = MOVESET[p.char.id];
-    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
+    resetAtkFlow(p);
     p.spCd = p.char.sp * (this.atkCdMul || 1);
     if (m.sp) {
       this.setAttack(p, m.sk, m.sp, p.face, p.char.sd);
@@ -1224,7 +1217,7 @@ class GameScene extends Phaser.Scene {
     t.percent = Math.min(999, t.percent + a.dmg * pg * sweet * (pwr > 1 ? 1.08 : 1));
     t.stamina = Math.max(0, t.stamina - a.dmg * pwr * sweet * rage * guard);
     if (t.stamina <= 0) { t.fatigue = FATIGUE_MS; t.atk = null; t.slam = 0; }
-    t.atkChain = 0; t.atkChainT = 0; t.atkQueue = 0;
+    resetAtkFlow(t);
     if (chain === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
     else if (chain === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
     t.stun = (basic ? 110 : dash ? 130 : 150)
@@ -1285,7 +1278,7 @@ class GameScene extends Phaser.Scene {
     p.alive = 0;
     p.lives--;
     p.atk = null;
-    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
+    resetAtkFlow(p);
     p.slam = 0;
     clearBuffs(p.buffs);
     p._auraType = null; p._recoilT = 0; p._atkPoseT = 0;
@@ -1331,7 +1324,7 @@ class GameScene extends Phaser.Scene {
     p.fatigue = 0;
     p.stun = 0;
     p.atk = null;
-    p.atkChain = 0; p.atkChainT = 0; p.atkQueue = 0;
+    resetAtkFlow(p);
     p.slam = 0;
     p.lastHitTime = 0;
     clearBuffs(p.buffs);
@@ -1685,17 +1678,16 @@ class EndScene extends Phaser.Scene {
     for (let y = 0; y <= H; y += 40) g.lineBetween(0, y, W, y);
     const col = this.winner === 1 ? C.p1 : C.p2;
     const ch = this.char;
+    const wy = ch ? 168 : 220;
+    addLabelC(this, W / 2, wy, 'P' + this.winner + ' WINS', 52, col);
     if (ch) {
       const fig = buildFighter(this, W / 2, 344, ch, 1.45);
       fig.setDepth(5);
       this.tweens.add({ targets: fig, y: 308, duration: 320, ease: 'Back.Out' });
       this.tweens.add({ targets: fig, y: 300, duration: 520, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: 360 });
       this.tweens.add({ targets: fig, angle: 6, duration: 260, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: 360 });
-      addLabelC(this, W / 2, 168, 'P' + this.winner + ' WINS', 52, col);
       addLabelC(this, W / 2, 214, ch.name, 15, C.dim);
       this.cameras.main.shake(140, 0.0056);
-    } else {
-      addLabelC(this, W / 2, 220, 'P' + this.winner + ' WINS', 52, col);
     }
     addLabelC(this, W / 2, 400, 'PRESS START', 14, C.dim);
     tone(this, 660, SQ, 0.08, 0.2);
