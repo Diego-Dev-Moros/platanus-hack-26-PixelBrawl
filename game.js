@@ -68,11 +68,12 @@ const CABINET_KEYS = {
   START1: ['Enter'], START2: ['2'],
 };
 const NAV_UP_KEYS = ['P1_U', 'P2_U'], NAV_DOWN_KEYS = ['P1_D', 'P2_D'];
-const START_KEYS = ['START1', 'START2'], MENU_CONFIRM_KEYS = ['START1', 'START2', 'P2_4', 'P1_5'];
+const P1_ATK = 'P1_4', P1_ALT = 'P1_5', P2_ATK = 'P2_4', P2_ALT = 'P2_5';
+const START_KEYS = ['START1', 'START2'], MENU_CONFIRM_KEYS = ['START1', 'START2', P1_ATK, P2_ATK];
 const BACK_KEYS = ['START1', 'START2', 'P1_1', 'P2_1'];
 const PLAYER_KEYS = [
-  { left: 'P1_L', right: 'P1_R', up: 'P1_U', attack: 'P2_4', alt: 'P2_5' },
-  { left: 'P2_L', right: 'P2_R', up: 'P2_U', attack: 'P1_5', alt: 'P1_6' },
+  { left: 'P1_L', right: 'P1_R', up: 'P1_U', attack: P1_ATK, alt: P1_ALT },
+  { left: 'P2_L', right: 'P2_R', up: 'P2_U', attack: P2_ATK, alt: P2_ALT },
 ];
 
 function nk(k) { return k === ' ' ? 'space' : k.length === 1 ? k.toLowerCase() : k; }
@@ -609,7 +610,7 @@ class CharacterSelectScene extends Phaser.Scene {
     }
     this.status = addLabelC(this, W / 2, H - 68, '', 16, C.text);
     this.cpuLabel = this.mode === 'solo' ? addLabelC(this, W / 2, H - 92, 'CPU: RANDOM', 12, C.dim) : null;
-    addLabelC(this, W / 2, H - 42, this.mode === 'solo' ? 'P1 A/D+F' : 'P1 A/D+F · P2 ARROWS+K', 11, C.dim);
+    addLabelC(this, W / 2, H - 42, this.mode === 'solo' ? 'P1 A/D+J' : 'P1 A/D+J · P2 ARROWS+F', 11, C.dim);
     this.refresh();
   }
   update() {
@@ -617,7 +618,7 @@ class CharacterSelectScene extends Phaser.Scene {
       if (!this.lock[0]) {
         if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
         if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
-        if (this.ctrl.pressed.P2_4) {
+        if (this.ctrl.pressed[P1_ATK]) {
           this.lock[0] = 1;
           this.lock[1] = 1;
           const pool = [0, 1, 2].filter(i => i !== this.sel[0]);
@@ -638,12 +639,12 @@ class CharacterSelectScene extends Phaser.Scene {
     if (!this.lock[0]) {
       if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
       if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
-      if (this.ctrl.pressed.P2_4) { this.lock[0] = 1; tone(this, 480, SQ, 0.06, 0.08); }
+      if (this.ctrl.pressed[P1_ATK]) { this.lock[0] = 1; tone(this, 480, SQ, 0.06, 0.08); }
     }
     if (!this.lock[1]) {
       if (this.ctrl.pressed.P2_L) this.sel[1] = (this.sel[1] + 2) % 3;
       if (this.ctrl.pressed.P2_R) this.sel[1] = (this.sel[1] + 1) % 3;
-      if (this.ctrl.pressed.P1_5) { this.lock[1] = 1; tone(this, 620, SQ, 0.06, 0.08); }
+      if (this.ctrl.pressed[P2_ATK]) { this.lock[1] = 1; tone(this, 620, SQ, 0.06, 0.08); }
     }
     if (this.lock[0] && this.lock[1] && anyOf(this, START_KEYS)) {
       tone(this, 700, SQ, 0.06, 0.1);
@@ -688,13 +689,13 @@ class ControlsScene extends Phaser.Scene {
     drawBg(this, 'CONTROLS');
     const cx = W / 2;
     addLabelC(this, cx - 200, 148, 'PLAYER 1', 20, C.p1);
-    [['A / D', 'MOVE'], ['W', 'JUMP x2'], ['F', 'ATTACK'], ['G', 'DASH/SPECIAL']].forEach(([k, v], i) => {
+    [['A / D', 'MOVE'], ['W', 'JUMP x2'], ['J', 'ATTACK'], ['K', 'DASH/SPECIAL']].forEach(([k, v], i) => {
       addLabel(this, cx - 296, 194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
       addLabel(this, cx - 196, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
     });
     this.add.graphics().lineStyle(1, C.grid, 0.5).lineBetween(cx, 138, cx, 360);
     addLabelC(this, cx + 200, 148, 'PLAYER 2', 20, C.p2);
-    [['← / →', 'MOVE'], ['↑', 'JUMP x2'], ['K', 'ATTACK'], ['L', 'DASH/SPECIAL']].forEach(([k, v], i) => {
+    [['← / →', 'MOVE'], ['↑', 'JUMP x2'], ['F', 'ATTACK'], ['G', 'DASH/SPECIAL']].forEach(([k, v], i) => {
       addLabel(this, cx + 40,  194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
       addLabel(this, cx + 140, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
     });
