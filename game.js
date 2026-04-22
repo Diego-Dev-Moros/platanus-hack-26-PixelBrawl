@@ -10,6 +10,7 @@ const SPEED_TIME_BOOST_RATE = 0.00000145, SPEED_TIME_BOOST_MAX = 0.34, SPEED_TIM
 
 const BUFF_KEYS = ['power', 'speed', 'regen', 'guard'];
 const AURA_KEYS = ['guard', 'power', 'speed', 'regen'];
+const PICKUP_TWEEN_KEYS = ['o', 's', 'g', 'h', 'r'];
 const PICKUP_SPAWN = [4, 22, 1.7, 190], PICKUP_TAKE = [6, 46];
 const PICKUP_IDLE = [2.8, 0.0055, 0.035, 0.0062, 0.21, 0.06, 0.09, 0.03, 0.18, 0.04, 0, 0.022, 0, 0.0046, 1.18, 110];
 const PICKUP_CFG = {
@@ -86,12 +87,7 @@ function tone(scene, f, type, vol, dur) {
   try {
     const ctx = scene.sound.context;
     if (!ctx) return;
-    const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
-    o.connect(g); g.connect(ctx.destination);
-    o.type = type; o.frequency.value = f;
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.start(t); o.stop(t + dur + 0.01);
+    playNote(ctx, f, type, ctx.currentTime, dur, vol);
   } catch (_) {}
 }
 
@@ -554,6 +550,7 @@ class MenuScene extends Phaser.Scene {
     this.OPTS = ['SOLO', 'VERSUS', 'CONTROLS', 'CREDITS', 'EXIT'];
     drawBg(this, 'PIXEL BRAWL');
     addLabelC(this, W / 2, 92, 'BRAWLER', 13, C.dim);
+    addLabelC(this, W / 2, 116, 'DERRIBA A TU OPONENTE Y QUEDA EN PIE AL FINAL', 12, C.dim);
     buildFighter(this, W / 2 - 82, 202, CHARS[0], 1);
     buildFighter(this, W / 2,      194, CHARS[1], 1.1);
     buildFighter(this, W / 2 + 82, 202, CHARS[2], 1);
@@ -610,14 +607,19 @@ class CharacterSelectScene extends Phaser.Scene {
     }
     this.status = addLabelC(this, W / 2, H - 68, '', 16, C.text);
     this.cpuLabel = this.mode === 'solo' ? addLabelC(this, W / 2, H - 92, 'CPU: RANDOM', 12, C.dim) : null;
+    addLabelC(this, W / 2, 74, this.mode === 'solo' ? 'PRESIONA K PARA SELECCIONAR' : 'P1 PRESIONA K · P2 PRESIONA G', 13, C.dim);
     addLabelC(this, W / 2, H - 42, this.mode === 'solo' ? 'P1 A/D+K' : 'P1 A/D+K · P2 ARROWS+G', 11, C.dim);
     this.refresh();
+  }
+  stepSel(i, left, right) {
+    const p = this.ctrl.pressed;
+    if (p[left]) this.sel[i] = (this.sel[i] + 2) % 3;
+    if (p[right]) this.sel[i] = (this.sel[i] + 1) % 3;
   }
   update() {
     if (this.mode === 'solo') {
       if (!this.lock[0]) {
-        if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
-        if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
+        this.stepSel(0, 'P1_L', 'P1_R');
         if (this.ctrl.pressed[P1_ATK]) {
           this.lock[0] = 1;
           this.lock[1] = 1;
@@ -637,13 +639,11 @@ class CharacterSelectScene extends Phaser.Scene {
       return;
     }
     if (!this.lock[0]) {
-      if (this.ctrl.pressed.P1_L) this.sel[0] = (this.sel[0] + 2) % 3;
-      if (this.ctrl.pressed.P1_R) this.sel[0] = (this.sel[0] + 1) % 3;
+      this.stepSel(0, 'P1_L', 'P1_R');
       if (this.ctrl.pressed[P1_ATK]) { this.lock[0] = 1; tone(this, 480, SQ, 0.06, 0.08); }
     }
     if (!this.lock[1]) {
-      if (this.ctrl.pressed.P2_L) this.sel[1] = (this.sel[1] + 2) % 3;
-      if (this.ctrl.pressed.P2_R) this.sel[1] = (this.sel[1] + 1) % 3;
+      this.stepSel(1, 'P2_L', 'P2_R');
       if (this.ctrl.pressed[P2_ATK]) { this.lock[1] = 1; tone(this, 620, SQ, 0.06, 0.08); }
     }
     if (this.lock[0] && this.lock[1] && anyOf(this, START_KEYS)) {
@@ -996,10 +996,9 @@ class GameScene extends Phaser.Scene {
 
   updateOverlay(p) {
     const no = p.fatigue > 0 ? 0.5 : 0;
-    const nc = 0xff4400;
-    if (no !== p._lastOvAlpha || nc !== p._lastOvColor) {
-      p.overlay.setFillStyle(nc).setAlpha(no);
-      p._lastOvAlpha = no; p._lastOvColor = nc;
+    if (no !== p._lastOvAlpha || p._lastOvColor !== 0xff4400) {
+      p.overlay.setFillStyle(0xff4400).setAlpha(no);
+      p._lastOvAlpha = no; p._lastOvColor = 0xff4400;
     }
   }
 
@@ -1067,7 +1066,7 @@ class GameScene extends Phaser.Scene {
     const left = held[k.left], right = held[k.right];
     const dir = right ? 1 : left ? -1 : 0;
     const boost = 1 + this.speedTimeBoost * (gr ? 1 : 0.55);
-    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * this.moveSpeedMul * boost * (p.slowT > 0 ? p.slowMul : 1);
+    const spd = SPEED * (p.buffs.speed > 0 ? 1.35 : 1) * this.moveSpeedMul * boost * p.slowMul;
     if (dir) p.face = dir;
     b.setVelocityX(dir * spd);
     if (this.ctrl.pressed[k.up] && p.jumps > 0) {
@@ -1233,7 +1232,7 @@ class GameScene extends Phaser.Scene {
     }
     resetAtkFlow(t);
     if (chain === 3) { p.stamina = Math.min(p.staminaMax, p.stamina + 7); this.hudDirty = true; }
-    else if (chain === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, 'square', 0.06, 0.10); }
+    else if (chain === 5) { this.flash(p.body.x, p.body.y, 52, 52, p.char.color, 200); tone(this, 660, SQ, 0.06, 0.10); }
     t.stun = (basic ? 110 : dash ? 130 : 150)
       * Math.max(0.60, 1 - (chain - 1) * 0.10);
     if (this.finalPhase) { vx *= 1.18; vy *= 1.18; }
@@ -1278,13 +1277,13 @@ class GameScene extends Phaser.Scene {
     // Hit freeze — every hit type gets a freeze, strength-scaled, anti-stacking handled by hitFreeze()
     this.hitFreeze(ko ? 82 : killish ? 58 : heavy ? 50 : dash ? 36 : 20);
     if (ko) {
-      tone(this, 55, 'sawtooth', 0.16, 0.20);
+      tone(this, 55, SW, 0.16, 0.20);
     } else if (killish) {
-      tone(this, 88, 'sawtooth', 0.13, 0.16);
+      tone(this, 88, SW, 0.13, 0.16);
     } else if (kind === 'dash') {
-      tone(this, 182, 'sawtooth', 0.09, 0.10);
+      tone(this, 182, SW, 0.09, 0.10);
     } else {
-      tone(this, heavy ? 240 : sweet > 1.1 ? 320 : 276, 'square', heavy ? 0.09 : 0.07, heavy ? 0.10 : 0.07);
+      tone(this, heavy ? 240 : sweet > 1.1 ? 320 : 276, SQ, heavy ? 0.09 : 0.07, heavy ? 0.10 : 0.07);
     }
   }
 
@@ -1353,16 +1352,10 @@ class GameScene extends Phaser.Scene {
     p.body.body.reset(s.x, s.y);
     p.visual.setVisible(true).setAlpha(1).setAngle(0).setPosition(s.x, s.y);
     p.overlay.setVisible(true).setAlpha(0).setPosition(s.x, s.y);
-    this.syncHead(p);
+    p.visual.setScale(p.face < 0 ? -1 : 1, 1);
     this.hudDirty = true;
     burst(this, s.x, s.y, p.char.accent, 5);
     tone(this, 520, TR, 0.08, 0.12);
-  }
-
-  syncHead(p) {
-    p.visual.setPosition(p.body.x, p.body.y).setAngle(0);
-    p.visual.setScale(p.face < 0 ? -1 : 1, 1);
-    p.overlay.setPosition(p.body.x, p.body.y);
   }
 
   animatePlayer(p, b, now) {
@@ -1538,6 +1531,14 @@ class GameScene extends Phaser.Scene {
     this.pickupTimer = 7000 + Math.random() * 3000;
   }
 
+  clearPickupSlot(p, destroyObj) {
+    this.stopPickupTweens(p);
+    const o = p && p.o;
+    if (destroyObj && o && o.active) o.destroy();
+    this.pickup = null;
+    this.scheduleNextPickup();
+  }
+
   updatePickup(dt) {
     if (!this.pickup) {
       if ((this.pickupTimer -= dt) <= 0) this.spawnPickup();
@@ -1545,10 +1546,7 @@ class GameScene extends Phaser.Scene {
     }
     const p = this.pickup;
     if (!p.p || !p.p.hitbox || !p.o || !p.o.active) {
-      this.stopPickupTweens(p);
-      if (p.o && p.o.active) p.o.destroy();
-      this.pickup = null;
-      this.scheduleNextPickup();
+      this.clearPickupSlot(p, true);
       return;
     }
     const nx = p.p.hitbox.x + p.ox, ny = p.p.hitbox.y - 22, now = this.time.now, i = p.i;
@@ -1563,12 +1561,7 @@ class GameScene extends Phaser.Scene {
     if (p.g && p.g.active) p.g.setAlpha(i[4] + glowBeat * i[5]).setScale(1.02 + glowBeat * 0.08);
     if (p.h && p.h.active) p.h.setAlpha(i[6] + glowBeat * i[7]).setScale(1.08 + glowBeat * 0.12);
     if (p.r && p.r.active) p.r.setAlpha(i[8] + ringBeat * i[9]).setScale(0.98 + ringBeat * 0.06);
-    if ((p.l -= dt) <= 0) {
-      this.stopPickupTweens(p);
-      if (p.o && p.o.active) p.o.destroy();
-      this.pickup = null;
-      this.scheduleNextPickup();
-    }
+    if ((p.l -= dt) <= 0) this.clearPickupSlot(p, true);
   }
 
   spawnPickup() {
@@ -1604,10 +1597,8 @@ class GameScene extends Phaser.Scene {
     if (dx * dx + dy * dy > 24 * 24) return;
     const pk = this.pickup, { t, x, y, o } = pk;
     const ox = x + pk.vx, oy = y + pk.vy;
-    this.stopPickupTweens(pk);
+    this.clearPickupSlot(pk, false);
     if (o && o.active) o.setPosition(ox, oy);
-    this.pickup = null;
-    this.scheduleNextPickup();
     const cfg = PICKUP_CFG[t];
     const take = cfg.t || PICKUP_TAKE, snd = cfg.s;
     if (o && o.active)
@@ -1633,11 +1624,7 @@ class GameScene extends Phaser.Scene {
 
   stopPickupTweens(p) {
     if (!p) return;
-    if (p.o) this.tweens.killTweensOf(p.o);
-    if (p.s) this.tweens.killTweensOf(p.s);
-    if (p.g) this.tweens.killTweensOf(p.g);
-    if (p.h) this.tweens.killTweensOf(p.h);
-    if (p.r) this.tweens.killTweensOf(p.r);
+    for (const k of PICKUP_TWEEN_KEYS) if (p[k]) this.tweens.killTweensOf(p[k]);
   }
 
   startPickupSpawnTween(p, peak, popDur) {
