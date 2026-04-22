@@ -23,14 +23,15 @@ This document does not own:
 - Each player starts with `3` lives and respawns automatically after ring-out until their lives are exhausted.
 - The live round includes movement, combat, pickups, moving platforms, stamina/percent pressure, and HUD updates.
 - Match time starts at `180000 ms`.
-- Final phase triggers when the timer reaches `60000 ms` or lower.
-- Final phase increases stage pressure by mutating the platform layout and increasing platform and movement multipliers.
+- At `120000 ms`, a stage-shift beat starts and center-platform motion activates.
+- At `75000 ms`, pre-final split begins and the center platform separates into two halves.
+- Final phase triggers at `60000 ms`; split is locked in and motion/pacing multipliers escalate.
 - A match ends when one player reaches `0` lives or when the timer expires.
 - Timeout resolves by lives, then stamina, then lower percent. If all three are tied, the game returns to the menu as a draw.
 
 ## Design Intent
 - Keep rounds short, readable, and decisive.
-- Let the last minute feel more dangerous without switching to a second arena.
+- Let the last `75s` feel increasingly dangerous without switching to a second arena.
 - Maintain an arcade rhythm: quick start, active mid-match, strong finish, fast reset into the next round.
 
 ## Rules / Constraints
@@ -46,7 +47,7 @@ This document does not own:
 - KO/respawn timing is handled with delayed callbacks inside `GameScene`.
 
 ## Known Issues
-- Final phase currently touches timer, HUD, stage, and movement/platform speed in one transition.
+- Stage pacing now spans multiple timer beats (`120s`, `75s`, `60s`), so timer and stage regression risk are coupled.
 - KO / respawn flow resets many player fields together, so omissions are easy to introduce.
 - The match loop is stable, but it is sensitive because most runtime systems meet in `GameScene`.
 

@@ -42,7 +42,7 @@ This document does not own:
 ### Scene Responsibilities
 - `BootScene`: minimal entry scene, immediately starts the menu.
 - `MenuScene`: title hub for play, controls, credits, and exit placeholder.
-- `CharacterSelectScene`: two-player lock-in scene with independent cursor movement and mirror-pick support.
+- `CharacterSelectScene`: lock-in scene; `vs` uses two-player independent cursors, `solo` auto-selects CPU after P1 lock.
 - `ControlsScene`: static control explanation and return path.
 - `CreditsScene`: static credits and return path.
 - `GameScene`: live gameplay, HUD, stage, pickups, music, timer, final phase, KO/respawn, and winner resolution.
@@ -61,7 +61,9 @@ This document does not own:
 
 ## Technical Notes
 - Every live scene binds the shared input layer and flushes one-frame input state in `update()`.
-- `CharacterSelectScene` starts `GameScene` only after both players are locked and confirm with start.
+- `CharacterSelectScene` has two entry behaviors:
+  - `solo`: starts match after P1 lock, then auto-selects CPU fighter.
+  - `vs`: starts match after both players lock and then confirm with start.
 - `GameScene` can return to `MenuScene` either through draw resolution or post-match start input.
 
 ## Known Issues

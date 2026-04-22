@@ -14,7 +14,7 @@ Current scene responsibilities:
 
 - `BootScene`: immediate handoff to `MenuScene`
 - `MenuScene`: front-door navigation
-- `CharacterSelectScene`: two-player lock-in flow
+- `CharacterSelectScene`: lock-in flow (`vs` two-player, `solo` with CPU auto-select)
 - `ControlsScene`: input reference screen
 - `CreditsScene`: credits screen
 - `GameScene`: match runtime, HUD, combat, pickups, FX, audio loop, match resolution

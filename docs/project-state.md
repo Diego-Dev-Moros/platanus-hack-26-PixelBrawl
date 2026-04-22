@@ -13,21 +13,23 @@ Current experience target:
 ## 2. Current Playable Loop
 1. `BootScene` starts and immediately hands control to `MenuScene`.
 2. `MenuScene` allows `PLAY`, `CONTROLS`, `CREDITS`, and `EXIT` selection.
-3. `CharacterSelectScene` lets both players choose from the current roster and lock in.
+3. `CharacterSelectScene` handles lock-in: in `vs` both players choose, in `solo` P1 locks and CPU is auto-selected from the remaining roster.
 4. `GameScene` starts with a countdown and then enables gravity / match control.
 5. Players move, jump, fight, shield, use specials, collect pickups, and contest moving platforms.
 6. KO happens by ring-out. The defeated player loses one life and respawns after a delay with temporary invulnerability, unless they are out of lives.
-7. At `60s`, final phase triggers: the stage layout mutates and movement/platform speed multipliers increase.
-8. The match ends when one player runs out of lives or when the timer expires.
-9. Timeout resolution compares lives, then stamina, then lower percent.
-10. If timeout produces a winner, `EndScene` is shown. If it is still tied, the game returns to `MenuScene`.
+7. At `120s`, a stage-shift beat starts and the center platform joins movement.
+8. At `75s`, pre-final split begins and the center platform transitions into two separating halves.
+9. At `60s`, final phase starts: split is locked in and movement/platform pacing increases.
+10. The match ends when one player runs out of lives or when the timer expires.
+11. Timeout resolution compares lives, then stamina, then lower percent.
+12. If timeout produces a winner, `EndScene` is shown. If it is still tied, the game returns to `MenuScene`.
 
 ## 3. Current Implemented Systems
 
 ### Scenes
 - `BootScene`: immediate handoff into the main menu.
 - `MenuScene`: front door for play flow and secondary screens.
-- `CharacterSelectScene`: two-player lock-in flow for the current roster.
+- `CharacterSelectScene`: lock-in flow for `vs` and `solo` (with CPU auto-select in solo).
 - `ControlsScene`: input explanation screen.
 - `CreditsScene`: project/team credits.
 - `GameScene`: all match logic, HUD, pickups, stage motion, combat, KO, respawn, and timeout handling.
@@ -44,6 +46,7 @@ Current experience target:
 - Percent system tracked separately from stamina and used for knockback escalation.
 - Respawn flow resets match-critical state such as percent, buffs, active attacks, and invulnerability timing.
 - Input is normalized through cabinet codes rather than raw key names inside gameplay logic.
+- Live keyboard mapping shown in front-end UI: P1 `A/D/W` + `K/L`, P2 arrows + `G/H`; lock uses attack and start uses `Enter` / `2`.
 
 ### Combat Systems
 - Basic attack, dash attack, and one special per character.
@@ -93,9 +96,11 @@ Current experience target:
 - The match uses one main arena plus moving side/top platforms.
 - Platform layout is defined by shared stage config data.
 - Moving platforms animate from stored base positions rather than ad hoc per-object logic.
-- Final phase removes the main platform from active play and adds two lower moving platforms.
+- Stage shift at `120s` activates center-platform motion.
+- Pre-final split at `75s` replaces the center platform with two half platforms and eases them outward through `60s`.
+- Final phase at `60s` keeps the split geometry and escalates deterministic motion on split and upper platforms.
 - Edge snap logic exists and depends on cached platform geometry.
-- Platform motion is horizontal by default, with final-phase vertical motion on the added lower platforms.
+- Platform visuals and collisions stay in sync through shared position updates.
 
 ### Procedural Visuals
 - No external textures, spritesheets, or images are used for gameplay presentation.

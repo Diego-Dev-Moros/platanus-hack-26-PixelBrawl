@@ -32,13 +32,16 @@ This document does not own:
 - fatigue duration baseline: `1000 ms`
 - fatigue recovery burst: `35 stamina`
 - pickup spawn window: `7000-10000 ms`
+- stage-shift trigger: `120000 ms` remaining
+- pre-final split trigger: `75000 ms` remaining
+- final-phase trigger: `60000 ms` remaining
 
 ### Shared Knockback References
-- base horizontal knockback: `240`
-- base vertical knockback: `155`
-- percent cap reference: `190`
-- percent divisor reference: `172`
-- percent gain reference: `0.46`
+- base horizontal knockback: `262`
+- base vertical knockback: `160`
+- percent cap reference: `999`
+- percent divisor reference: `98`
+- percent gain reference: `0.80`
 
 ### Live Buff Durations
 - power: `10000 ms`

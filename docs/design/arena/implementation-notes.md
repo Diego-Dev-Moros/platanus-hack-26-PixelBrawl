@@ -9,7 +9,7 @@ This document owns:
 - platform runtime data model
 - stage construction pattern
 - moving-platform update model
-- final-phase mutation implementation notes
+- staged transition implementation notes
 
 This document does not own:
 
@@ -28,7 +28,10 @@ This document does not own:
   - optional vertical motion data
   - cached geometry for edge-snap logic
 - Moving platforms are tracked separately from the full platform list.
-- Final phase mutates the existing platform set instead of loading a second arena.
+- Stage transition state is phase-based (`0` normal, `1` pre-final split, `2` final phase).
+- `triggerPreFinalSplit()` removes the old center platform and spawns two split halves with shared visual family and split metadata.
+- `updatePlatforms(...)` handles split and non-split branches; split separation from `75s` to `60s` is smoothstep-interpolated.
+- `triggerFinalPhase()` locks split progress, snapshots final positions, and escalates deterministic motion.
 
 ## Design Intent
 - Keep stage logic data-driven and compact.
@@ -38,16 +41,17 @@ This document does not own:
 ## Rules / Constraints
 - Hitbox position and visual position must stay in sync.
 - Static groups must be refreshed after creation or mutation.
-- Final-phase mutation should remain a single coordinated transition, not a chain of unrelated edits.
+- Transition flow should remain coordinated (`normal -> preFinalSplit -> finalPhase`), not a chain of unrelated edits.
 
 ## Technical Notes
 - `addStagePlatform(...)`, `setStagePlatformPos(...)`, and `updatePlatforms(...)` are the core helpers.
+- `triggerPreFinalSplit()` and `triggerFinalPhase()` own stage-phase transitions.
 - Platform visuals are built from containers, not tilemaps or external assets.
 - Edge snap depends on cached `halfW` and `snapTop` values attached to platform runtime data.
 
 ## Known Issues
 - Arena code is one of the larger non-combat systems in `game.js`.
-- Final-phase mutation is compact but sensitive because it affects both geometry and motion.
+- Stage transition flow is compact but sensitive because it affects timer checks, geometry, and motion together.
 
 ## Safe Iteration Guidelines
 - If platform behavior changes, retest collision, landing consistency, edge snap, and final phase together.

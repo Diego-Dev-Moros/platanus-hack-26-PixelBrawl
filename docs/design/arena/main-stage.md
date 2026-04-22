@@ -1,14 +1,14 @@
 # Main Arena
 
 ## Overview
-This document defines the live playable stage: layout, motion, final-phase mutation, and the gameplay space it creates.
+This document defines the live playable stage: layout, motion, staged transition flow, and the gameplay space it creates.
 
 ## Scope
 This document owns:
 
 - the current platform layout
 - current platform motion
-- final-phase stage mutation
+- staged stage transition behavior
 - gameplay space created by the live arena
 
 This document does not own:
@@ -25,15 +25,17 @@ This document does not own:
   - right: `(560, 352)` size `120 x 20`
   - top: `(400, 270)` size `100 x 18`
 - Side and top platforms move during the round.
-- Normal motion is horizontal oscillation.
-- Side and top platforms also use vertical oscillation data during the final phase.
-- Final phase removes the original main platform from active play.
-- Final phase adds two lower moving side platforms at `(280, 470)` and `(520, 470)` with size `180 x 28`.
+- Normal motion is horizontal oscillation for moving platforms.
+- At `120s`, a stage-shift beat activates center-platform motion.
+- At `75s`, pre-final split replaces the center platform with two half-width center platforms.
+- From `75s` to `60s`, those two halves separate smoothly outward while staying on the same Y plane.
+- At `60s`, final phase starts with split already established; split halves and upper platforms switch to stronger deterministic horizontal+vertical motion.
+- Final phase does not add extra platform count; it escalates motion on the existing runtime set.
 
 ## Design Intent
 - Keep the stage readable on one screen.
 - Support platform-fighter resets, vertical contests, and edge pressure.
-- Use the final minute to increase chaos without needing a second stage.
+- Use a staged escalation (`120s`, `75s`, `60s`) to raise pressure without loading a second stage.
 
 ## Rules / Constraints
 - The stage must preserve left/right fairness.

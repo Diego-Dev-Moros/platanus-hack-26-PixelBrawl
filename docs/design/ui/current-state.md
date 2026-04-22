@@ -42,6 +42,11 @@ Current gameplay information priority:
 - controls screen
 - credits screen
 - winner/end screen
+- controls legend is aligned to live input:
+  - P1: `A / D` move, `W` jump, `K` attack, `L` dash/special
+  - P2: arrows move, `UP` jump, `G` attack, `H` dash/special
+- character select lock hint mirrors those bindings (`P1 A/D+K` and `P2 ARROWS+G`)
+- winner screen resolves by slot label (`P1 WINS` / `P2 WINS`) to avoid mirror-pick ambiguity
 
 ## Design Intent
 - Keep the gameplay HUD immediately readable during fast exchanges.

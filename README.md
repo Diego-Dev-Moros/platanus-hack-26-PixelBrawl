@@ -9,8 +9,9 @@ This repository is structured around contest limits, not around a large-engine p
 ## Current Implemented Feature Set
 - Boot, menu, controls, credits, character select, gameplay, and end scenes
 - Local cabinet-style input mapping through `CABINET_KEYS`
+- Live keyboard layout aligned by side: P1 uses `A/D/W` + `K/L`, P2 uses arrows + `G/H`, start uses `Enter` / `2`
 - Three playable fighters: `PULSE`, `VOLT`, and `CRUSH`
-- Match countdown, centered timer, final phase at `60s`, stock-based win condition, and timeout resolution
+- Match countdown, centered timer, staged arena pacing (`2:00` shift, `1:15` split transition, `1:00` final phase), stock-based win condition, and timeout resolution
 - Movement, gravity, platform collision, jump, double jump, shield, and air dodge
 - Basic attacks, dash attacks, character specials, knockback, ring-outs, and respawn invulnerability
 - Percent-based knockback pressure plus stamina, fatigue, shield drain, and regeneration
