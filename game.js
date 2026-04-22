@@ -1211,7 +1211,7 @@ class GameScene extends Phaser.Scene {
     let vx = dir * BASE_KB_X * (a.fx || 1) * mul * pwr * sweet * rage * guard * comboKb;
     let vy = -BASE_KB_Y * (a.fy || 0.75)  * mul * pwr * sweet * rage * guard * comboKb;
     const xg = 1 + Math.max(0, pctv - 60) * 0.0007 + Math.max(0, pctv - 140) * 0.0011 + Math.max(0, pctv - 260) * 0.0015 + Math.max(0, pctv - 350) * 0.0017;
-    const yg = 1 + Math.max(0, pctv - 80) * 0.00045 + Math.max(0, pctv - 170) * 0.0008 + Math.max(0, pctv - 300) * 0.0012;
+    const yg = 1 + Math.max(0, pctv - 80) * 0.00035 + Math.max(0, pctv - 170) * 0.0006 + Math.max(0, pctv - 300) * 0.0010;
     vx *= xg; vy *= yg;
     if (dash) vy = -92 * mul * pwr * sweet * rage * guard * yg;
     const di = Math.max(0.22, 1 - Math.max(0, pctv - 140) * 0.0022);
@@ -1234,17 +1234,21 @@ class GameScene extends Phaser.Scene {
     if (p.char.id === 'volt' && !grounded(t.body.body)) { vx *= 1.22; vy *= 1.22; }
     const fx = a.fx || 1, fy = a.fy || 0.75, hr = fx / (fy + 0.01);
     if (hr > 1.02) {
-      const hb = Math.min(0.52, (hr - 1) * 0.48 + (dash ? 0.16 : 0) + (sweet > 1.1 ? 0.10 : 0));
-      vx *= 1 + hb; vy *= 1 - hb * 0.60;
+      const hb = Math.min(0.56, (hr - 1) * 0.52 + (dash ? 0.20 : 0) + (sweet > 1.1 ? 0.12 : 0));
+      vx *= 1 + hb; vy *= 1 - hb * 0.78;
     }
     const impact = Math.max(0.65, mul * sweet * (basic ? 1 : dash ? 1.15 : 1.30));
     const heavy = impact > 1.95 || kind === 'crush' || kind === 'volt';
+    if (heavy && (fx >= fy * 0.9 || dash || kind === 'crush')) {
+      vx *= 1.24 + (dash ? 0.08 : 0) + (sweet > 1.1 ? 0.06 : 0);
+      vy *= 0.70;
+    }
     const edge = Math.max(0, Math.abs(t.body.x - W / 2) - 170) / 210, outward = dir * (t.body.x - W / 2) > 0;
     if (outward && pctv > 120) vx *= 1 + Math.min(0.35, edge * 0.35 + Math.max(0, pctv - 220) * 0.0006);
     const strongKo = kind === 'crush' || kind === 'volt' || dash && sweet > 1 || basic && sweet > 1.1 && impact > 3.2;
     const ko = pctv > (outward ? 165 : 185) && strongKo && (impact > 2.3 - Math.min(0.22, edge * 0.22) || Math.abs(vx) > 560 || Math.abs(vy) > 400);
     if (ko) {
-      if (fx >= fy) { vx *= 1.88 * (outward ? 1.12 : 1); vy *= 0.62; }
+      if (fx >= fy) { vx *= 2.05 * (outward ? 1.14 : 1); vy *= 0.45; }
       else { vx *= 1.42 * (outward ? 1.08 : 1); vy *= 1.28; }
       t.stun = 300; t.jumps = 0; t.canAirDodge = false; t.canEdgeSnap = false;
     }
