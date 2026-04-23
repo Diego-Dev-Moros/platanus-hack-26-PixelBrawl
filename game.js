@@ -69,9 +69,9 @@ const CABINET_KEYS = {
   START1: ['Enter'], START2: ['2'],
 };
 const NAV_UP_KEYS = ['P1_U', 'P2_U'], NAV_DOWN_KEYS = ['P1_D', 'P2_D'];
-const P1_ATK = 'P1_5', P1_ALT = 'P1_6', P2_ATK = 'P2_5', P2_ALT = 'P2_6';
+const P1_ATK = 'P1_1', P1_ALT = 'P1_2', P2_ATK = 'P2_1', P2_ALT = 'P2_2';
 const START_KEYS = ['START1', 'START2'], MENU_CONFIRM_KEYS = ['START1', 'START2', P1_ATK, P2_ATK];
-const BACK_KEYS = ['START1', 'START2', 'P1_1', 'P2_1'];
+const BACK_KEYS = START_KEYS;
 const PLAYER_KEYS = [
   { left: 'P1_L', right: 'P1_R', up: 'P1_U', attack: P1_ATK, alt: P1_ALT },
   { left: 'P2_L', right: 'P2_R', up: 'P2_U', attack: P2_ATK, alt: P2_ALT },
@@ -606,8 +606,8 @@ class CharacterSelectScene extends Phaser.Scene {
     }
     this.status = addLabelC(this, W / 2, H - 68, '', 16, C.text);
     this.cpuLabel = this.mode === 'solo' ? addLabelC(this, W / 2, H - 92, 'CPU: RANDOM', 12, C.dim) : null;
-    addLabelC(this, W / 2, 74, this.mode === 'solo' ? 'PRESIONA K PARA SELECCIONAR' : 'P1 PRESIONA K · P2 PRESIONA G', 13, C.dim);
-    addLabelC(this, W / 2, H - 42, this.mode === 'solo' ? 'P1 A/D+K' : 'P1 A/D+K · P2 ARROWS+G', 11, C.dim);
+    addLabelC(this, W / 2, 74, this.mode === 'solo' ? 'PRESIONA U (B1) PARA SELECCIONAR' : 'P1 PRESIONA U (B1) · P2 PRESIONA R (B1)', 13, C.dim);
+    addLabelC(this, W / 2, H - 42, this.mode === 'solo' ? 'P1 A/D+U (B1)' : 'P1 A/D+U (B1) · P2 ARROWS+R (B1)', 11, C.dim);
     this.refresh();
   }
   stepSel(i, left, right) {
@@ -688,13 +688,13 @@ class ControlsScene extends Phaser.Scene {
     drawBg(this, 'CONTROLS');
     const cx = W / 2;
     addLabelC(this, cx - 200, 148, 'PLAYER 1', 20, C.p1);
-    [['A / D', 'MOVE'], ['W', 'JUMP x2'], ['K', 'ATTACK'], ['L', 'DASH/SPECIAL']].forEach(([k, v], i) => {
+    [['A / D', 'MOVE'], ['W', 'JUMP x2'], ['U (B1)', 'ATTACK'], ['I (B2)', 'DASH/SPECIAL']].forEach(([k, v], i) => {
       addLabel(this, cx - 296, 194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
       addLabel(this, cx - 196, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
     });
     this.add.graphics().lineStyle(1, C.grid, 0.5).lineBetween(cx, 138, cx, 360);
     addLabelC(this, cx + 200, 148, 'PLAYER 2', 20, C.p2);
-    [['← / →', 'MOVE'], ['↑', 'JUMP x2'], ['G', 'ATTACK'], ['H', 'DASH/SPECIAL']].forEach(([k, v], i) => {
+    [['← / →', 'MOVE'], ['↑', 'JUMP x2'], ['R (B1)', 'ATTACK'], ['T (B2)', 'DASH/SPECIAL']].forEach(([k, v], i) => {
       addLabel(this, cx + 40,  194 + i * 40, k, 16, '#fff0aa').setOrigin(0, 0.5);
       addLabel(this, cx + 140, 194 + i * 40, v, 14, C.text).setOrigin(0, 0.5);
     });
